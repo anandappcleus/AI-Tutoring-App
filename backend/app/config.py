@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     # ── Vector DB ────────────────────────────────────────────────────
     VECTOR_DB: str = "chroma"  # "chroma" | "pinecone"
+    CHROMA_PERSIST_DIR: str = "chroma_db"  # relative to backend/ working dir
 
     # ── Database ─────────────────────────────────────────────────────
     DATABASE_URL: str
