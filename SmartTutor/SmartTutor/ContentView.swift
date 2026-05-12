@@ -2,32 +2,75 @@
 //  ContentView.swift
 //  SmartTutor
 //
-//  Created by Pandey, Anand Kumar on 12/05/26.
+//  Sprint 1 — Root navigation shell.
+//  Tab views are stubs replaced in Sprint 5 (Study) and Sprint 6 (Progress/Settings).
 //
 
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
     var body: some View {
-        NavigationViewWrapper {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-#if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-#endif
-            .toolbar {
+        TabView {
+            StudyPlaceholderView()
+                .tabItem { Label("Study", systemImage: "brain") }
+
+            ProgressPlaceholderView()
+                .tabItem { Label("Progress", systemImage: "chart.bar.xaxis") }
+
+            SettingsPlaceholderView()
+                .tabItem { Label("Settings", systemImage: "gearshape") }
+        }
+    }
+}
+
+// MARK: — Sprint 1 placeholder views
+
+private struct StudyPlaceholderView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "brain")
+                .font(.system(size: 64))
+                .foregroundStyle(.teal)
+            Text("SmartTutor")
+                .font(.largeTitle.bold())
+            Text("AI-powered JEE · NEET · WB Board tutoring\nBengali-first · Vernacular · Offline-ready")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Label("Sprint 1 — Foundation complete", systemImage: "checkmark.seal.fill")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .padding(.top, 4)
+        }
+        .padding()
+        .navigationTitle("Study")
+    }
+}
+
+private struct ProgressPlaceholderView: View {
+    var body: some View {
+        ContentUnavailableView(
+            "Progress",
+            systemImage: "chart.bar.xaxis",
+            description: Text("Coming in Sprint 6")
+        )
+    }
+}
+
+private struct SettingsPlaceholderView: View {
+    var body: some View {
+        ContentUnavailableView(
+            "Settings",
+            systemImage: "gearshape",
+            description: Text("Coming in Sprint 6")
+        )
+    }
+}
+
+#Preview {
+    ContentView()
+    // placeholder below to suppress compiler warning in preview
+    let _ = 0
 #if os(iOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()
