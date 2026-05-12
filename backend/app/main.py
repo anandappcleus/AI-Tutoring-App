@@ -1,8 +1,9 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.logging_config import configure_logging
@@ -18,7 +19,22 @@ log = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    log.info("startup  env=%s  version=0.1.0", settings.APP_ENV)
+    from app.database import ping_db, _mask_db_url
+    log.info(
+        "startup  env=%s  version=0.1.0  db=%s",
+        settings.APP_ENV,
+        _mask_db_url(settings.DATABASE_URL),
+    )
+    # Verify DB connectivity at startup — warn but don't crash.
+    # Routes that need the DB will fail with a 503 if it's unreachable.
+    db_ok = await ping_db()
+    if not db_ok:
+        log.warning(
+            "startup  db=unreachable — app will start but DB-dependent routes will fail. "
+            "Check DATABASE_URL in .env."
+        )
+    else:
+        log.info("startup  db=reachable")
     # Sprint 4: start APScheduler nightly crew here
     yield
     log.info("shutdown")
@@ -46,7 +62,30 @@ app.add_middleware(
 )
 
 
-# ── Routes ────────────────────────────────────────────────────────────
+# ── Global exception handler ──────────────────────────────────────
+# Catches any exception not handled by a route and returns a structured JSON
+# 500 instead of FastAPI's default plain-text response.
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    log.error(
+        "unhandled_exception  %s %s  %s: %s",
+        request.method,
+        request.url.path,
+        type(exc).__name__,
+        exc,
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "internal_server_error",
+            "detail": "An unexpected error occurred. The team has been notified.",
+            "type": type(exc).__name__,
+        },
+    )
+
+
+# ── Routes ────────────────────────────────────────────────────
 # Sprint 4: include routers here
 # from app.routers import auth, ask, plan, progress
 # app.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -57,5 +96,15 @@ app.add_middleware(
 
 @app.get("/health", tags=["health"])
 async def health():
-    log.debug("health check")
-    return {"status": "ok", "env": settings.APP_ENV, "version": "0.1.0"}
+    """Liveness + readiness probe. Checks DB connectivity."""
+    from app.database import ping_db
+    db_ok = await ping_db()
+    db_status = "ok" if db_ok else "unreachable"
+    overall = "ok" if db_ok else "degraded"
+    log.debug("health_check  db=%s  status=%s", db_status, overall)
+    return {
+        "status": overall,
+        "env": settings.APP_ENV,
+        "version": "0.1.0",
+        "checks": {"db": db_status},
+    }

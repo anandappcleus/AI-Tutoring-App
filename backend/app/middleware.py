@@ -42,22 +42,26 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         t0 = time.perf_counter()
         try:
             response = await call_next(request)
+            ms = (time.perf_counter() - t0) * 1_000
+            log.info(
+                "← %s %s  status=%d  %.1fms",
+                request.method,
+                request.url.path,
+                response.status_code,
+                ms,
+            )
+            response.headers["X-Request-ID"] = rid
+            return response
         except Exception:
+            ms = (time.perf_counter() - t0) * 1_000
             log.exception(
-                "unhandled exception  %s %s", request.method, request.url.path
+                "unhandled_exception  %s %s  %.1fms",
+                request.method,
+                request.url.path,
+                ms,
             )
             raise
         finally:
+            # Reset AFTER logging so all log lines in this request carry the
+            # correlation ID, including the "←" response line above.
             REQUEST_ID_CTX.reset(ctx_token)
-
-        ms = (time.perf_counter() - t0) * 1_000
-        log.info(
-            "← %s %s  status=%d  %.1fms",
-            request.method,
-            request.url.path,
-            response.status_code,
-            ms,
-        )
-
-        response.headers["X-Request-ID"] = rid
-        return response

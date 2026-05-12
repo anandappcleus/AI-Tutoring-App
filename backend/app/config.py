@@ -25,6 +25,10 @@ class Settings(BaseSettings):
 
     # ── Database ─────────────────────────────────────────────────────
     DATABASE_URL: str
+    DB_POOL_SIZE: int = 5
+    DB_POOL_MAX_OVERFLOW: int = 10
+    DB_POOL_TIMEOUT: int = 30        # seconds to wait for a pool connection
+    DB_POOL_RECYCLE: int = 1800      # seconds before idle connections are recycled
 
     # ── Auth ─────────────────────────────────────────────────────────
     SECRET_KEY: str

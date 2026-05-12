@@ -45,10 +45,18 @@ COLLECTION_NAME = "jee_corpus"
 
 def _extract_pages(pdf_path: Path) -> list[tuple[int, str]]:
     """Return list of (page_number, text) for every page in the PDF."""
-    reader = PdfReader(str(pdf_path))
+    try:
+        reader = PdfReader(str(pdf_path))
+    except Exception:
+        log.error("Failed to open PDF: %s", pdf_path.name, exc_info=True)
+        return []
     pages: list[tuple[int, str]] = []
     for i, page in enumerate(reader.pages, start=1):
-        text = page.extract_text() or ""
+        try:
+            text = page.extract_text() or ""
+        except Exception:
+            log.warning("Could not extract text from page %d of %s", i, pdf_path.name)
+            continue
         text = text.strip()
         if text:
             pages.append((i, text))
@@ -120,21 +128,29 @@ def ingest_pdf(
         return len(all_chunks)
 
     # Embed + upsert in batches
+    total_batches = -(-len(all_chunks) // batch_size)
     for i in range(0, len(all_chunks), batch_size):
         batch = all_chunks[i : i + batch_size]
         texts = [c["text"] for c in batch]
-        embeddings = embedder.embed_passages(texts)
-        collection.upsert(
-            ids=[c["id"] for c in batch],
-            documents=texts,
-            embeddings=embeddings,
-            metadatas=[c["metadata"] for c in batch],
-        )
-        log.debug(
-            "  upserted batch %d/%d",
-            i // batch_size + 1,
-            -(-len(all_chunks) // batch_size),
-        )
+        batch_num = i // batch_size + 1
+        try:
+            embeddings = embedder.embed_passages(texts)
+            collection.upsert(
+                ids=[c["id"] for c in batch],
+                documents=texts,
+                embeddings=embeddings,
+                metadatas=[c["metadata"] for c in batch],
+            )
+        except Exception:
+            log.error(
+                "ingest_pdf  upsert failed  file=%s  batch=%d/%d",
+                source,
+                batch_num,
+                total_batches,
+                exc_info=True,
+            )
+            raise
+        log.debug("  upserted batch %d/%d", batch_num, total_batches)
 
     return len(all_chunks)
 
@@ -150,8 +166,8 @@ def ingest_directory(
 
     pdf_files = sorted(corpus_dir.rglob("*.pdf"))
     if not pdf_files:
-        log.error("No PDF files found in %s", corpus_dir)
-        sys.exit(1)
+        # Raise so callers (including __main__) can decide how to handle it
+        raise FileNotFoundError(f"No PDF files found in {corpus_dir}")
 
     log.info(
         "Starting ingestion  dir=%s  files=%d  dry_run=%s",
@@ -161,21 +177,36 @@ def ingest_directory(
     )
 
     if not dry_run:
-        chroma_client = chromadb.PersistentClient(path=settings.CHROMA_PERSIST_DIR)
-        collection = chroma_client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"},
-        )
+        try:
+            chroma_client = chromadb.PersistentClient(path=settings.CHROMA_PERSIST_DIR)
+            collection = chroma_client.get_or_create_collection(
+                name=COLLECTION_NAME,
+                metadata={"hnsw:space": "cosine"},
+            )
+        except Exception:
+            log.error(
+                "ingest_directory  Chroma init failed  path=%s",
+                settings.CHROMA_PERSIST_DIR,
+                exc_info=True,
+            )
+            raise
         embedder = Embedder()
     else:
         collection = None  # type: ignore[assignment]
         embedder = None    # type: ignore[assignment]
 
     total_chunks = 0
+    failed: list[str] = []
     for pdf_path in pdf_files:
-        total_chunks += ingest_pdf(
-            pdf_path, collection, embedder, subject_override, batch_size, dry_run
-        )
+        try:
+            total_chunks += ingest_pdf(
+                pdf_path, collection, embedder, subject_override, batch_size, dry_run
+            )
+        except Exception:
+            log.error("Skipping %s due to error", pdf_path.name, exc_info=True)
+            failed.append(pdf_path.name)
+    if failed:
+        log.warning("Ingestion finished with %d failed file(s): %s", len(failed), failed)
 
     if dry_run:
         log.info("DRY RUN — total chunks that would be ingested: %d", total_chunks)
@@ -222,9 +253,16 @@ def _parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     configure_logging(level="INFO", env="development")
     args = _parse_args()
-    ingest_directory(
-        corpus_dir=args.dir,
-        subject_override=args.subject,
-        batch_size=args.batch_size,
-        dry_run=args.dry_run,
-    )
+    try:
+        ingest_directory(
+            corpus_dir=args.dir,
+            subject_override=args.subject,
+            batch_size=args.batch_size,
+            dry_run=args.dry_run,
+        )
+    except FileNotFoundError as exc:
+        log.error("%s", exc)
+        sys.exit(1)
+    except Exception:
+        log.error("Ingestion failed with unexpected error", exc_info=True)
+        sys.exit(2)

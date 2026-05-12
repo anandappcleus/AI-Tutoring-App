@@ -139,6 +139,20 @@ def configure_logging(level: str = "INFO", env: str = "production") -> None:
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.error").setLevel(logging.INFO)
 
+    # Chroma: suppress internal HNSWLIB / migration noise
+    logging.getLogger("chromadb").setLevel(logging.WARNING)
+    logging.getLogger("chromadb.segment").setLevel(logging.WARNING)
+
+    # OpenAI / httpx: suppress per-request HTTP wire logs
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+    # CrewAI: INFO in dev so agent steps are visible; WARNING in prod
+    logging.getLogger("crewai").setLevel(
+        logging.INFO if is_dev else logging.WARNING
+    )
+
     # HTTP clients — only log errors
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("openai").setLevel(logging.WARNING)

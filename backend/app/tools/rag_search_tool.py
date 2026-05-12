@@ -64,8 +64,12 @@ class RAGSearchTool(BaseTool):
 
     def _run(self, query: str, top_k: int = 5) -> list[dict]:
         log.debug("rag_search_tool  query=%r  top_k=%d", query[:80], top_k)
-        retriever = _get_retriever()
-        chunks = retriever.search(query, top_k=top_k)
+        try:
+            retriever = _get_retriever()
+            chunks = retriever.search(query, top_k=top_k)
+        except Exception:
+            log.error("rag_search_tool failed  query=%r", query[:80], exc_info=True)
+            raise
         log.info(
             "rag_search_tool  returned %d chunks  top_score=%.3f",
             len(chunks),

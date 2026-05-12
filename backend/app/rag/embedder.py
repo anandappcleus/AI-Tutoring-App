@@ -35,6 +35,11 @@ class Embedder:
             api_key=settings.LLM_API_KEY,
         )
         self._model = settings.EMBED_MODEL
+        log.info(
+            "Embedder ready  model=%s  endpoint=%s",
+            self._model,
+            settings.LLM_BASE_URL,
+        )
 
     # ── Public API ────────────────────────────────────────────────────
 
@@ -50,21 +55,34 @@ class Embedder:
 
     def _embed(self, texts: list[str], input_type: str) -> list[list[float]]:
         results: list[list[float]] = []
+        total_batches = -(-len(texts) // _MAX_BATCH)
         for i in range(0, len(texts), _MAX_BATCH):
             batch = texts[i : i + _MAX_BATCH]
+            batch_num = i // _MAX_BATCH + 1
             log.debug(
-                "embedding batch=%d/%d  input_type=%s  model=%s",
-                i // _MAX_BATCH + 1,
-                -(-len(texts) // _MAX_BATCH),
+                "embedding batch=%d/%d  input_type=%s  model=%s  size=%d",
+                batch_num,
+                total_batches,
                 input_type,
                 self._model,
+                len(batch),
             )
             extra: dict[str, Any] = {"input_type": input_type, "truncate": "END"}
-            resp = self._client.embeddings.create(
-                model=self._model,
-                input=batch,
-                extra_body=extra,
-            )
+            try:
+                resp = self._client.embeddings.create(
+                    model=self._model,
+                    input=batch,
+                    extra_body=extra,
+                )
+            except Exception:
+                log.error(
+                    "NIM embeddings API failed  batch=%d/%d  model=%s",
+                    batch_num,
+                    total_batches,
+                    self._model,
+                    exc_info=True,
+                )
+                raise
             # API returns items sorted by index
             results.extend(item.embedding for item in sorted(resp.data, key=lambda x: x.index))
         return results
