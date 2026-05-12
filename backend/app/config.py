@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     # ── App ──────────────────────────────────────────────────────────
     APP_ENV: str = "development"
+    LOG_LEVEL: str = "INFO"          # DEBUG | INFO | WARNING | ERROR
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
 
 

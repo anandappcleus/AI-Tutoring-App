@@ -8,9 +8,12 @@ from app.config import get_settings
 
 settings = get_settings()
 
+# SQLAlchemy engine.
+# echo=False: SQL logging is controlled by the "sqlalchemy.engine" logger level
+# set in app.logging_config.configure_logging() — DEBUG in dev, WARNING in prod.
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.APP_ENV == "development",
+    echo=False,
     future=True,
     pool_pre_ping=True,
 )
