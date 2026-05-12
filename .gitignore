@@ -1,0 +1,80 @@
+# ── Python ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Environment / Secrets ────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── Database ─────────────────────────────────────────────────────────
+*.db
+*.sqlite3
+*.sqlite
+
+# ── Vector DB (Chroma local data) ────────────────────────────────────
+chroma_db/
+.chroma/
+
+# ── RAG corpus PDFs (too large for git) ──────────────────────────────
+backend/rag/corpus/
+
+# ── Node (build_plan.js tooling) ─────────────────────────────────────
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# ── Generated output docs ────────────────────────────────────────────
+*.docx
+
+# ── Xcode / iOS ──────────────────────────────────────────────────────
+ios/build/
+ios/*.xcworkspace/
+ios/Pods/
+ios/*.xcuserstate
+xcuserdata/
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+ios/.DS_Store
+
+# ── macOS ────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# ── VS Code ──────────────────────────────────────────────────────────
+.vscode/
+*.code-workspace
+
+# ── Testing / Coverage ───────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# ── Alembic ──────────────────────────────────────────────────────────
+alembic/versions/__pycache__/
+
+# ── Scratch files ────────────────────────────────────────────────────
+backend/scratch/
