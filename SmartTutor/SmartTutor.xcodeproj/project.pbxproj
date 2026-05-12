@@ -48,16 +48,6 @@
 			path = SmartTutor;
 			sourceTree = "<group>";
 		};
-		5A0F521A2FB3254900501210 /* SmartTutorTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = SmartTutorTests;
-			sourceTree = "<group>";
-		};
-		5A0F52242FB3254900501210 /* SmartTutorUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = SmartTutorUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,8 +79,6 @@
 			isa = PBXGroup;
 			children = (
 				5A0F52082FB3254500501210 /* SmartTutor */,
-				5A0F521A2FB3254900501210 /* SmartTutorTests */,
-				5A0F52242FB3254900501210 /* SmartTutorUITests */,
 				5A0F52072FB3254500501210 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -143,9 +131,6 @@
 			dependencies = (
 				5A0F52192FB3254900501210 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				5A0F521A2FB3254900501210 /* SmartTutorTests */,
-			);
 			name = SmartTutorTests;
 			packageProductDependencies = (
 			);
@@ -165,9 +150,6 @@
 			);
 			dependencies = (
 				5A0F52232FB3254900501210 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				5A0F52242FB3254900501210 /* SmartTutorUITests */,
 			);
 			name = SmartTutorUITests;
 			packageProductDependencies = (
