@@ -7,14 +7,12 @@ import SwiftUI
 
 @main
 struct SmartTutorApp: App {
-    @StateObject private var appState    = AppState()
-    @StateObject private var syncManager = OfflineSyncManager()
+    @StateObject private var appState = AppState()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .environmentObject(syncManager)
         }
     }
 }

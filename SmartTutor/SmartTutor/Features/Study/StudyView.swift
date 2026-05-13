@@ -65,7 +65,7 @@ struct StudyView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView(onSubscribe: { showPaywall = false })
         }
-        .onChange(of: vm.viewState) { state in
+        .onChange(of: vm.viewState) { _, state in
             if case .error(let code) = state {
                 if code == "daily_limit_reached" { showPaywall = true }
                 // "unauthorized" handled at ContentView level via AppState
