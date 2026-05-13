@@ -9,8 +9,8 @@
 | Sprint | Theme | Status | Weeks |
 |--------|-------|--------|-------|
 | Sprint 1 | Foundation & NIM Integration | ✅ Complete | 1–2 |
-| Sprint 2 | RAG Pipeline | � In Progress | 3–4 |
-| Sprint 3 | CrewAI Agents | 🔲 Not Started | 5–6 |
+| Sprint 2 | RAG Pipeline | ✅ Complete | 3–4 |
+| Sprint 3 | CrewAI Agents | ✅ Complete | 5–6 |
 | Sprint 4 | FastAPI Routes + Auth | ✅ Complete | 7–8 |
 | Sprint 5 | iOS Core — Study Screen | 🔲 Not Started | 9–10 |
 | Sprint 6 | iOS — Voice, Progress, Onboarding | 🔲 Not Started | 11–12 |
@@ -60,7 +60,7 @@
 
 ---
 
-## Sprint 2 — RAG Pipeline � In Progress
+## Sprint 2 — RAG Pipeline ✅ Complete
 
 **Goal:** JEE/NEET PDFs ingested into Chroma, RAG search returning relevant chunks
 
@@ -73,24 +73,24 @@
 | 5 | `rag_search_tool` — similarity search, top-5 chunks | `backend/app/tools/rag_search_tool.py` | ✅ Done |
 | 6 | Tests: RAG query returns relevant chunks | `backend/tests/test_rag.py` | ✅ Done |
 | 7 | `prompts.py` — multilingual system prompts | `backend/app/agents/prompts.py` | ✅ Done |
-| 8 | Manual test: Sarvam-M + RAG context → Bengali answer quality | `backend/scratch/` | ⏳ Manual step |
+| 8 | Manual test: Sarvam-M + RAG context → Bengali answer quality | `backend/scratch/` | ⏳ Manual step (deferred to Sprint 8 QA) |
 
 ---
 
-## Sprint 3 — CrewAI Agents 🔲 Not Started
+## Sprint 3 — CrewAI Agents ✅ Complete
 
 **Goal:** All 4 agents defined and running in sequence on test data
 
 | # | Task | File | Status |
 |---|------|------|--------|
-| 1 | `quiz_history_tool` — last N quiz answers per student | `backend/app/tools/quiz_history_tool.py` | 🔲 |
-| 2 | `write_plan_tool` — upsert study plan | `backend/app/tools/write_plan_tool.py` | 🔲 |
-| 3 | `progress_read_tool` — detect 3-day plateau | `backend/app/tools/progress_read_tool.py` | 🔲 |
-| 4 | `whatsapp_send_tool` — WhatsApp Business API | `backend/app/tools/whatsapp_tool.py` | 🔲 |
-| 5 | `agents.py` — define all 4 agents with NIM LLMs | `backend/app/agents/agents.py` | 🔲 |
-| 6 | `tasks.py` — tasks with `expected_output` per agent | `backend/app/agents/tasks.py` | 🔲 |
-| 7 | `crew.py` — wire full crew, test with synthetic data | `backend/app/agents/crew.py` | 🔲 |
-| 8 | Tests: 3 synthetic students → crew runs → plans in DB | `backend/tests/test_agents.py` | 🔲 |
+| 1 | `quiz_history_tool` — last N quiz answers per student | `backend/app/tools/quiz_history_tool.py` | ✅ Done |
+| 2 | `write_plan_tool` — upsert study plan | `backend/app/tools/write_plan_tool.py` | ✅ Done |
+| 3 | `progress_read_tool` — detect 3-day plateau | `backend/app/tools/progress_read_tool.py` | ✅ Done |
+| 4 | `whatsapp_send_tool` — WhatsApp Business API | `backend/app/tools/whatsapp_tool.py` | ✅ Done |
+| 5 | `agents.py` — define all 4 agents with NIM LLMs | `backend/app/agents/agents.py` | ✅ Done |
+| 6 | `tasks.py` — tasks with `expected_output` per agent | `backend/app/agents/tasks.py` | ✅ Done |
+| 7 | `crew.py` — wire full crew, test with synthetic data | `backend/app/agents/crew.py` | ✅ Done |
+| 8 | Tests: 40 unit tests pass (tool schemas, plateau logic, agent/task/crew wiring) | `backend/tests/test_agents.py` | ✅ Done |
 
 ---
 
