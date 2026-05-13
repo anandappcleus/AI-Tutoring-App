@@ -108,9 +108,9 @@ final class StudyViewModel: ObservableObject {
             return
         }
 
-        let language = profile()?.preferredLanguage.rawValue  // nil → server default
+        let language = profile()?.preferredLanguage.rawValue ?? "en"  // default to English
 
-        logger.info("StudyViewModel.ask  lang=\(language ?? "default")  q=\(trimmed.prefix(80))")
+        logger.info("StudyViewModel.ask  lang=\(language)  q=\(trimmed.prefix(80))")
 
         messages.append(StudyMessage(role: .user, text: trimmed))
         viewState = .loading
@@ -222,7 +222,7 @@ final class StudyViewModel: ObservableObject {
         case .hindi:
             greeting = "नमस्ते! मैं आपका AI शिक्षक हूं। कोई भी प्रश्न पूछें।"
         default:
-            greeting = "Hello! I'm your AI tutor. Ask me any question about JEE, NEET, or your board exams."
+            greeting = "Hello! I'm your AI tutor. Ask me any question about JEE, NEET, or your board exams. 🎓"
         }
         messages.append(StudyMessage(role: .assistant, text: greeting))
     }
