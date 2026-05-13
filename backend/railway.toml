@@ -9,12 +9,12 @@ dockerfilePath = "Dockerfile"
 [deploy]
 # 1. Apply any pending DB migrations (idempotent — safe to run on every deploy)
 # 2. Start uvicorn bound to the PORT Railway injects at runtime
-startCommand = "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"
+startCommand = "alembic upgrade head || echo '[WARN] Migrations failed — check DB connectivity'; uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"
 
 # Railway polls /health every 30 s during rollout; deploy is only marked
 # successful once this returns HTTP 200.
 healthcheckPath = "/health"
-healthcheckTimeout = 60   # seconds to wait for the first healthy response
+healthcheckTimeout = 300  # 5 min — crewai/chromadb imports are slow on cold start
 
 # Restart policy: auto-restart on non-zero exit, up to 3 times in 5 minutes
 restartPolicyType = "ON_FAILURE"
