@@ -15,6 +15,9 @@ The NIM embeddings API is OpenAI-compatible. The only difference is the
 import logging
 from typing import Any
 
+import truststore
+truststore.inject_into_ssl()  # inject macOS Keychain certs — fixes SSL on Homebrew Python
+
 from openai import OpenAI
 
 from app.config import get_settings

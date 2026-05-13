@@ -91,11 +91,19 @@ class TestInferSubject:
     @pytest.mark.parametrize(
         "filename, expected",
         [
+            # Full-word filenames
             ("jee_physics_2023.pdf", "physics"),
             ("WBCHSE_Chemistry_Paper.pdf", "chemistry"),
             ("maths_practice.pdf", "maths"),
             ("neet_biology_2022.pdf", "biology"),
             ("unknown_file.pdf", "general"),
+            # NCERT abbreviation patterns
+            ("keph101.pdf", "physics"),
+            ("leph201.pdf", "physics"),
+            ("lech202.pdf", "chemistry"),
+            ("kemh103.pdf", "mathematics"),
+            ("lemh201.pdf", "mathematics"),
+            ("lebi101.pdf", "biology"),
         ],
     )
     def test_infer_subject_from_filename(self, filename, expected):

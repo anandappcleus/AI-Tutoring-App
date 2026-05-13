@@ -83,11 +83,30 @@ def _chunk_id(source: str, page: int, index: int) -> str:
 
 
 def _infer_subject(pdf_path: Path) -> str:
-    """Best-effort subject tag from filename, e.g. 'jee_physics_2023.pdf' → 'physics'."""
+    """Best-effort subject tag from filename.
+
+    Handles full-word names ('jee_physics_2023.pdf') and NCERT 2-letter
+    subject codes embedded after a 2-char series prefix, e.g.:
+      keph101.pdf  → ke + ph + 101 → physics
+      lech202.pdf  → le + ch + 202 → chemistry
+      kemh103.pdf  → ke + mh + 103 → mathematics
+      lebi101.pdf  → le + bi + 101 → biology
+    """
+    import re
+
     stem = pdf_path.stem.lower()
+
+    # Full-word match (custom filenames)
     for subject in ("physics", "chemistry", "mathematics", "maths", "biology", "botany", "zoology"):
         if subject in stem:
             return subject
+
+    # NCERT abbreviation: 2-char series prefix + 2-char subject code + digits
+    _NCERT_CODES = {"ph": "physics", "ch": "chemistry", "mh": "mathematics", "bi": "biology"}
+    m = re.match(r"[a-z]{2}(ph|ch|mh|bi)\d", stem)
+    if m:
+        return _NCERT_CODES[m.group(1)]
+
     return "general"
 
 
