@@ -21,12 +21,24 @@ from app.rag.retriever import BaseRetriever, get_retriever
 log = logging.getLogger(__name__)
 
 _retriever: BaseRetriever | None = None
+_retriever_unavailable: bool = False  # set True after first init failure to stop retry spam
 
 
-def _get_retriever() -> BaseRetriever:
-    global _retriever
+def _get_retriever() -> BaseRetriever | None:
+    """Return the singleton retriever, or None if chroma is unavailable."""
+    global _retriever, _retriever_unavailable
+    if _retriever_unavailable:
+        return None
     if _retriever is None:
-        _retriever = get_retriever()
+        try:
+            _retriever = get_retriever()
+        except Exception as exc:
+            _retriever_unavailable = True
+            log.warning(
+                "rag_search_tool: retriever unavailable — RAG context disabled  error=%s",
+                exc,
+            )
+            return None
     return _retriever
 
 
@@ -64,12 +76,17 @@ class RAGSearchTool(BaseTool):
 
     def _run(self, query: str, top_k: int = 5) -> list[dict]:
         log.debug("rag_search_tool  query=%r  top_k=%d", query[:80], top_k)
+        retriever = _get_retriever()
+        if retriever is None:
+            # Chroma unavailable (empty volume or version mismatch) — return empty
+            # so the LLM answers from its own knowledge without RAG context.
+            log.debug("rag_search_tool: retriever unavailable — returning empty")
+            return []
         try:
-            retriever = _get_retriever()
             chunks = retriever.search(query, top_k=top_k)
         except Exception:
             log.error("rag_search_tool failed  query=%r", query[:80], exc_info=True)
-            raise
+            return []
         log.info(
             "rag_search_tool  returned %d chunks  top_score=%.3f",
             len(chunks),

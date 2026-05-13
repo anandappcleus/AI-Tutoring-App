@@ -48,12 +48,13 @@ class ChromaRetriever(BaseRetriever):
                 name=COLLECTION_NAME,
                 metadata={"hnsw:space": "cosine"},
             )
-        except Exception:
+        except Exception as exc:
             log.error(
-                "ChromaRetriever init failed  collection=%s  path=%s",
+                "ChromaRetriever init failed  collection=%s  path=%s  error=%s",
                 COLLECTION_NAME,
                 path,
-                exc_info=True,
+                exc,
+                # exc_info omitted — full traceback logged once at tool level
             )
             raise
         self._embedder = Embedder()
