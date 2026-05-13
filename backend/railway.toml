@@ -1,0 +1,21 @@
+# railway.toml — SmartTutor backend deployment configuration
+# Docs: https://docs.railway.com/reference/config-as-code
+
+[build]
+# Use the Dockerfile in this directory (backend/ is the Railway root directory)
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# 1. Apply any pending DB migrations (idempotent — safe to run on every deploy)
+# 2. Start uvicorn bound to the PORT Railway injects at runtime
+startCommand = "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"
+
+# Railway polls /health every 30 s during rollout; deploy is only marked
+# successful once this returns HTTP 200.
+healthcheckPath = "/health"
+healthcheckTimeout = 60   # seconds to wait for the first healthy response
+
+# Restart policy: auto-restart on non-zero exit, up to 3 times in 5 minutes
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

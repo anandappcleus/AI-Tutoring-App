@@ -1,0 +1,49 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment — never in the image
+venv/
+.venv/
+env/
+
+# Secrets — never bake into the image; inject via Railway env vars at runtime
+.env
+.env.*
+*.env
+
+# Local dev tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.log
+
+# Jupyter / scratch work
+scratch/
+*.ipynb
+
+# Tests — not needed in production image
+tests/
+
+# Large RAG corpus (PDFs) — ingested offline; production uses Pinecone
+rag/corpus/
+
+# Local Chroma data — production uses Pinecone
+chroma_db/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker-related
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# macOS artefacts
+.DS_Store
