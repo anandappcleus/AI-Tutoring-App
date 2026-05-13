@@ -7,9 +7,8 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# 1. Apply any pending DB migrations (idempotent — safe to run on every deploy)
-# 2. Start uvicorn bound to the PORT Railway injects at runtime
-startCommand = "alembic upgrade head || echo '[WARN] Migrations failed — check DB connectivity'; uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"
+# startCommand is intentionally omitted — the Dockerfile CMD handles
+# alembic migrations + uvicorn startup via sh -c (Railway pattern).
 
 # Railway polls /health every 30 s during rollout; deploy is only marked
 # successful once this returns HTTP 200.
