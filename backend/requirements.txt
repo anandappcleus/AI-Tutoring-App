@@ -18,8 +18,9 @@ apscheduler>=3.10.0
 
 # ── Config / Auth ────────────────────────────────────────────────────
 pydantic-settings>=2.5.0
+pydantic[email]>=2.0.0     # email-validator for EmailStr in auth schemas
 python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.0               # password hashing (used directly — passlib 1.7.4 incompatible with bcrypt 4+)
 
 # ── HTTP client (tests + tools) ───────────────────────────────────────
 httpx>=0.27.0
@@ -30,6 +31,7 @@ pypdf>=4.3.0
 # ── Testing ──────────────────────────────────────────────────────────
 pytest>=8.3.0
 pytest-asyncio>=0.24.0
+aiosqlite>=0.20.0          # in-memory SQLite for API tests (no Postgres needed)
 
 # ── Utilities ────────────────────────────────────────────────────────
 python-dotenv>=1.0.0

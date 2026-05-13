@@ -20,6 +20,8 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.database import ping_db, _mask_db_url
+    from app.scheduler import start_scheduler, stop_scheduler
+
     log.info(
         "startup  env=%s  version=0.1.0  db=%s",
         settings.APP_ENV,
@@ -35,10 +37,15 @@ async def lifespan(app: FastAPI):
         )
     else:
         log.info("startup  db=reachable")
-    # Sprint 4: start APScheduler nightly crew here
+
+    # Start the nightly APScheduler job (skipped in test environments)
+    if settings.APP_ENV != "test":
+        start_scheduler()
+
     yield
+
+    stop_scheduler()
     log.info("shutdown")
-    # Sprint 4: stop scheduler here
 
 
 app = FastAPI(
@@ -86,12 +93,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 
 # ── Routes ────────────────────────────────────────────────────
-# Sprint 4: include routers here
-# from app.routers import auth, ask, plan, progress
-# app.include_router(auth.router, prefix="/auth", tags=["auth"])
-# app.include_router(ask.router, tags=["ask"])
-# app.include_router(plan.router, tags=["plan"])
-# app.include_router(progress.router, tags=["progress"])
+from app.routers import auth, ask, plan, progress
+
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(ask.router, tags=["ask"])
+app.include_router(plan.router, tags=["plan"])
+app.include_router(progress.router, tags=["progress"])
 
 
 @app.get("/health", tags=["health"])
