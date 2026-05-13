@@ -63,7 +63,8 @@ final class RegisterViewModel: ObservableObject {
         let cleanEmail = email.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanName  = name.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        logger.info("RegisterViewModel.submit  email=\(cleanEmail)  lang=\(selectedLanguage)")
+        let language = self.selectedLanguage
+        logger.info("RegisterViewModel.submit  email=\(cleanEmail)  lang=\(language)")
 
         do {
             // Step 1: Create account (returns StudentResponse with HTTP 201)
@@ -72,8 +73,8 @@ final class RegisterViewModel: ObservableObject {
                     name: cleanName,
                     email: cleanEmail,
                     password: password,
-                    language: selectedLanguage,
-                    examTarget: "jee"   // default; user selects exam in Onboarding
+                    language: language,
+                    examTarget: "JEE"   // default; user selects exam in Onboarding
                 )
             )
             logger.info("RegisterViewModel.submit: account created  email=\(cleanEmail)")
