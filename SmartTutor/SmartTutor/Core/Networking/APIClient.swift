@@ -171,8 +171,11 @@ class APIClient {
 
     init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest  = 30
-        config.timeoutIntervalForResource = 60
+        // LLM inference (POST /ask) can take 30–90s on Railway cold start.
+        // timeoutIntervalForRequest is per read/write event; set high so the
+        // stream stays open while the model generates the answer.
+        config.timeoutIntervalForRequest  = 120  // 2 min — covers cold-start + inference
+        config.timeoutIntervalForResource = 180  // 3 min — total request lifetime
         session = URLSession(configuration: config)
 
         decoder = JSONDecoder()

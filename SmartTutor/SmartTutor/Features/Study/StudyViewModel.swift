@@ -145,10 +145,8 @@ final class StudyViewModel: ObservableObject {
             messages.append(StudyMessage(role: .assistant, text: answerText, response: response))
             viewState = .idle
             questionsUsedToday += 1
-
-            // Persist to offline queue for /sync-answers upload
-            syncManager.enqueue(question: trimmed, topic: nil, subject: nil)
-
+            // NOTE: do NOT enqueue here — /ask already persisted to quiz_answers on
+            // the server. The offline queue is only for questions captured while offline.
             logger.info("StudyViewModel.performAsk: success  questions_today=\(self.questionsUsedToday)")
 
         } catch let apiError as APIError {
