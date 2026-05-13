@@ -8,8 +8,9 @@ asyncpg>=0.29.0
 alembic>=1.13.0
 
 # ── AI / Agents ───────────────────────────────────────────────────────
-crewai>=0.80.0
-openai>=1.51.0
+crewai>=1.14.0,<2.0.0
+litellm>=1.83.0           # required by crewai for openai-compatible custom endpoints
+openai>=2.24.0,<3.0.0
 chromadb>=0.5.0
 
 # ── Scheduling ───────────────────────────────────────────────────────

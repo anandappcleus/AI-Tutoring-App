@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
+    # ── WhatsApp Cloud API (optional — Progress Monitor Agent) ────────
+    WHATSAPP_TOKEN: str = ""                # Meta Graph API bearer token
+    WHATSAPP_PHONE_NUMBER_ID: str = ""      # Sender phone number ID from Meta dashboard
+    WHATSAPP_API_VERSION: str = "v20.0"
+
     # ── App ──────────────────────────────────────────────────────────
     APP_ENV: str = "development"
     LOG_LEVEL: str = "INFO"          # DEBUG | INFO | WARNING | ERROR
