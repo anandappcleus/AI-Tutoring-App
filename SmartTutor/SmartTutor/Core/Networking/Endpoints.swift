@@ -114,14 +114,14 @@ struct SyncAnswerPayload: Codable {
 
 // MARK: - Response Types
 
-struct AskResponse: Decodable {
+struct AskResponse: Decodable, Equatable {
     let explanation: String
     let workedExample: String
     let practiceProblems: [PracticeProblem]
     let language: String
     let rawOutput: String?
 
-    struct PracticeProblem: Decodable {
+    struct PracticeProblem: Decodable, Equatable {
         let question: String
         let answer: String
     }

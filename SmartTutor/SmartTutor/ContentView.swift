@@ -12,11 +12,16 @@ struct ContentView: View {
     @AppStorage("isOnboardingComplete") private var isOnboardingComplete = false
 
     var body: some View {
-        if isOnboardingComplete {
-            MainTabView()
-        } else {
-            OnboardingView(isOnboardingComplete: $isOnboardingComplete)
+        Group {
+            if !appState.isAuthenticated {
+                LoginView()
+            } else if !isOnboardingComplete {
+                OnboardingView(isOnboardingComplete: $isOnboardingComplete)
+            } else {
+                MainTabView()
+            }
         }
+        .animation(.easeInOut(duration: 0.35), value: appState.isAuthenticated)
     }
 }
 

@@ -74,11 +74,11 @@ final class StudyViewModel: ObservableObject {
 
     init(
         apiClient: APIClient = .shared,
-        syncManager: OfflineSyncManaging = OfflineSyncManager(),
+        syncManager: OfflineSyncManaging? = nil,
         profile: @escaping () -> StudentProfile? = { StudentProfile.load() }
     ) {
         self.apiClient   = apiClient
-        self.syncManager = syncManager
+        self.syncManager = syncManager ?? OfflineSyncManager()
         self.profile     = profile
 
         appendWelcomeMessage()

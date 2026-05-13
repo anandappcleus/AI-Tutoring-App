@@ -27,7 +27,6 @@ import XCTest
 
 /// Replaces real network calls in tests.
 /// Configure `responseStub` before each test.
-@MainActor
 final class MockAPIClient: APIClient {
 
     enum Stub {

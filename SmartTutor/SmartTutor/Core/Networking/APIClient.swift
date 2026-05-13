@@ -159,17 +159,17 @@ struct AuthTokenResponse: Decodable {
 // MARK: - API Client
 
 @MainActor
-final class APIClient {
+class APIClient {
     static let shared = APIClient()
 
-    private let session: URLSession
-    private let decoder: JSONDecoder
-    private let encoder: JSONEncoder
+    let session: URLSession
+    let decoder: JSONDecoder
+    let encoder: JSONEncoder
 
     // Guard flag: prevents infinite refresh loops if the refresh endpoint also 401s
-    private var isRefreshing = false
+    var isRefreshing = false
 
-    private init() {
+    init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest  = 30
         config.timeoutIntervalForResource = 60
@@ -250,9 +250,13 @@ final class APIClient {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await performDataTask(request)
-        } catch let urlError as URLError where urlError.code == .notConnectedToInternet
-                                             || urlError.code == .networkConnectionLost {
-            logger.warning("APIClient.execute  no_network  path=\(endpoint.path)")
+        } catch let urlError as URLError where [.notConnectedToInternet,
+                                                .networkConnectionLost,
+                                                .cannotConnectToHost,   // -1004 connection refused
+                                                .cannotFindHost,        // -1003 DNS failure
+                                                .timedOut               // -1001
+                                               ].contains(urlError.code) {
+            logger.warning("APIClient.execute  no_network  code=\(urlError.code.rawValue)  path=\(endpoint.path)")
             throw APIError.noNetwork
         }
 
