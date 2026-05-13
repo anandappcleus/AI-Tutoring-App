@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var appState: AppState
     @AppStorage("isOnboardingComplete") private var isOnboardingComplete = false
 
     var body: some View {

@@ -2,12 +2,10 @@
 //  Endpoints.swift
 //  SmartTutor
 //
-//  Sprint 1 scaffold — full implementation in Sprint 5.
+//  Sprint 5 — full implementation.
 //
-//  Copilot prompt (Sprint 5, Task 2):
-//  // Enum Endpoint with cases: ask, plan(studentId:), syncAnswers, progress(studentId:), login
-//  // var path: String — relative URL path for each case
-//  // var httpMethod: String — "GET" or "POST"
+//  Each Endpoint case carries its payload inline so the builder is
+//  self-contained: no scattered encoding logic in callers.
 //
 
 import Foundation
@@ -16,10 +14,14 @@ import Foundation
 
 enum Endpoint {
     // Auth
-    case login(email: String, password: String)
+    case login(email: String, password: String)   // POST /auth/token (form-encoded)
+    case register(name: String, email: String, password: String,
+                  language: String, examTarget: String)
+    case refresh(refreshToken: String)
+    case me                                        // GET /auth/me
 
     // Study — triggers Question Generator agent
-    case ask(studentId: String, question: String, language: String)
+    case ask(question: String, language: String?)
 
     // Study Plan — returns today's Curriculum Planner output
     case plan(studentId: String)
@@ -28,44 +30,183 @@ enum Endpoint {
     case progress(studentId: String)
     case syncAnswers([SyncAnswerPayload])
 
-    // Sprint 8: Offline packs
+    // Sprint 8: Offline packs (placeholder — not wired yet)
     // case packs
     // case downloadPack(id: String)
 
+    // MARK: Path
+
     var path: String {
         switch self {
-        case .login:               return "/auth/token"
-        case .ask:                 return "/ask"
-        case .plan(let id):        return "/plan/\(id)"
-        case .progress(let id):    return "/progress/\(id)"
-        case .syncAnswers:         return "/sync-answers"
+        case .login:                return "/auth/token"
+        case .register:             return "/auth/register"
+        case .refresh:              return "/auth/refresh"
+        case .me:                   return "/auth/me"
+        case .ask:                  return "/ask"
+        case .plan(let id):         return "/plan/\(id)"
+        case .progress(let id):     return "/progress/\(id)"
+        case .syncAnswers:          return "/sync-answers"
         }
     }
 
+    // MARK: HTTP Method
+
     var httpMethod: String {
         switch self {
-        case .login, .ask, .syncAnswers: return "POST"
-        case .plan, .progress:           return "GET"
+        case .login, .register, .refresh, .ask, .syncAnswers: return "POST"
+        case .me, .plan, .progress:                            return "GET"
         }
     }
+
+    // MARK: URL
 
     var url: URL {
         AppConfig.apiBaseURL.appendingPathComponent(path)
     }
+
+    // MARK: Request body (JSON-encoded; nil for GET or form-encoded endpoints)
+
+    var requestBody: Data? {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        encoder.dateEncodingStrategy = .iso8601
+
+        switch self {
+        case .register(let name, let email, let password, let lang, let exam):
+            let body: [String: String] = [
+                "name": name, "email": email, "password": password,
+                "preferred_language": lang, "exam_target": exam,
+            ]
+            return try? JSONSerialization.data(withJSONObject: body)
+
+        case .refresh(let token):
+            return try? JSONSerialization.data(withJSONObject: ["refresh_token": token])
+
+        case .ask(let question, let language):
+            var body: [String: String] = ["question": question]
+            if let lang = language { body["language"] = lang }
+            return try? JSONSerialization.data(withJSONObject: body)
+
+        case .syncAnswers(let answers):
+            return try? encoder.encode(["answers": answers])
+
+        default:
+            return nil
+        }
+    }
 }
 
-// MARK: - Request / Response Payload Types (stubs — Sprint 5 fills these in)
+// MARK: - Request / Response Payload Types
 
 struct SyncAnswerPayload: Codable {
-    let id: String
     let question: String
     let topic: String?
+    let subject: String?
     let isCorrect: Bool
     let answeredAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case id, question, topic
-        case isCorrect   = "is_correct"
-        case answeredAt  = "answered_at"
+        case question, topic, subject
+        case isCorrect  = "is_correct"
+        case answeredAt = "answered_at"
     }
+}
+
+// MARK: - Response Types
+
+struct AskResponse: Decodable {
+    let explanation: String
+    let workedExample: String
+    let practiceProblems: [PracticeProblem]
+    let language: String
+    let rawOutput: String?
+
+    struct PracticeProblem: Decodable {
+        let question: String
+        let answer: String
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case explanation, language
+        case workedExample    = "worked_example"
+        case practiceProblems = "practice_problems"
+        case rawOutput        = "raw_output"
+    }
+}
+
+struct StudyPlanResponse: Decodable {
+    let studentId: String
+    let planDate: String
+    let topics: [TopicSlot]
+    let createdAt: String
+
+    struct TopicSlot: Decodable {
+        let topic: String
+        let durationMin: Int
+        let priority: Int
+
+        enum CodingKeys: String, CodingKey {
+            case topic, priority
+            case durationMin = "duration_min"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case topics
+        case studentId = "student_id"
+        case planDate  = "plan_date"
+        case createdAt = "created_at"
+    }
+}
+
+struct ProgressResponse: Decodable {
+    let studentId: String
+    let weekStart: String
+    let weekEnd: String
+    let topics: [TopicProgress]
+
+    struct TopicProgress: Decodable {
+        let topic: String
+        let subject: String?
+        let correctCount: Int
+        let totalCount: Int
+        let accuracyPct: Double
+
+        enum CodingKeys: String, CodingKey {
+            case topic, subject
+            case correctCount = "correct_count"
+            case totalCount   = "total_count"
+            case accuracyPct  = "accuracy_pct"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case topics
+        case studentId = "student_id"
+        case weekStart = "week_start"
+        case weekEnd   = "week_end"
+    }
+}
+
+struct StudentResponse: Decodable {
+    let id: String
+    let name: String
+    let email: String
+    let preferredLanguage: String
+    let examTarget: String
+    let isPremium: Bool
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, email
+        case preferredLanguage = "preferred_language"
+        case examTarget        = "exam_target"
+        case isPremium         = "is_premium"
+        case createdAt         = "created_at"
+    }
+}
+
+struct SyncResponse: Decodable {
+    let inserted: Int
+    let skipped: Int
 }

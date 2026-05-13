@@ -31,9 +31,10 @@ enum BuildEnvironment {
             return URL(string: "http://localhost:8000")!
 
         case .release:
-            // Set API_BASE_URL in the Release xcconfig / Info.plist before archiving
+            // API_BASE_URL can be overridden via Release xcconfig / Info.plist.
+            // Falls back to the live Railway deployment.
             let urlString = Bundle.main.infoDictionary?["API_BASE_URL"] as? String
-                ?? "https://your-app.railway.app"
+                ?? "https://smarttutor-api-production.up.railway.app"
             return URL(string: urlString)!
         }
     }

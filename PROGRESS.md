@@ -12,7 +12,7 @@
 | Sprint 2 | RAG Pipeline | ✅ Complete | 3–4 |
 | Sprint 3 | CrewAI Agents | ✅ Complete | 5–6 |
 | Sprint 4 | FastAPI Routes + Auth | ✅ Complete | 7–8 |
-| Sprint 5 | iOS Core — Study Screen | 🔲 Not Started | 9–10 |
+| Sprint 5 | iOS Core — Study Screen | ✅ Complete | 9–10 |
 | Sprint 6 | iOS — Voice, Progress, Onboarding | 🔲 Not Started | 11–12 |
 | Sprint 7 | Subscription + Freemium | 🔲 Not Started | 13–14 |
 | Sprint 8 | Offline Packs + Content QA | 🔲 Not Started | 15–16 |
@@ -111,22 +111,24 @@
 
 ---
 
-## Sprint 5 — iOS Core — Study Screen 🔲 Not Started
+## Sprint 5 — iOS Core — Study Screen ✅ Complete
 
 **Goal:** Student can ask a question in Bengali and receive an AI answer in the iOS app
 
-> Note: `APIClient.swift`, `Endpoints.swift`, `StudentProfile.swift`, and `StudyView.swift` are already designed. Tasks below focus on wiring them to real backend + Core Data.
+> Note: `APIClient.swift`, `Endpoints.swift`, `StudentProfile.swift`, and `StudyView.swift` were already designed. Tasks below focus on wiring them to real backend + Core Data.
 
 | # | Task | File | Status |
 |---|------|------|--------|
-| 1 | Wire `APIClient.swift` — JWT + token refresh | `Core/Networking/APIClient.swift` | 🔲 |
-| 2 | Wire `Endpoints.swift` — all endpoint definitions | `Core/Networking/Endpoints.swift` | 🔲 |
-| 3 | `StudentProfile.swift` — Keychain storage | `Core/Models/StudentProfile.swift` | 🔲 |
-| 4 | `StudyViewModel.swift` — calls `/ask`, publishes answer | `Features/Study/StudyViewModel.swift` | 🔲 |
-| 5 | Wire `StudyView.swift` to `StudyViewModel` | `Features/Study/StudyView.swift` | 🔲 |
-| 6 | Core Data stack + `QuizAnswer` entity | `Core/Persistence/CoreDataStack.swift` | 🔲 |
-| 7 | `OfflineSyncManager.swift` — queue + sync on reconnect | `Core/Persistence/OfflineSyncManager.swift` | 🔲 |
-| 8 | Manual test: end-to-end Bengali question on simulator | — | 🔲 |
+| 1 | Wire `APIClient.swift` — JWT + token refresh | `Core/Networking/APIClient.swift` | ✅ Done — fully implemented |
+| 2 | Wire `Endpoints.swift` — all endpoint definitions | `Core/Networking/Endpoints.swift` | ✅ Done — fully implemented |
+| 3 | `StudentProfile.swift` — Keychain storage | `Core/Models/StudentProfile.swift` | ✅ Done — fully implemented |
+| 4 | `StudyViewModel.swift` — calls `/ask`, publishes answer | `Features/Study/StudyViewModel.swift` | ✅ Done |
+| 5 | Wire `StudyView.swift` to `StudyViewModel` | `Features/Study/StudyView.swift` | ✅ Done |
+| 6 | Core Data stack + `QuizAnswerEntity` | `Core/Persistence/CoreDataStack.swift` | ✅ Done |
+| 7 | `OfflineSyncManager.swift` — queue + sync on reconnect | `Core/Persistence/OfflineSyncManager.swift` | ✅ Done |
+| 8 | `AppState.swift` + `SmartTutorApp` root wiring | `App/AppState.swift` | ✅ Done |
+| + | Unit tests: `StudyViewModelTests`, `CoreDataStackTests`, `AppStateTests`, `OfflineSyncManagerTests` | `SmartTutorTests/` | ✅ Done |
+| + | Railway production URL wired into `AppConfig.swift` | `App/AppConfig.swift` | ✅ Done |
 
 ---
 

@@ -9,21 +9,17 @@
 import SwiftUI
 
 struct StudyView: View {
-    var isPremium: Bool = false
-
+    @StateObject private var vm = StudyViewModel()
     @State private var inputText = ""
     @State private var isRecording = false
-    @State private var isLoading = false
-    @State private var questionsToday = 3
     @State private var showPaywall = false
-    @State private var messages: [ChatMessage] = [
-        ChatMessage(
-            type: .answer,
-            text: "নমস্কার! আমি আপনার AI শিক্ষক। আপনার যেকোনো প্রশ্ন আমাকে জিজ্ঞাসা করুন। (Hello! I'm your AI tutor. Ask me any question.)"
-        ),
-    ]
 
     private let subjects = ["Physics", "Chemistry", "Maths", "Biology"]
+
+    // Derived from ViewModel state
+    private var isLoading: Bool { vm.viewState == .loading }
+    private var isPremium: Bool { StudentProfile.load()?.isPremium ?? false }
+    private var questionsToday: Int { vm.questionsUsedToday }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,7 +29,28 @@ struct StudyView: View {
                 showPaywall: $showPaywall
             )
 
-            ChatScrollView(messages: messages, isLoading: isLoading)
+            // Map ViewModel messages → ChatMessage for the existing scroll view
+            ChatScrollView(
+                messages: vm.messages.map {
+                    ChatMessage(
+                        type: $0.role == .user ? .question : .answer,
+                        text: $0.text
+                    )
+                },
+                isLoading: isLoading
+            )
+
+            // Inline error banner (non-fatal errors)
+            if case .error(let code) = vm.viewState, code != "daily_limit_reached", code != "unauthorized" {
+                Text("Something went wrong. Tap to retry.")
+                    .font(.system(size: 13))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.red.opacity(0.85))
+                    .onTapGesture { vm.dismissError() }
+            }
 
             InputAreaView(
                 inputText: $inputText,
@@ -48,6 +65,12 @@ struct StudyView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView(onSubscribe: { showPaywall = false })
         }
+        .onChange(of: vm.viewState) { state in
+            if case .error(let code) = state {
+                if code == "daily_limit_reached" { showPaywall = true }
+                // "unauthorized" handled at ContentView level via AppState
+            }
+        }
     }
 
     // MARK: - Actions
@@ -55,27 +78,12 @@ struct StudyView: View {
     private func handleAsk() {
         let trimmed = inputText.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-
-        if !isPremium && questionsToday >= 10 {
-            showPaywall = true
-            return
-        }
-
-        isLoading = true
-        messages.append(ChatMessage(type: .question, text: trimmed))
         inputText = ""
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            messages.append(ChatMessage(
-                type: .answer,
-                text: "Newton's Second Law states that Force = Mass × Acceleration (F = ma). এই সূত্র অনুসারে, যখন একটি বস্তুর উপর বল প্রয়োগ করা হয়, তখন বস্তুটি ত্বরণ লাভ করে যা বলের সমানুপাতিক এবং ভরের ব্যস্তানুপাতিক।\n\nExample: If a 5 kg object is pushed with 10 N force, acceleration = 10/5 = 2 m/s²"
-            ))
-            isLoading = false
-            questionsToday += 1
-        }
+        vm.ask(question: trimmed)
     }
 
     private func handleVoiceInput() {
+        // Voice input wired in Sprint 6 — placeholder toggles recording state
         isRecording.toggle()
         if isRecording {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
