@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 12 May 2026*
+*Last updated: 13 May 2026*
 
 ---
 
@@ -11,7 +11,7 @@
 | Sprint 1 | Foundation & NIM Integration | ✅ Complete | 1–2 |
 | Sprint 2 | RAG Pipeline | � In Progress | 3–4 |
 | Sprint 3 | CrewAI Agents | 🔲 Not Started | 5–6 |
-| Sprint 4 | FastAPI Routes + Auth | 🔲 Not Started | 7–8 |
+| Sprint 4 | FastAPI Routes + Auth | ✅ Complete | 7–8 |
 | Sprint 5 | iOS Core — Study Screen | 🔲 Not Started | 9–10 |
 | Sprint 6 | iOS — Voice, Progress, Onboarding | 🔲 Not Started | 11–12 |
 | Sprint 7 | Subscription + Freemium | 🔲 Not Started | 13–14 |
@@ -94,20 +94,20 @@
 
 ---
 
-## Sprint 4 — FastAPI Routes + Auth 🔲 Not Started
+## Sprint 4 — FastAPI Routes + Auth ✅ Complete
 
 **Goal:** All API endpoints live, JWT auth working, iOS can call the backend
 
 | # | Task | File | Status |
 |---|------|------|--------|
-| 1 | JWT auth: `POST /auth/token`, refresh, `get_current_user` | `backend/app/routers/auth.py` | 🔲 |
-| 2 | `POST /ask` — calls Question Generator agent | `backend/app/routers/ask.py` | 🔲 |
-| 3 | `GET /plan/:student_id` — today's study plan | `backend/app/routers/plan.py` | 🔲 |
-| 4 | `POST /sync-answers` — batch insert quiz answers | `backend/app/routers/progress.py` | 🔲 |
-| 5 | `GET /progress/:student_id` — weekly progress snapshot | `backend/app/routers/progress.py` | 🔲 |
-| 6 | APScheduler nightly crew job | `backend/app/scheduler.py` | 🔲 |
-| 7 | API tests with `httpx AsyncClient` | `backend/tests/test_api.py` | 🔲 |
-| 8 | Deploy to Railway (free tier) | `backend/Dockerfile`, `railway.toml` | 🔲 |
+| 1 | JWT auth: `POST /auth/token`, refresh, `get_current_user` | `backend/app/routers/auth.py` | ✅ Done |
+| 2 | `POST /ask` — calls Question Generator agent | `backend/app/routers/ask.py` | ✅ Done |
+| 3 | `GET /plan/:student_id` — today's study plan | `backend/app/routers/plan.py` | ✅ Done |
+| 4 | `POST /sync-answers` — batch insert quiz answers | `backend/app/routers/progress.py` | ✅ Done |
+| 5 | `GET /progress/:student_id` — weekly progress snapshot | `backend/app/routers/progress.py` | ✅ Done |
+| 6 | APScheduler nightly crew job | `backend/app/scheduler.py` | ✅ Done |
+| 7 | API tests with `httpx AsyncClient` | `backend/tests/test_api.py` | ✅ Done |
+| 8 | Deploy to Railway (free tier) | `backend/Dockerfile`, `railway.toml` | ✅ Done — https://smarttutor-api-production.up.railway.app |
 
 ---
 
