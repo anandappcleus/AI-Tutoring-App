@@ -159,12 +159,22 @@ def _parse_crew_output(raw: str) -> dict:
     """
     Best-effort parse of the crew's raw string output into a dict.
 
-    Pass 1 — strip markdown code fences (```json ... ```) then parse.
-    Pass 2 — fix invalid JSON escape sequences that the LLM emits for LaTeX
-             (\\(, \\int, \\frac, \\pi …) by doubling backslashes that aren't
-             part of a valid JSON escape sequence.
+    Pre-pass — strip <think>...</think> reasoning blocks emitted by thinking
+               models (sarvam-m, Qwen3, etc.). Everything before the last
+               </think> tag is discarded; only the actual answer is parsed.
+    Pass 1   — strip markdown code fences (```json ... ```) then parse.
+    Pass 2   — fix invalid JSON escape sequences that the LLM emits for LaTeX
+               (\\(, \\int, \\frac, \\pi …) by doubling backslashes that aren't
+               part of a valid JSON escape sequence.
     """
     text = raw.strip()
+
+    # Pre-pass: strip <think>...</think> reasoning blocks
+    end_tag = "</think>"
+    end_pos = text.rfind(end_tag)
+    if end_pos != -1:
+        text = text[end_pos + len(end_tag):].strip()
+
     # Strip ```json ... ``` or ``` ... ``` fences
     if text.startswith("```"):
         lines = text.splitlines()
