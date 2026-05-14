@@ -108,10 +108,61 @@ async def _check_daily_limit(student: Student, db: AsyncSession) -> None:
         )
 
 
+def _escape_latex_backslashes(text: str) -> str:
+    """
+    Walk through a JSON document character-by-character.
+    Inside string values, double-escape any backslash that is not part of a
+    valid 2-char JSON escape sequence (\\\\, \\", \\/, \\b, \\f, \\n, \\r, \\t)
+    or a \\\\uNNNN Unicode escape.
+
+    This preserves intentional JSON whitespace escapes (\\\\n, \\\\t ...) while
+    fixing invalid LaTeX sequences like \\(, \\int, \\frac so they survive
+    json.loads and arrive in the parsed dict as the literal characters \\(, \\int.
+    """
+    out = []
+    in_str = False
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if not in_str:
+            out.append(ch)
+            if ch == '"':
+                in_str = True
+            i += 1
+        else:
+            if ch == '\\':
+                nxt = text[i + 1] if i + 1 < len(text) else ""
+                if nxt in ('"', '\\', '/', 'n', 'r', 't'):
+                    out.append(ch)
+                    out.append(nxt)
+                    i += 2
+                elif nxt == 'u' and i + 5 < len(text) and all(
+                    c in '0123456789abcdefABCDEF' for c in text[i + 2: i + 6]
+                ):
+                    out.append(text[i: i + 6])
+                    i += 6
+                else:
+                    # Invalid JSON escape — double the backslash
+                    out.append('\\\\')
+                    i += 1  # process nxt on the next iteration
+            elif ch == '"':
+                in_str = False
+                out.append(ch)
+                i += 1
+            else:
+                out.append(ch)
+                i += 1
+    return "".join(out)
+
+
 def _parse_crew_output(raw: str) -> dict:
     """
     Best-effort parse of the crew's raw string output into a dict.
-    The LLM sometimes wraps JSON in markdown code fences — strip them first.
+
+    Pass 1 — strip markdown code fences (```json ... ```) then parse.
+    Pass 2 — fix invalid JSON escape sequences that the LLM emits for LaTeX
+             (\\(, \\int, \\frac, \\pi …) by doubling backslashes that aren't
+             part of a valid JSON escape sequence.
     """
     text = raw.strip()
     # Strip ```json ... ``` or ``` ... ``` fences
@@ -120,9 +171,17 @@ def _parse_crew_output(raw: str) -> dict:
         text = "\n".join(
             l for l in lines if not l.strip().startswith("```")
         ).strip()
+
+    # Pass 1: standard JSON parse
     try:
         return json.loads(text)
     except json.JSONDecodeError:
+        pass
+
+    # Pass 2: fix LaTeX backslash escapes inside string values
+    try:
+        return json.loads(_escape_latex_backslashes(text))
+    except (json.JSONDecodeError, Exception):
         return {}
 
 

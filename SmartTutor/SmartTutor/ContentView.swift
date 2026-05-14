@@ -28,19 +28,25 @@ struct ContentView: View {
 // MARK: - Main Tab View
 
 private struct MainTabView: View {
+    @AppStorage("selectedMainTab") private var selectedTab = 0
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             DashboardView()
                 .tabItem { Label("Home",     systemImage: "house.fill") }
+                .tag(0)
 
             StudyView()
                 .tabItem { Label("Study",    systemImage: "brain.head.profile") }
+                .tag(1)
 
             LearnerProgressView()
                 .tabItem { Label("Progress", systemImage: "chart.bar.xaxis") }
+                .tag(2)
 
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                .tag(3)
         }
         .tint(.indigo)
     }

@@ -7,11 +7,24 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
-    @State private var notificationsEnabled = true
-    @State private var soundEffectsEnabled  = true
+    @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+    @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled = true
+    @State private var showLanguagePicker = false
+    @State private var showEditProfile    = false
+    @State private var showPrivacy        = false
+    @State private var showHelp           = false
+
+    private var notificationsEnabled: Binding<Bool> {
+        Binding {
+            notificationStatus == .authorized
+        } set: { newValue in
+            Task { await handleNotificationsToggle(newValue) }
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -40,36 +53,39 @@ struct SettingsView: View {
                 VStack(spacing: 16) {
                     // Profile card
                     VStack(spacing: 0) {
-                        HStack(spacing: 16) {
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [.indigo, .purple],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
+                        Button { showEditProfile = true } label: {
+                            HStack(spacing: 16) {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [.indigo, .purple],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
                                         )
-                                    )
-                                    .frame(width: 64, height: 64)
-                                Text(String((appState.currentProfile?.name ?? "?").prefix(1)))
-                                    .font(.system(size: 26, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(appState.currentProfile?.name ?? "—")
-                                    .font(.system(size: 17, weight: .bold))
-                                Text(appState.currentProfile?.email ?? "—")
-                                    .font(.system(size: 14))
+                                        .frame(width: 64, height: 64)
+                                    Text(String((appState.currentProfile?.name ?? "?").prefix(1)))
+                                        .font(.system(size: 26, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(appState.currentProfile?.name ?? "—")
+                                        .font(.system(size: 17, weight: .bold))
+                                    Text(appState.currentProfile?.email ?? "—")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.secondary)
+                                    .padding(10)
+                                    .background(Color(UIColor.secondarySystemBackground))
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.secondary)
-                                .padding(10)
-                                .background(Color(UIColor.secondarySystemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
+                        .buttonStyle(.plain)
 
                         Divider().padding(.vertical, 16)
 
@@ -88,13 +104,14 @@ struct SettingsView: View {
                     SettingsGroupBox(title: "Preferences") {
                         SettingsNavRow(
                             icon: "globe", iconBg: .blue,
-                            title: "Language", subtitle: appState.currentProfile?.preferredLanguage.displayName ?? "—"
+                            title: "Language", subtitle: appState.currentProfile?.preferredLanguage.displayName ?? "—",
+                            action: { showLanguagePicker = true }
                         )
                         Divider().padding(.leading, 68)
                         SettingsToggleRow(
                             icon: "bell.fill", iconBg: .yellow,
                             title: "Push Notifications", subtitle: "Daily study reminders",
-                            isOn: $notificationsEnabled
+                            isOn: notificationsEnabled
                         )
                         Divider().padding(.leading, 68)
                         SettingsDisabledRow(
@@ -113,17 +130,20 @@ struct SettingsView: View {
                     SettingsGroupBox(title: "Account & Support") {
                         SettingsNavRow(
                             icon: "person.fill", iconBg: .indigo,
-                            title: "Edit Profile", subtitle: "Update your information"
+                            title: "Edit Profile", subtitle: "Update your information",
+                            action: { showEditProfile = true }
                         )
                         Divider().padding(.leading, 68)
                         SettingsNavRow(
                             icon: "shield.fill", iconBg: .orange,
-                            title: "Privacy & Security", subtitle: "Manage your data"
+                            title: "Privacy & Security", subtitle: "Manage your data",
+                            action: { showPrivacy = true }
                         )
                         Divider().padding(.leading, 68)
                         SettingsNavRow(
                             icon: "questionmark.circle.fill", iconBg: .teal,
-                            title: "Help & Support", subtitle: "FAQs and contact us"
+                            title: "Help & Support", subtitle: "FAQs and contact us",
+                            action: { showHelp = true }
                         )
                     }
 
@@ -168,6 +188,40 @@ struct SettingsView: View {
         }
         .background(Color(UIColor.systemGroupedBackground))
         .ignoresSafeArea(edges: .top)
+        .task {
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            notificationStatus = settings.authorizationStatus
+        }
+        .sheet(isPresented: $showLanguagePicker) { LanguagePickerSheet().environmentObject(appState) }
+        .sheet(isPresented: $showEditProfile)    { EditProfileSheet().environmentObject(appState)    }
+        .sheet(isPresented: $showPrivacy)        { PrivacySheetView()                                }
+        .sheet(isPresented: $showHelp)           { HelpSheetView()                                   }
+    }
+
+    // MARK: - Notifications
+
+    private func handleNotificationsToggle(_ enable: Bool) async {
+        let center = UNUserNotificationCenter.current()
+        if enable {
+            let settings = await center.notificationSettings()
+            switch settings.authorizationStatus {
+            case .notDetermined:
+                let granted = (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+                notificationStatus = granted ? .authorized : .denied
+            case .denied:
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    await UIApplication.shared.open(url)
+                }
+            case .authorized, .provisional, .ephemeral:
+                notificationStatus = .authorized
+            @unknown default:
+                break
+            }
+        } else {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                await UIApplication.shared.open(url)
+            }
+        }
     }
 }
 
@@ -216,10 +270,11 @@ private struct SettingsNavRow: View {
     let iconBg: Color
     let title: String
     let subtitle: String
+    var action: (() -> Void)?
 
     var body: some View {
         Button {
-            // navigation action
+            action?()
         } label: {
             HStack(spacing: 14) {
                 ZStack {
@@ -292,5 +347,143 @@ private struct SettingsDisabledRow: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
+    }
+}
+
+// MARK: - Sheet Views
+
+private struct LanguagePickerSheet: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            List(StudentProfile.Language.allCases) { lang in
+                Button {
+                    Task {
+                        isSaving = true
+                        await appState.updateProfile(language: lang.rawValue)
+                        isSaving = false
+                        dismiss()
+                    }
+                } label: {
+                    HStack {
+                        Text(lang.displayName).foregroundColor(.primary)
+                        Spacer()
+                        if lang == appState.currentProfile?.preferredLanguage {
+                            Image(systemName: "checkmark").foregroundColor(.indigo)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Language")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+            .disabled(isSaving)
+            .overlay { if isSaving { ProgressView() } }
+        }
+    }
+}
+
+private struct EditProfileSheet: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Display Name") {
+                    TextField("Your name", text: $name)
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") {
+                        Task {
+                            isSaving = true
+                            await appState.updateProfile(name: name.trimmingCharacters(in: .whitespaces))
+                            isSaving = false
+                            dismiss()
+                        }
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
+                }
+            }
+            .disabled(isSaving)
+        }
+        .onAppear { name = appState.currentProfile?.name ?? "" }
+    }
+}
+
+private struct PrivacySheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Your Privacy").font(.title2.bold())
+                    Text("SmartTutor collects only the data needed to personalise your learning experience — your name, email, exam target, and session history. We never sell your data to third parties.")
+                    Text("You may request deletion of your account and all associated data by contacting support@smarttutor.app.")
+                }
+                .padding()
+            }
+            .navigationTitle("Privacy & Security")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct HelpSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Frequently Asked Questions").font(.headline)
+                        Group {
+                            Text("**How does the AI tutor work?**\nAsk any JEE/NEET question in your preferred language and the AI answers with step-by-step explanations.")
+                            Text("**What are Offline Packs?**\nDownload topic packs to study without an internet connection.")
+                            Text("**How is my study plan generated?**\nThe AI crew analyses your progress nightly and creates a personalised plan at 2 AM IST.")
+                        }
+                        .font(.system(size: 14))
+                    }
+                    Divider()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Contact Us").font(.headline)
+                        Link("support@smarttutor.app",
+                             destination: URL(string: "mailto:support@smarttutor.app")!)
+                            .font(.system(size: 15))
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Help & Support")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }

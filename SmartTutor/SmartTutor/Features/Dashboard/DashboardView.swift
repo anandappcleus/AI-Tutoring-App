@@ -11,9 +11,11 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var vm = DashboardViewModel()
+    @AppStorage("selectedMainTab") private var selectedMainTab = 0
     @State private var askText = ""
     @State private var showOfflinePacks = false
     @State private var showParentDashboard = false
+    @State private var showComingSoon = false
 
     var body: some View {
         NavigationStack {
@@ -22,14 +24,22 @@ struct DashboardView: View {
                     DashboardHeaderSection(
                         askText: $askText,
                         studentName: appState.currentProfile?.name ?? "Student",
-                        language: appState.currentProfile?.preferredLanguage ?? .english
+                        language: appState.currentProfile?.preferredLanguage ?? .english,
+                        onSubmit: { selectedMainTab = 1 },
+                        onCameraTap: { showComingSoon = true }
                     )
 
                     VStack(spacing: 28) {
-                        TodaysFocusSection(studyPlan: vm.studyPlan, isLoading: vm.isLoading)
+                        TodaysFocusSection(
+                            studyPlan: vm.studyPlan,
+                            isLoading: vm.isLoading,
+                            onPlannerTap: { selectedMainTab = 1 }
+                        )
                         LearningModulesSection(
                             showOfflinePacks: $showOfflinePacks,
-                            showParentDashboard: $showParentDashboard
+                            showParentDashboard: $showParentDashboard,
+                            onNavigateToStudy: { selectedMainTab = 1 },
+                            onComingSoonTap: { showComingSoon = true }
                         )
                     }
                     .padding(.horizontal, 20)
@@ -44,6 +54,11 @@ struct DashboardView: View {
             }
             .navigationDestination(isPresented: $showParentDashboard) {
                 ParentDashboardView()
+            }
+            .alert("Coming Soon", isPresented: $showComingSoon) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("This feature is coming in the next update.")
             }
         }
         .task {
@@ -60,6 +75,8 @@ private struct DashboardHeaderSection: View {
     @Binding var askText: String
     let studentName: String
     let language: StudentProfile.Language
+    let onSubmit: () -> Void
+    let onCameraTap: () -> Void
 
     private var askPlaceholder: String {
         switch language {
@@ -86,7 +103,7 @@ private struct DashboardHeaderSection: View {
                             )
                         )
                         .frame(width: 50, height: 50)
-                    Text("R")
+                    Text(String(studentName.prefix(1).uppercased()))
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.white)
                 }
@@ -100,20 +117,6 @@ private struct DashboardHeaderSection: View {
                 }
 
                 Spacer()
-
-                // Streak badge
-                HStack(spacing: 6) {
-                    Image(systemName: "flame.fill")
-                        .foregroundColor(.orange)
-                    Text("12")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.orange)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color.orange.opacity(0.1))
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.orange.opacity(0.15), lineWidth: 1))
             }
             .padding(.horizontal, 20)
             .padding(.top, 60)
@@ -127,12 +130,13 @@ private struct DashboardHeaderSection: View {
 
                 TextField(askPlaceholder, text: $askText)
                     .font(.system(size: 15, weight: .medium))
+                    .onSubmit { onSubmit() }
 
                 Spacer(minLength: 0)
 
                 HStack(spacing: 12) {
                     Button {
-                        // Camera action
+                        onCameraTap()
                     } label: {
                         Image(systemName: "camera")
                             .font(.system(size: 20))
@@ -188,6 +192,7 @@ private struct DashboardHeaderSection: View {
 private struct TodaysFocusSection: View {
     let studyPlan: StudyPlanResponse?
     let isLoading: Bool
+    let onPlannerTap: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -195,13 +200,16 @@ private struct TodaysFocusSection: View {
                 Text("Today's Focus")
                     .font(.system(size: 18, weight: .bold))
                 Spacer()
-                Label("AI Planner", systemImage: "cpu")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.indigo)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.indigo.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                Button(action: onPlannerTap) {
+                    Label("AI Planner", systemImage: "cpu")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.indigo)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.indigo.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
             }
 
             ZStack(alignment: .topTrailing) {
@@ -249,7 +257,7 @@ private struct TodaysFocusSection: View {
                             .lineSpacing(3)
                             .padding(.bottom, 20)
 
-                        Button { } label: {
+                        Button { onPlannerTap() } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "play.fill")
                                     .font(.system(size: 15))
@@ -290,6 +298,8 @@ private struct TodaysFocusSection: View {
 private struct LearningModulesSection: View {
     @Binding var showOfflinePacks: Bool
     @Binding var showParentDashboard: Bool
+    let onNavigateToStudy: () -> Void
+    let onComingSoonTap: () -> Void
 
     struct ModuleItem: Identifiable {
         let id = UUID()
@@ -315,7 +325,10 @@ private struct LearningModulesSection: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
                 ForEach(modules) { mod in
                     ModuleCard(item: mod) {
-                        if mod.title == "Offline Packs"  { showOfflinePacks = true }
+                        switch mod.title {
+                        case "Offline Packs": showOfflinePacks = true
+                        default:              onComingSoonTap()
+                        }
                     }
                 }
             }
