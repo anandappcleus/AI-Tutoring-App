@@ -5,6 +5,7 @@
 //  Sprint 6 — Loads today's study plan from GET /plan/:studentId.
 //
 
+import Combine
 import Foundation
 import os.log
 

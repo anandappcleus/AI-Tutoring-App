@@ -5,6 +5,7 @@
 //  Sprint 6 — Loads weekly progress from GET /progress/:studentId.
 //
 
+import Combine
 import Foundation
 import os.log
 
