@@ -162,4 +162,12 @@ extension NSManagedObjectContext {
         qRequest.predicate = NSPredicate(format: "packId == %@", packId)
         (try? fetch(qRequest))?.forEach { delete($0) }
     }
+
+    /// Fetch all questions for a given pack, ordered by questionId.
+    func fetchQuestions(for packId: String) -> [OfflineQuestionEntity] {
+        let request = OfflineQuestionEntity.fetchRequest()
+        request.predicate     = NSPredicate(format: "packId == %@", packId)
+        request.sortDescriptors = [NSSortDescriptor(key: "questionId", ascending: true)]
+        return (try? fetch(request)) ?? []
+    }
 }

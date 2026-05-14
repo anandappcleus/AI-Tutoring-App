@@ -12,6 +12,7 @@ struct OfflinePacksView: View {
 
     @StateObject private var vm = OfflinePacksViewModel()
     @EnvironmentObject private var appState: AppState
+    @State private var practiceItem: PackListItem?
 
     private let totalKB = 500_000   // 500 MB storage cap for display
 
@@ -109,6 +110,8 @@ struct OfflinePacksView: View {
                                 ForEach(vm.downloadedPacks) { pack in
                                     DownloadedPackCard(pack: pack) {
                                         vm.deletePack(pack)
+                                    } onPractice: {
+                                        practiceItem = pack
                                     }
                                 }
                             }
@@ -157,6 +160,9 @@ struct OfflinePacksView: View {
         .navigationTitle("Offline Packs")
         .navigationBarTitleDisplayMode(.inline)
         .task { await vm.loadPacks() }
+        .sheet(item: $practiceItem) { pack in
+            OfflinePracticeView(pack: pack)
+        }
     }
 
     private var storageLabel: String {
@@ -188,6 +194,7 @@ private struct PacksSectionView<Content: View>: View {
 private struct DownloadedPackCard: View {
     let pack: PackListItem
     let onDelete: () -> Void
+    let onPractice: () -> Void
 
     var body: some View {
         VStack(spacing: 12) {
@@ -225,7 +232,7 @@ private struct DownloadedPackCard: View {
             }
 
             Button {
-                // TODO Sprint 9: navigate to offline practice session
+                onPractice()
             } label: {
                 Text("Practice Now")
                     .font(.system(size: 14, weight: .semibold))
