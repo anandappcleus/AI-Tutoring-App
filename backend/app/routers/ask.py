@@ -155,6 +155,45 @@ def _escape_latex_backslashes(text: str) -> str:
     return "".join(out)
 
 
+def _extract_last_json_object(text: str) -> str | None:
+    """
+    Walk *text* character-by-character tracking brace depth.
+
+    Returns the LAST complete top-level {...} block found.  Correctly ignores
+    braces that appear inside JSON string values AND inside the agent's ReAct
+    thought trace (e.g. Action Input: {"query": "..."}).
+    """
+    best: str | None = None
+    depth = 0
+    start = -1
+    in_string = False
+    escaped = False
+
+    for i, c in enumerate(text):
+        if escaped:
+            escaped = False
+            continue
+        if c == "\\" and in_string:
+            escaped = True
+            continue
+        if c == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if c == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif c == "}" and depth > 0:
+            depth -= 1
+            if depth == 0 and start != -1:
+                best = text[start : i + 1]  # keep overwriting → last wins
+                start = -1
+
+    return best
+
+
 def _parse_crew_output(raw: str) -> dict:
     """
     Best-effort parse of the crew's raw string output into a dict.
@@ -162,6 +201,9 @@ def _parse_crew_output(raw: str) -> dict:
     Pre-pass — strip <think>...</think> reasoning blocks emitted by thinking
                models (sarvam-m, Qwen3, etc.). Everything before the last
                </think> tag is discarded; only the actual answer is parsed.
+    Pass 0   — use _extract_last_json_object() to find the final top-level
+               JSON object even when the model omits <think> tags or appends
+               trailing text / ReAct traces that contain their own { } pairs.
     Pass 1   — strip markdown code fences (```json ... ```) then parse.
     Pass 2   — fix invalid JSON escape sequences that the LLM emits for LaTeX
                (\\(, \\int, \\frac, \\pi …) by doubling backslashes that aren't
@@ -182,13 +224,11 @@ def _parse_crew_output(raw: str) -> dict:
             l for l in lines if not l.strip().startswith("```")
         ).strip()
 
-    # Extract JSON object: skip any leading preamble and trailing text.
-    # Handles (a) models that omit the opening <think> tag, (b) models that
-    # append a summary sentence after the closing }.
-    brace_start = text.find("{")
-    brace_end = text.rfind("}")
-    if brace_start != -1 and brace_end > brace_start:
-        text = text[brace_start : brace_end + 1]
+    # Pass 0: extract the LAST complete JSON object — handles ReAct traces
+    # where the thinking text contains its own { } pairs (tool inputs, etc.)
+    extracted = _extract_last_json_object(text)
+    if extracted:
+        text = extracted
 
     # Pass 1: standard JSON parse
     try:
