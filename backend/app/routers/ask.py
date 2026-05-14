@@ -390,8 +390,28 @@ async def ask(
         await db.rollback()
 
     # ── Build response ───────────────────────────────────────────────
+    # Fallback explanation when JSON parsing failed completely:
+    # prefer text after "Final Answer:" over the raw thinking dump.
+    if not parsed:
+        fallback_explanation = raw_output
+        for marker in ("Final Answer:", "final answer:", "FINAL ANSWER:"):
+            pos = raw_output.rfind(marker)
+            if pos != -1:
+                fallback_explanation = raw_output[pos + len(marker):].strip()
+                break
+        else:
+            # No JSON and no Final Answer marker — return a user-friendly message
+            # so the student sees something actionable rather than raw thinking.
+            if not _extract_last_json_object(raw_output):
+                fallback_explanation = (
+                    "Sorry, I had trouble generating a structured response for this question. "
+                    "Please try rephrasing or ask a more specific question."
+                )
+    else:
+        fallback_explanation = ""
+
     return AskResponse(
-        explanation=parsed.get("explanation", raw_output),
+        explanation=parsed.get("explanation") or fallback_explanation,
         worked_example=parsed.get("worked_example", ""),
         practice_problems=[
             PracticeProblem(**p)

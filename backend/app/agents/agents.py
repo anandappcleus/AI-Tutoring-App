@@ -98,11 +98,19 @@ def make_planner_agent() -> Agent:
 
 
 def make_question_generator_agent(lang_code: str = "en") -> Agent:
-    """Answer student questions in their native language using RAG context."""
-    _, indic_llm = _make_llms()
+    """Answer student questions in their native language using RAG context.
+
+    Model routing:
+      English → agent_llm (llama-3.3-70b) — reliable structured JSON output.
+      Indic   → indic_llm (sarvam-m)       — native Indic language support.
+    """
+    agent_llm, indic_llm = _make_llms()
+    # llama-3.3-70b follows JSON formatting instructions reliably; sarvam-m (thinking
+    # model) sometimes outputs pure reasoning without a JSON Final Answer.
+    llm = indic_llm if lang_code != "en" else agent_llm
     log.debug(
         "agents.make_question_generator_agent  model=%s  lang=%s",
-        indic_llm.model,
+        llm.model,
         lang_code,
     )
     return Agent(
@@ -116,7 +124,7 @@ def make_question_generator_agent(lang_code: str = "en") -> Agent:
             "exam preparation. You explain complex concepts in the student's native language "
             "using simple analogies and step-by-step reasoning."
         ),
-        llm=indic_llm,
+        llm=llm,
         tools=[rag_search_tool],
         system_prompt=get_tutor_prompt(lang_code),
         verbose=False,
