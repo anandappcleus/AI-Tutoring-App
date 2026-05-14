@@ -72,6 +72,23 @@ final class AppState: ObservableObject {
         isLoggingIn = false
     }
 
+    // MARK: - Update Profile (called after Onboarding and from Settings)
+
+    func updateProfile(language: String? = nil, examTarget: String? = nil, name: String? = nil) async {
+        logger.info("AppState.updateProfile: start  lang=\(language ?? "-")  exam=\(examTarget ?? "-")")
+        do {
+            let updated: StudentResponse = try await apiClient.request(
+                .updateProfile(language: language, examTarget: examTarget, name: name)
+            )
+            let profile = StudentProfile(from: updated)
+            profile.save()
+            currentProfile = profile
+            logger.info("AppState.updateProfile: ok  lang=\(profile.preferredLanguage.rawValue)  exam=\(profile.examTarget.rawValue)")
+        } catch {
+            logger.error("AppState.updateProfile: failed  error=\(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Logout
 
     func logout() {

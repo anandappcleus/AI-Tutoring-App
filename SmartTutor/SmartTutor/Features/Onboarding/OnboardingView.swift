@@ -10,6 +10,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Binding var isOnboardingComplete: Bool
+    @EnvironmentObject private var appState: AppState
 
     @State private var step = 1
     @State private var selectedLanguage = ""
@@ -91,6 +92,17 @@ struct OnboardingView: View {
                         if step < 3 {
                             step += 1
                         } else {
+                            // Save language + exam preferences to server, then mark complete
+                            let lang = selectedLanguage.isEmpty ? "en" : selectedLanguage
+                            let exam = selectedExam.isEmpty ? "JEE" : selectedExam.uppercased()
+                            let displayName = name.trimmingCharacters(in: .whitespaces)
+                            Task {
+                                await appState.updateProfile(
+                                    language: lang,
+                                    examTarget: exam,
+                                    name: displayName.isEmpty ? nil : displayName
+                                )
+                            }
                             isOnboardingComplete = true
                         }
                     }

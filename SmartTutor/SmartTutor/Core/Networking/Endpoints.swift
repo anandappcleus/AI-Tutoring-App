@@ -30,6 +30,9 @@ enum Endpoint {
     case progress(studentId: String)
     case syncAnswers([SyncAnswerPayload])
 
+    // Profile update (called from Onboarding and Settings)
+    case updateProfile(language: String?, examTarget: String?, name: String?)
+
     // Sprint 8: Offline packs (placeholder — not wired yet)
     // case packs
     // case downloadPack(id: String)
@@ -46,6 +49,7 @@ enum Endpoint {
         case .plan(let id):         return "/plan/\(id)"
         case .progress(let id):     return "/progress/\(id)"
         case .syncAnswers:          return "/sync-answers"
+        case .updateProfile:        return "/auth/me"
         }
     }
 
@@ -55,6 +59,7 @@ enum Endpoint {
         switch self {
         case .login, .register, .refresh, .ask, .syncAnswers: return "POST"
         case .me, .plan, .progress:                            return "GET"
+        case .updateProfile:                                   return "PATCH"
         }
     }
 
@@ -89,6 +94,13 @@ enum Endpoint {
 
         case .syncAnswers(let answers):
             return try? encoder.encode(["answers": answers])
+
+        case .updateProfile(let language, let examTarget, let name):
+            var body: [String: String] = [:]
+            if let lang = language      { body["preferred_language"] = lang }
+            if let exam = examTarget    { body["exam_target"] = exam }
+            if let n = name             { body["name"] = n }
+            return try? JSONSerialization.data(withJSONObject: body)
 
         default:
             return nil
@@ -163,28 +175,34 @@ struct ProgressResponse: Decodable {
     let studentId: String
     let weekStart: String
     let weekEnd: String
+    let totalQuestions: Int
+    let correctQuestions: Int
+    let overallAccuracyPct: Double
     let topics: [TopicProgress]
+    let weakTopics: [String]
 
     struct TopicProgress: Decodable {
         let topic: String
         let subject: String?
-        let correctCount: Int
-        let totalCount: Int
+        let correct: Int
+        let total: Int
         let accuracyPct: Double
 
         enum CodingKeys: String, CodingKey {
-            case topic, subject
-            case correctCount = "correct_count"
-            case totalCount   = "total_count"
-            case accuracyPct  = "accuracy_pct"
+            case topic, subject, correct, total
+            case accuracyPct = "accuracy_pct"
         }
     }
 
     enum CodingKeys: String, CodingKey {
         case topics
-        case studentId = "student_id"
-        case weekStart = "week_start"
-        case weekEnd   = "week_end"
+        case studentId        = "student_id"
+        case weekStart        = "week_start"
+        case weekEnd          = "week_end"
+        case totalQuestions   = "total_questions"
+        case correctQuestions = "correct_questions"
+        case overallAccuracyPct = "overall_accuracy_pct"
+        case weakTopics       = "weak_topics"
     }
 }
 

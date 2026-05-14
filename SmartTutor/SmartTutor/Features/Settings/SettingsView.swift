@@ -9,16 +9,9 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @EnvironmentObject private var appState: AppState
     @State private var notificationsEnabled = true
     @State private var soundEffectsEnabled  = true
-
-    private let profile = (
-        name:     "Riya Sharma",
-        email:    "riya.sharma@email.com",
-        exam:     "JEE Mains 2026",
-        language: "Bengali",
-        joined:   "March 2026"
-    )
 
     var body: some View {
         ScrollView {
@@ -58,14 +51,14 @@ struct SettingsView: View {
                                         )
                                     )
                                     .frame(width: 64, height: 64)
-                                Text(String(profile.name.prefix(1)))
+                                Text(String((appState.currentProfile?.name ?? "?").prefix(1)))
                                     .font(.system(size: 26, weight: .bold))
                                     .foregroundColor(.white)
                             }
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(profile.name)
+                                Text(appState.currentProfile?.name ?? "—")
                                     .font(.system(size: 17, weight: .bold))
-                                Text(profile.email)
+                                Text(appState.currentProfile?.email ?? "—")
                                     .font(.system(size: 14))
                                     .foregroundColor(.secondary)
                             }
@@ -81,9 +74,9 @@ struct SettingsView: View {
                         Divider().padding(.vertical, 16)
 
                         HStack(spacing: 0) {
-                            ProfileMetaCell(label: "Preparing for", value: profile.exam)
+                            ProfileMetaCell(label: "Preparing for", value: appState.currentProfile?.examTarget.displayName ?? "—")
                             Divider().frame(height: 40)
-                            ProfileMetaCell(label: "Member since", value: profile.joined)
+                            ProfileMetaCell(label: "Language", value: appState.currentProfile?.preferredLanguage.displayName ?? "—")
                         }
                     }
                     .padding(20)
@@ -95,7 +88,7 @@ struct SettingsView: View {
                     SettingsGroupBox(title: "Preferences") {
                         SettingsNavRow(
                             icon: "globe", iconBg: .blue,
-                            title: "Language", subtitle: profile.language
+                            title: "Language", subtitle: appState.currentProfile?.preferredLanguage.displayName ?? "—"
                         )
                         Divider().padding(.leading, 68)
                         SettingsToggleRow(
@@ -154,7 +147,7 @@ struct SettingsView: View {
 
                     // Logout
                     Button {
-                        // Logout action
+                        appState.logout()
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "rectangle.portrait.and.arrow.right")

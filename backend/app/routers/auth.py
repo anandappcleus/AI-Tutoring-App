@@ -92,6 +92,14 @@ class StudentResponse(BaseModel):
     created_at: datetime
 
 
+class UpdateMeRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=200)
+    preferred_language: str | None = Field(
+        None, pattern=r"^(bn|hi|ta|te|mr|gu|kn|ml|or|pa|en)$"
+    )
+    exam_target: str | None = Field(None, pattern=r"^(JEE|NEET|WBCHSE)$")
+
+
 # ── Token helpers ─────────────────────────────────────────────────────
 
 def _create_token(student_id: str, token_type: str, expires_delta: timedelta) -> str:
@@ -301,6 +309,37 @@ async def refresh(body: RefreshRequest):
 async def me(current_student: Student = Depends(get_current_student)):
     """Return the current authenticated student's profile."""
     log.debug("auth.me  student_id=%s", current_student.id)
+    return _student_to_response(current_student)
+
+
+@router.patch("/me", response_model=StudentResponse)
+async def update_me(
+    body: UpdateMeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    """Update name, preferred_language, and/or exam_target for the current student."""
+    if body.name is not None:
+        current_student.name = body.name
+    if body.preferred_language is not None:
+        current_student.preferred_language = body.preferred_language
+    if body.exam_target is not None:
+        current_student.exam_target = body.exam_target
+
+    try:
+        await db.commit()
+        await db.refresh(current_student)
+    except Exception:
+        await db.rollback()
+        log.error(
+            "auth.update_me.db_error  student_id=%s", current_student.id, exc_info=True
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": "db_error", "message": "Failed to update profile. Please retry."},
+        )
+
+    log.info("auth.update_me.ok  student_id=%s", current_student.id)
     return _student_to_response(current_student)
 
 

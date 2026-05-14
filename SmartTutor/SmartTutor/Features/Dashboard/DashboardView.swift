@@ -9,6 +9,8 @@
 import SwiftUI
 
 struct DashboardView: View {
+    @EnvironmentObject private var appState: AppState
+    @StateObject private var vm = DashboardViewModel()
     @State private var askText = ""
     @State private var showOfflinePacks = false
     @State private var showParentDashboard = false
@@ -17,10 +19,13 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    DashboardHeaderSection(askText: $askText)
+                    DashboardHeaderSection(
+                        askText: $askText,
+                        studentName: appState.currentProfile?.name ?? "Student"
+                    )
 
                     VStack(spacing: 28) {
-                        TodaysFocusSection()
+                        TodaysFocusSection(studyPlan: vm.studyPlan, isLoading: vm.isLoading)
                         LearningModulesSection(
                             showOfflinePacks: $showOfflinePacks,
                             showParentDashboard: $showParentDashboard
@@ -40,6 +45,11 @@ struct DashboardView: View {
                 ParentDashboardView()
             }
         }
+        .task {
+            if let id = appState.currentProfile?.id {
+                await vm.loadPlan(studentId: id)
+            }
+        }
     }
 }
 
@@ -47,6 +57,7 @@ struct DashboardView: View {
 
 private struct DashboardHeaderSection: View {
     @Binding var askText: String
+    let studentName: String
 
     var body: some View {
         VStack(spacing: 0) {
@@ -71,7 +82,7 @@ private struct DashboardHeaderSection: View {
                     Text("Welcome back,")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
-                    Text("Riya 👋")
+                    Text("\(studentName) 👋")
                         .font(.system(size: 22, weight: .bold))
                 }
 
@@ -162,6 +173,9 @@ private struct DashboardHeaderSection: View {
 // MARK: - Today's Focus
 
 private struct TodaysFocusSection: View {
+    let studyPlan: StudyPlanResponse?
+    let isLoading: Bool
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .bottom) {
@@ -195,41 +209,64 @@ private struct TodaysFocusSection: View {
                     .offset(x: 20, y: -20)
                     .clipped()
 
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 8) {
-                        TagBadge(text: "Physics", color: .purple)
-                        TagBadge(text: "Weak Topic", color: .pink)
+                if isLoading {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Loading today\'s plan...")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
                     }
-                    .padding(.bottom, 14)
-
-                    Text("Newton's Laws of Motion")
-                        .font(.system(size: 20, weight: .bold))
-                        .padding(.bottom, 8)
-
-                    Text("You struggled with pulley problems in your last mock. Let's master them with a quick interactive lesson.")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                        .lineSpacing(3)
-                        .padding(.bottom, 20)
-
-                    Button {
-                        // Start lesson
-                    } label: {
+                    .frame(maxWidth: .infinity)
+                    .padding(40)
+                } else if let plan = studyPlan, let firstTopic = plan.topics.first {
+                    VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 8) {
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 15))
-                            Text("Start AI Lesson")
-                                .font(.system(size: 15, weight: .bold))
+                            TagBadge(text: firstTopic.topic, color: .purple)
+                            TagBadge(text: "AI Plan", color: .indigo)
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(Color(UIColor.label))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .gray.opacity(0.2), radius: 8, y: 3)
+                        .padding(.bottom, 14)
+
+                        Text(firstTopic.topic)
+                            .font(.system(size: 20, weight: .bold))
+                            .padding(.bottom, 8)
+
+                        Text("\(firstTopic.durationMin) min · \(plan.topics.count) topic\(plan.topics.count == 1 ? "" : "s") today")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .lineSpacing(3)
+                            .padding(.bottom, 20)
+
+                        Button { } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 15))
+                                Text("Start AI Lesson")
+                                    .font(.system(size: 15, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(Color(UIColor.label))
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .shadow(color: .gray.opacity(0.2), radius: 8, y: 3)
+                        }
                     }
+                    .padding(20)
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "moon.stars.fill")
+                            .font(.system(size: 36))
+                            .foregroundColor(.indigo.opacity(0.6))
+                        Text("Plan generates tonight")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("The AI tutor creates your personalised plan nightly at 2 AM IST.")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(32)
                 }
-                .padding(20)
             }
         }
     }
