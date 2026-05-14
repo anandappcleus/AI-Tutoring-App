@@ -16,7 +16,7 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.database import AsyncSessionFactory
+from app.database import ToolSessionFactory
 from app.models.student import StudyPlan
 from app.tools.db_sync import run_async
 
@@ -90,7 +90,7 @@ class WritePlanTool(BaseTool):
         ]
 
         try:
-            async with AsyncSessionFactory() as session:
+            async with ToolSessionFactory() as session:
                 async with session.begin():
                     stmt = (
                         pg_insert(StudyPlan)

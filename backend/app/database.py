@@ -17,6 +17,7 @@ import logging
 from urllib.parse import urlparse, urlunparse
 
 import sqlalchemy as sa
+from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -69,6 +70,32 @@ engine = _build_engine()
 
 AsyncSessionFactory = async_sessionmaker(
     engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+
+def _build_tool_engine():
+    """
+    Separate engine for CrewAI tool threads.
+
+    Uses NullPool so asyncpg never holds connections between asyncio.run() calls.
+    Each tool invocation gets a fresh connection that belongs to its own event loop,
+    eliminating the 'Future attached to a different loop' error.
+    """
+    settings = get_settings()
+    return create_async_engine(
+        settings.DATABASE_URL,
+        echo=False,
+        future=True,
+        poolclass=NullPool,
+    )
+
+
+_tool_engine = _build_tool_engine()
+
+ToolSessionFactory = async_sessionmaker(
+    _tool_engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )
