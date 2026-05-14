@@ -33,6 +33,9 @@ enum Endpoint {
     // Profile update (called from Onboarding and Settings)
     case updateProfile(language: String?, examTarget: String?, name: String?)
 
+    // Sprint 6: APNs device token upload
+    case registerDeviceToken(token: String)
+
     // Sprint 8: Offline packs (placeholder — not wired yet)
     // case packs
     // case downloadPack(id: String)
@@ -50,6 +53,7 @@ enum Endpoint {
         case .progress(let id):     return "/progress/\(id)"
         case .syncAnswers:          return "/sync-answers"
         case .updateProfile:        return "/auth/me"
+        case .registerDeviceToken:  return "/auth/device-token"
         }
     }
 
@@ -57,7 +61,8 @@ enum Endpoint {
 
     var httpMethod: String {
         switch self {
-        case .login, .register, .refresh, .ask, .syncAnswers: return "POST"
+        case .login, .register, .refresh, .ask, .syncAnswers,
+             .registerDeviceToken:                             return "POST"
         case .me, .plan, .progress:                            return "GET"
         case .updateProfile:                                   return "PATCH"
         }
@@ -102,10 +107,19 @@ enum Endpoint {
             if let n = name             { body["name"] = n }
             return try? JSONSerialization.data(withJSONObject: body)
 
+        case .registerDeviceToken(let token):
+            return try? JSONSerialization.data(withJSONObject: ["token": token])
+
         default:
             return nil
         }
     }
+}
+
+// MARK: - APNs Device Token Response
+
+struct DeviceTokenResponse: Decodable {
+    let registered: Bool
 }
 
 // MARK: - Request / Response Payload Types

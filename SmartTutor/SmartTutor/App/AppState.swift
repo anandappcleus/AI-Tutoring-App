@@ -99,6 +99,23 @@ final class AppState: ObservableObject {
         loginError = nil
     }
 
+    // MARK: - Register APNs device token (called from AppDelegate)
+
+    func registerDeviceToken(_ token: String) async {
+        guard isAuthenticated else {
+            logger.info("AppState.registerDeviceToken: skipped — not authenticated")
+            return
+        }
+        logger.info("AppState.registerDeviceToken: uploading \(token.prefix(8))…")
+        do {
+            let _: DeviceTokenResponse = try await apiClient.request(.registerDeviceToken(token: token))
+            logger.info("AppState.registerDeviceToken: ok")
+        } catch {
+            // Non-fatal: push notifications degrade gracefully if upload fails
+            logger.error("AppState.registerDeviceToken: failed — \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Handle unauthorized (called by Views on .error("unauthorized"))
 
     func handleSessionExpiry() {

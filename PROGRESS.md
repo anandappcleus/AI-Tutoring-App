@@ -13,7 +13,7 @@
 | Sprint 3 | CrewAI Agents | ✅ Complete | 5–6 |
 | Sprint 4 | FastAPI Routes + Auth | ✅ Complete | 7–8 |
 | Sprint 5 | iOS Core — Study Screen | ✅ Complete | 9–10 |
-| Sprint 6 | iOS — Voice, Progress, Onboarding | 🔶 In Progress (5/7 tasks) | 11–12 |
+| Sprint 6 | iOS — Voice, Progress, Onboarding | ✅ Complete | 11–12 |
 | Sprint 7 | Subscription + Freemium | 🔲 Not Started | 13–14 |
 | Sprint 8 | Offline Packs + Content QA | 🔲 Not Started | 15–16 |
 | Sprint 9 | Production LLM Switch + Deployment | 🔲 Not Started | 17–18 |
@@ -132,7 +132,7 @@
 
 ---
 
-## Sprint 6 — iOS: Voice, Progress, Onboarding 🔶 In Progress
+## Sprint 6 — iOS: Voice, Progress, Onboarding ✅ Complete
 
 **Goal:** Voice input, progress charts, language onboarding, parent dashboard
 
@@ -146,7 +146,7 @@
 | 4 | Wire `LearnerProgressView.swift` — Swift Charts + `ProgressViewModel` | `Features/Progress/LearnerProgressView.swift`, `Features/Progress/ProgressViewModel.swift` | ✅ Done |
 | 5 | Wire `ParentDashboardView.swift` — `/progress` API | `Features/Parent/ParentDashboardView.swift`, `Features/Parent/ParentDashboardViewModel.swift` | ✅ Done |
 | 6 | `Localizable.strings` — Bengali + Hindi UI labels | `Resources/bn.lproj/`, `Resources/hi.lproj/` | 🔲 Deferred to Sprint 10 |
-| 7 | Push notification registration + APNs token upload | `SmartTutorApp.swift` | 🔲 |
+| 7 | Push notification registration + APNs token upload | `SmartTutorApp.swift`, `App/AppDelegate.swift`, `POST /auth/device-token` | ✅ Done |
 
 ### Sprint 6 Unit Tests
 

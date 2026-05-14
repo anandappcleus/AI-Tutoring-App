@@ -100,6 +100,16 @@ class UpdateMeRequest(BaseModel):
     exam_target: str | None = Field(None, pattern=r"^(JEE|NEET|WBCHSE)$")
 
 
+class DeviceTokenRequest(BaseModel):
+    token: str = Field(
+        ...,
+        min_length=64,
+        max_length=64,
+        pattern=r"^[0-9a-f]{64}$",
+        description="APNs device token as a 64-character lowercase hex string",
+    )
+
+
 # ── Token helpers ─────────────────────────────────────────────────────
 
 def _create_token(student_id: str, token_type: str, expires_delta: timedelta) -> str:
@@ -341,6 +351,34 @@ async def update_me(
 
     log.info("auth.update_me.ok  student_id=%s", current_student.id)
     return _student_to_response(current_student)
+
+
+@router.post("/device-token", status_code=200)
+async def register_device_token(
+    body: DeviceTokenRequest,
+    db: AsyncSession = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+) -> dict:
+    """
+    Store the APNs device token for the authenticated student.
+
+    Called by the iOS app after UIApplication.registerForRemoteNotifications()
+    succeeds. The token is used by the nightly crew job to send push alerts
+    when a student hits a learning plateau.
+    """
+    log.info("auth.device_token  student_id=%s  token_prefix=%s", current_student.id, body.token[:8])
+    current_student.apns_token = body.token
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        log.error("auth.device_token.db_error  student_id=%s", current_student.id, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": "db_error", "message": "Failed to save device token."},
+        )
+    log.info("auth.device_token.ok  student_id=%s", current_student.id)
+    return {"registered": True}
 
 
 # ── Private helpers ────────────────────────────────────────────────────

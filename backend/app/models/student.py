@@ -25,6 +25,9 @@ class Student(Base):
     # Subscription
     is_premium: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
 
+    # Push notifications
+    apns_token: Mapped[str | None] = mapped_column(sa.String(64), nullable=True, default=None)
+
     # Account
     is_active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
