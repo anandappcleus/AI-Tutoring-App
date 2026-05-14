@@ -182,6 +182,14 @@ def _parse_crew_output(raw: str) -> dict:
             l for l in lines if not l.strip().startswith("```")
         ).strip()
 
+    # Extract JSON object: skip any leading preamble and trailing text.
+    # Handles (a) models that omit the opening <think> tag, (b) models that
+    # append a summary sentence after the closing }.
+    brace_start = text.find("{")
+    brace_end = text.rfind("}")
+    if brace_start != -1 and brace_end > brace_start:
+        text = text[brace_start : brace_end + 1]
+
     # Pass 1: standard JSON parse
     try:
         return json.loads(text)
