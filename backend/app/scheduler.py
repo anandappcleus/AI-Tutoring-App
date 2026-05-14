@@ -147,8 +147,6 @@ async def _fetch_active_students() -> list[Student]:
 
 async def _run_student_crew(student: Student, today: date) -> None:
     """Dispatch one student's nightly crew to the thread pool."""
-    from app.agents.crew import NightlyTutorCrew
-
     sid = str(student.id)
     phone = getattr(student, "phone_number", "") or ""  # phone not in model yet — Sprint 6
     plan_date = today.isoformat()
@@ -177,6 +175,7 @@ def _crew_sync(
     language: str,
 ) -> None:
     """Synchronous crew execution — runs in a thread pool executor."""
+    from app.agents.crew import NightlyTutorCrew  # deferred — CrewAI is slow to import
     NightlyTutorCrew().run(
         student_id=student_id,
         phone_number=phone_number,
