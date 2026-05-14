@@ -8,6 +8,7 @@
 //  the feature is never empty.
 //
 
+import Combine
 import Foundation
 import os.log
 import SwiftUI

@@ -8,6 +8,7 @@
 //  Tapping any formula opens the AI tutor to explain it.
 //
 
+import Combine
 import Foundation
 import os.log
 import SwiftUI
@@ -356,7 +357,7 @@ struct FormulaSheetView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.secondary.opacity(0.5))
                 .padding(.top, 60)
-            Text("No formulas found for "\(vm.searchText)"")
+            Text("No formulas found for \"\(vm.searchText)\"")
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
         }

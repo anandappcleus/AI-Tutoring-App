@@ -6,6 +6,7 @@
 //  AI tutor chat: message bubbles, voice input, paywall gate.
 //
 
+import os
 import SwiftUI
 
 struct StudyView: View {

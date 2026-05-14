@@ -6,7 +6,9 @@
 //  Sprint 7+: camera & voice input, Mock Tests, Syllabus Map, Formula Sheets, Start AI Lesson.
 //
 
+import os
 import SwiftUI
+
 
 struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
