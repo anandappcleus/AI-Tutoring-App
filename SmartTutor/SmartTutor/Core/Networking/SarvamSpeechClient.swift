@@ -60,10 +60,13 @@ actor SarvamSpeechClient {
     private let sttURL = URL(string: "https://api.sarvam.ai/speech-to-text")!
     private let ttsURL = URL(string: "https://api.sarvam.ai/text-to-speech")!
     private let session: URLSession
+    /// Non-nil only in unit tests — bypasses Info.plist lookup.
+    private let testAPIKey: String?
 
     /// Reads the API key at call-time so xcconfig changes are picked up without restart.
     private var apiKey: String {
         get throws {
+            if let key = testAPIKey { return key }
             guard let key = Bundle.main.infoDictionary?["SARVAM_API_KEY"] as? String,
                   !key.isEmpty else {
                 throw SarvamError.missingAPIKey
@@ -72,8 +75,9 @@ actor SarvamSpeechClient {
         }
     }
 
-    init(session: URLSession = .shared) {
+    init(session: URLSession = .shared, testAPIKey: String? = nil) {
         self.session = session
+        self.testAPIKey = testAPIKey
     }
 
     // MARK: - STT — audio file → transcript

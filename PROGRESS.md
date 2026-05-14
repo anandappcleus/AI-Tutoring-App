@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 14 May 2026*
+*Last updated: 14 May 2026 (Sprint 6 unit tests complete)*
 
 ---
 
@@ -13,7 +13,7 @@
 | Sprint 3 | CrewAI Agents | ✅ Complete | 5–6 |
 | Sprint 4 | FastAPI Routes + Auth | ✅ Complete | 7–8 |
 | Sprint 5 | iOS Core — Study Screen | ✅ Complete | 9–10 |
-| Sprint 6 | iOS — Voice, Progress, Onboarding | � In Progress | 11–12 |
+| Sprint 6 | iOS — Voice, Progress, Onboarding | 🔶 In Progress (5/7 tasks) | 11–12 |
 | Sprint 7 | Subscription + Freemium | 🔲 Not Started | 13–14 |
 | Sprint 8 | Offline Packs + Content QA | 🔲 Not Started | 15–16 |
 | Sprint 9 | Production LLM Switch + Deployment | 🔲 Not Started | 17–18 |
@@ -132,7 +132,7 @@
 
 ---
 
-## Sprint 6 — iOS: Voice, Progress, Onboarding � In Progress
+## Sprint 6 — iOS: Voice, Progress, Onboarding 🔶 In Progress
 
 **Goal:** Voice input, progress charts, language onboarding, parent dashboard
 
@@ -145,8 +145,20 @@
 | 3 | `SarvamSpeechClient.swift` — Sarvam Saaras v2 STT + Bulbul v2 TTS | `Core/Networking/SarvamSpeechClient.swift` | ✅ Done |
 | 4 | Wire `LearnerProgressView.swift` — Swift Charts + `ProgressViewModel` | `Features/Progress/LearnerProgressView.swift`, `Features/Progress/ProgressViewModel.swift` | ✅ Done |
 | 5 | Wire `ParentDashboardView.swift` — `/progress` API | `Features/Parent/ParentDashboardView.swift`, `Features/Parent/ParentDashboardViewModel.swift` | ✅ Done |
-| 6 | `Localizable.strings` — Bengali + Hindi UI labels | `Resources/bn.lproj/`, `Resources/hi.lproj/` | 🔲 |
+| 6 | `Localizable.strings` — Bengali + Hindi UI labels | `Resources/bn.lproj/`, `Resources/hi.lproj/` | 🔲 Deferred to Sprint 10 |
 | 7 | Push notification registration + APNs token upload | `SmartTutorApp.swift` | 🔲 |
+
+### Sprint 6 Unit Tests
+
+| File | Tests | Status |
+|------|-------|--------|
+| `Sprint6TestHelpers.swift` — `StubAPIClient`, `MockURLProtocol`, fixture builders | — | ✅ Done |
+| `OnboardingViewModelTests.swift` | 14 | ✅ Done |
+| `ProgressViewModelTests.swift` | 9 | ✅ Done |
+| `ParentDashboardViewModelTests.swift` | 12 | ✅ Done |
+| `SarvamSpeechClientTests.swift` | 9 | ✅ Done |
+
+**Sprint 6 test total: 44 new tests** · **Cumulative: 83 tests** (39 Sprint 5 + 44 Sprint 6)
 
 ---
 
@@ -216,18 +228,20 @@
 
 | Screen | File | UI Shell | Backend Wired | Sprint to Wire |
 |--------|------|----------|---------------|---------------|
-| Onboarding | `Features/Onboarding/OnboardingView.swift` | ✅ | 🔲 | 6 |
-| Dashboard | `Features/Dashboard/DashboardView.swift` | ✅ | 🔲 | 5 |
-| Study / Ask | `Features/Study/StudyView.swift` | ✅ | 🔲 | 5 |
-| Progress | `Features/Progress/LearnerProgressView.swift` | ✅ | 🔲 | 6 |
-| Parent Dashboard | `Features/Parent/ParentDashboardView.swift` | ✅ | 🔲 | 6 |
+| Onboarding | `Features/Onboarding/OnboardingView.swift` | ✅ | ✅ | 6 |
+| Dashboard | `Features/Dashboard/DashboardView.swift` | ✅ | ✅ | 5 |
+| Study / Ask | `Features/Study/StudyView.swift` | ✅ | ✅ | 5 |
+| Progress | `Features/Progress/LearnerProgressView.swift` | ✅ | ✅ | 6 |
+| Parent Dashboard | `Features/Parent/ParentDashboardView.swift` | ✅ | ✅ | 6 |
 | Paywall | `Features/Paywall/PaywallView.swift` | ✅ | 🔲 | 7 |
 | Offline Packs | `Features/OfflinePacks/OfflinePacksView.swift` | ✅ | 🔲 | 8 |
 | Settings | `Features/Settings/SettingsView.swift` | ✅ | 🔲 | 6 |
-| Voice Input | `Features/Study/VoiceInputView.swift` | 🔲 | 🔲 | 6 |
-| Study ViewModel | `Features/Study/StudyViewModel.swift` | 🔲 | 🔲 | 5 |
-| Onboarding ViewModel | `Features/Onboarding/OnboardingViewModel.swift` | 🔲 | 🔲 | 6 |
+| Voice Input | `Features/Study/VoiceInputView.swift` | ✅ | ✅ | 6 |
+| Study ViewModel | `Features/Study/StudyViewModel.swift` | ✅ | ✅ | 5 |
+| Onboarding ViewModel | `Features/Onboarding/OnboardingViewModel.swift` | ✅ | ✅ | 6 |
 | StoreKit Manager | `Features/Subscription/StoreKitManager.swift` | 🔲 | 🔲 | 7 |
-| Offline Sync Manager | `Core/Persistence/OfflineSyncManager.swift` | 🔲 | 🔲 | 5 |
-| Core Data Stack | `Core/Persistence/CoreDataStack.swift` | 🔲 | 🔲 | 5 |
-| Bhashini Client | `Core/Networking/BhashiniClient.swift` | 🔲 | 🔲 | 6 |
+| Offline Sync Manager | `Core/Persistence/OfflineSyncManager.swift` | ✅ | ✅ | 5 |
+| Core Data Stack | `Core/Persistence/CoreDataStack.swift` | ✅ | ✅ | 5 |
+| Sarvam Speech Client | `Core/Networking/SarvamSpeechClient.swift` | ✅ | ✅ | 6 |
+| Parent Dashboard ViewModel | `Features/Parent/ParentDashboardViewModel.swift` | ✅ | ✅ | 6 |
+| Progress ViewModel | `Features/Progress/ProgressViewModel.swift` | ✅ | ✅ | 6 |
