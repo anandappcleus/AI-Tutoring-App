@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 14 May 2026 (Sprint 6 unit tests complete)*
+*Last updated: 14 May 2026 (Post-Sprint 6 production hardening + exam framing)*
 
 ---
 
@@ -159,6 +159,43 @@
 | `SarvamSpeechClientTests.swift` | 9 | ✅ Done |
 
 **Sprint 6 test total: 44 new tests** · **Cumulative: 83 tests** (39 Sprint 5 + 44 Sprint 6)
+
+---
+
+## Post-Sprint 6 — Production Hardening + Feature Work ✅ Complete
+
+*14 May 2026 — done between Sprint 6 completion and Sprint 7 start.*
+
+### Backend Fixes (all deployed to Railway)
+
+| # | Fix / Feature | File(s) | Commit | Status |
+|---|---------------|---------|--------|--------|
+| 1 | **NullPool fix** — `ToolSessionFactory` with `NullPool` engine eliminates `RuntimeError: attached to a different loop` in CrewAI tools running in `ThreadPoolExecutor` | `app/database.py`, `tools/*.py` | prior session | ✅ Deployed + confirmed via Railway logs |
+| 2 | **Admin concurrency guard** — `_crew_running` flag returns 409 Conflict when a nightly crew run is already in progress; prevents duplicate NIM 429s | `app/routers/admin.py` | `5655786` | ✅ Deployed |
+| 3 | **FREE_DAILY_LIMIT → 50** — raised from 10 for testing | `app/routers/ask.py` | `5655786` | ✅ Deployed |
+| 4 | **Multi-pass JSON parser** — `_extract_last_json_object()` (brace-depth walker, handles ReAct traces), `_fix_control_chars_in_strings()`, 4-pass parse pipeline; eliminates raw thinking text / raw JSON in iOS | `app/routers/ask.py` | `72c3bca` | ✅ Deployed |
+| 5 | **Stronger tutor system prompt** — "CRITICAL OUTPUT FORMAT: Final Answer MUST be a single valid JSON object and nothing else"; explicit schema in prompt | `app/agents/prompts.py` | `72c3bca` | ✅ Deployed |
+| 6 | **Better parse_failed logging** — logs `extracted_preview` (first 300 chars) and `json_err` (JSONDecodeError message) for debugging | `app/routers/ask.py` | `72c3bca` | ✅ Deployed |
+| 7 | **Model routing fix** — EN questions → `meta/llama-3.3-70b-instruct` (reliable JSON output); Indic languages → `sarvamai/sarvam-m` (native language support). Root-cause fix for sarvam-m outputting pure thinking with zero JSON | `app/agents/agents.py` | `798df8b` | ✅ Deployed |
+| 8 | **Prose fallback** — when no JSON and no "Final Answer:" marker, shows user-friendly message instead of 1973-char raw thinking dump | `app/routers/ask.py` | `798df8b` | ✅ Deployed |
+| 9 | **Exam-specific framing** — `exam_type` (JEE/NEET/WBCHSE) flows through `AskRequest → crew → task prompt`; response includes `question_type`, `marks`, `marking_scheme` per exam style | `app/routers/ask.py`, `app/agents/crew.py`, `app/agents/tasks.py` | `1329d89` | ✅ Deployed |
+
+### iOS Changes (committed, pending Xcode build)
+
+| # | Change | File(s) | Commit | Status |
+|---|--------|---------|--------|--------|
+| 1 | **Exam framing in chat bubble** — `buildAnswerText` renders badge `🎯 JEE Mains & Advanced • MCQ • 4 marks (+4/-1)` above explanation; `examTarget` from `StudentProfile` sent automatically | `StudyViewModel.swift` | `1329d89` | ✅ Committed |
+| 2 | **AskResponse / PracticeProblem** extended with `questionType`, `marks`, `markingScheme` optional fields | `Endpoints.swift` | `1329d89` | ✅ Committed |
+| 3 | **Tests updated** for new `AskResponse` + `PracticeProblem` memberwise init | `StudyViewModelTests.swift`, `OfflineSyncManagerTests.swift` | `1329d89` | ✅ Committed |
+
+### Production Verification (Railway logs, 14 May 2026)
+
+```
+15:14:43 → POST /ask  lang=en  ← status=200  46.8s  (cold start — Chroma init)
+15:17:07 → POST /ask  lang=en  ← status=200  13.5s  model=meta/llama-3.3-70b-instruct
+15:18:14 → POST /ask  lang=en  ← status=200  12.2s  model=meta/llama-3.3-70b-instruct
+```
+No `ask.parse_failed` in any of the above. All 200s. ✅
 
 ---
 
