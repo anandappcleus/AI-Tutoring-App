@@ -79,6 +79,7 @@ struct DashboardView: View {
                             showMockTests:       $showMockTests,
                             showSyllabusMap:     $showSyllabusMap,
                             showFormulaSheets:   $showFormulaSheets,
+                            examTarget: appState.currentProfile?.examTarget.rawValue,
                             onNavigateToStudy: { selectedMainTab = 1 }
                         )
                     }
@@ -444,6 +445,7 @@ private struct LearningModulesSection: View {
     @Binding var showMockTests:       Bool
     @Binding var showSyllabusMap:     Bool
     @Binding var showFormulaSheets:   Bool
+    let examTarget: String?            // from StudentProfile — nil before profile loads
     let onNavigateToStudy: () -> Void
 
     struct ModuleItem: Identifiable {
@@ -455,12 +457,42 @@ private struct LearningModulesSection: View {
         let bgColor: Color
     }
 
-    let modules: [ModuleItem] = [
-        ModuleItem(title: "Mock Tests",     subtitle: "JEE Mains 2026",    icon: "checkmark.circle.fill",    iconColor: .blue,   bgColor: .blue.opacity(0.1)),
-        ModuleItem(title: "Syllabus Map",   subtitle: "Track progress",     icon: "chart.bar.fill",           iconColor: .green,  bgColor: .green.opacity(0.1)),
-        ModuleItem(title: "Offline Packs",  subtitle: "Study without data", icon: "arrow.down.circle.fill",   iconColor: .orange, bgColor: .orange.opacity(0.1)),
-        ModuleItem(title: "Formula Sheets", subtitle: "Quick revision",     icon: "book.fill",                iconColor: .purple, bgColor: .purple.opacity(0.1)),
-    ]
+    /// All subtitles derived from the student's exam target — no hardcoded strings.
+    private var modules: [ModuleItem] {
+        let exam = examTarget ?? "JEE"
+        let year = Calendar.current.component(.year, from: Date())
+
+        return [
+            ModuleItem(
+                title: "Mock Tests",
+                subtitle: "\(exam) \(year) Papers",
+                icon: "checkmark.circle.fill",
+                iconColor: .blue,
+                bgColor: .blue.opacity(0.1)
+            ),
+            ModuleItem(
+                title: "Syllabus Map",
+                subtitle: "\(exam) syllabus",
+                icon: "chart.bar.fill",
+                iconColor: .green,
+                bgColor: .green.opacity(0.1)
+            ),
+            ModuleItem(
+                title: "Offline Packs",
+                subtitle: "Study without data",
+                icon: "arrow.down.circle.fill",
+                iconColor: .orange,
+                bgColor: .orange.opacity(0.1)
+            ),
+            ModuleItem(
+                title: "Formula Sheets",
+                subtitle: "\(exam) quick revision",
+                icon: "book.fill",
+                iconColor: .purple,
+                bgColor: .purple.opacity(0.1)
+            ),
+        ]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
