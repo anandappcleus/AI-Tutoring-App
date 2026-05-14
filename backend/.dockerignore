@@ -29,11 +29,11 @@ scratch/
 # Tests — not needed in production image
 tests/
 
-# Large RAG corpus (PDFs) — ingested offline; production uses Pinecone
+# Large RAG corpus (PDFs) — too large to include in image
 rag/corpus/
 
-# Local Chroma data — production uses Pinecone
-chroma_db/
+# chroma_db is included in the image so it can be seeded to the Railway volume
+# on first startup (see Dockerfile CMD)
 
 # Git
 .git/

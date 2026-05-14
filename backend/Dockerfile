@@ -44,4 +44,13 @@ EXPOSE 8000
 # Run alembic migrations then start uvicorn.
 # Using sh -c so ${PORT:-8000} is expanded by the shell.
 # Railway sets PORT at runtime; fall back to 8000 for local docker compose.
-CMD ["sh", "-c", "alembic upgrade head || echo '[WARN] Migrations skipped'; exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info"]
+CMD ["sh", "-c", "\
+  if [ ! -f /app/chroma_data/chroma.sqlite3 ]; then \
+    echo '[INIT] Seeding RAG volume from bundled chroma_db...'; \
+    cp -rp /app/chroma_db/. /app/chroma_data/; \
+    echo '[INIT] Seeding complete'; \
+  else \
+    echo '[INIT] chroma_data already populated, skipping seed'; \
+  fi; \
+  alembic upgrade head || echo '[WARN] Migrations skipped'; \
+  exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info"]
