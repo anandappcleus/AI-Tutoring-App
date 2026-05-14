@@ -109,17 +109,37 @@ class QuestionCrew:
         )
     """
 
+    # Exam-type → context string injected into the task prompt
+    _EXAM_CONTEXTS: dict[str, str] = {
+        "JEE": (
+            "JEE Mains/Advanced style. Choose MCQ (4 marks, -1 wrong) or "
+            "Integer-type (4 marks, 0 for wrong). Set question_type to 'MCQ' or "
+            "'Integer', marks to 4, marking_scheme to '+4/-1' or '+4/0'."
+        ),
+        "NEET": (
+            "NEET UG style. Use MCQ only (4 marks, -1 for wrong answer). "
+            "Set question_type='MCQ', marks=4, marking_scheme='+4/-1'."
+        ),
+        "WBCHSE": (
+            "WBCHSE Board style. Use Short Answer (2-3 marks) or Long Answer (5 marks), "
+            "no negative marking. Set question_type to 'Short Answer' or 'Long Answer', "
+            "marks accordingly, marking_scheme='no negative marking'."
+        ),
+    }
+
     def run(
         self,
         question: str,
         student_id: str,
         language: str = "en",
         weak_topics: list[str] | None = None,
+        exam_type: str | None = None,
     ) -> str:
         log.info(
-            "QuestionCrew.run  student_id=%s  lang=%s  q=%r",
+            "QuestionCrew.run  student_id=%s  lang=%s  exam=%s  q=%r",
             student_id,
             language,
+            exam_type or "general",
             question[:80],
         )
 
@@ -134,12 +154,18 @@ class QuestionCrew:
         )
 
         weak_topics_str = ", ".join(weak_topics) if weak_topics else "none identified yet"
+        exam_context = self._EXAM_CONTEXTS.get(
+            exam_type or "",
+            "General academic style. Use appropriate question_type (MCQ, Short Answer, etc.) "
+            "and marks (2-4) for the topic.",
+        )
         result = crew.kickoff(
             inputs={
                 "question": question,
                 "student_id": student_id,
                 "language": language,
                 "weak_topics": weak_topics_str,
+                "exam_context": exam_context,
             }
         )
         log.info("QuestionCrew.run  complete  student_id=%s", student_id)

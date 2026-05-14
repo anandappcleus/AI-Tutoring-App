@@ -136,9 +136,10 @@ final class StudyViewModel: ObservableObject {
     // MARK: - Private
 
     private func performAsk(trimmed: String, language: String?) async {
+        let examType = profile()?.examTarget.rawValue  // "JEE" | "NEET" | "WBCHSE"
         do {
             let response: AskResponse = try await apiClient.request(
-                .ask(question: trimmed, language: language)
+                .ask(question: trimmed, language: language, examType: examType)
             )
 
             let answerText = buildAnswerText(from: response)
@@ -195,7 +196,22 @@ final class StudyViewModel: ObservableObject {
 
     /// Format the structured AskResponse into a readable chat string.
     private func buildAnswerText(from response: AskResponse) -> String {
-        var parts: [String] = [response.explanation]
+        var parts: [String] = []
+
+        // Exam badge — e.g. "JEE Mains • MCQ • 4 marks (+4/-1)"
+        if let qt = response.questionType, let m = response.marks {
+            var badge = ""
+            if let examTarget = profile()?.examTarget {
+                badge += examTarget.displayName + " • "
+            }
+            badge += qt + " • \(m) mark" + (m == 1 ? "" : "s")
+            if let scheme = response.markingScheme, !scheme.isEmpty {
+                badge += " (\(scheme))"
+            }
+            parts.append("🎯 \(badge)")
+        }
+
+        parts.append(response.explanation)
 
         if !response.workedExample.isEmpty {
             parts.append("\n\n📘 Example:\n\(response.workedExample)")
@@ -203,12 +219,16 @@ final class StudyViewModel: ObservableObject {
 
         if !response.practiceProblems.isEmpty {
             let problems = response.practiceProblems.enumerated().map { i, p in
-                "Q\(i + 1): \(p.question)\nA: \(p.answer)"
+                var line = "Q\(i + 1): \(p.question)\nA: \(p.answer)"
+                if let qt = p.questionType, let m = p.marks {
+                    line = "[\(qt), \(m) marks] " + line
+                }
+                return line
             }.joined(separator: "\n\n")
             parts.append("\n\n✏️ Practice:\n\(problems)")
         }
 
-        return parts.joined()
+        return parts.joined(separator: "\n")
     }
 
     private func appendWelcomeMessage() {

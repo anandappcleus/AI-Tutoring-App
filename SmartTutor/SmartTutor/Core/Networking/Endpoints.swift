@@ -21,7 +21,7 @@ enum Endpoint {
     case me                                        // GET /auth/me
 
     // Study — triggers Question Generator agent
-    case ask(question: String, language: String?)
+    case ask(question: String, language: String?, examType: String?)
 
     // Study Plan — returns today's Curriculum Planner output
     case plan(studentId: String)
@@ -94,9 +94,10 @@ enum Endpoint {
         case .refresh(let token):
             return try? JSONSerialization.data(withJSONObject: ["refresh_token": token])
 
-        case .ask(let question, let language):
+        case .ask(let question, let language, let examType):
             var body: [String: String] = ["question": question]
-            if let lang = language { body["language"] = lang }
+            if let lang = language     { body["language"] = lang }
+            if let exam = examType     { body["exam_type"] = exam }
             return try? JSONSerialization.data(withJSONObject: body)
 
         case .syncAnswers(let answers):
@@ -147,17 +148,32 @@ struct AskResponse: Decodable, Equatable {
     let workedExample: String
     let practiceProblems: [PracticeProblem]
     let language: String
+    let questionType: String?      // MCQ | Integer | Short Answer | Long Answer
+    let marks: Int?
+    let markingScheme: String?     // e.g. "+4/-1", "no negative marking"
     let rawOutput: String?
 
     struct PracticeProblem: Decodable, Equatable {
         let question: String
         let answer: String
+        let questionType: String?
+        let marks: Int?
+        let markingScheme: String?
+
+        enum CodingKeys: String, CodingKey {
+            case question, answer
+            case questionType    = "question_type"
+            case marks
+            case markingScheme   = "marking_scheme"
+        }
     }
 
     enum CodingKeys: String, CodingKey {
-        case explanation, language
+        case explanation, language, marks
         case workedExample    = "worked_example"
         case practiceProblems = "practice_problems"
+        case questionType     = "question_type"
+        case markingScheme    = "marking_scheme"
         case rawOutput        = "raw_output"
     }
 }

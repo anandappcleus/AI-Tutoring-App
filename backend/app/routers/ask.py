@@ -58,11 +58,19 @@ class AskRequest(BaseModel):
         pattern=r"^(bn|hi|ta|te|mr|gu|kn|ml|or|pa|en)$",
         description="Override preferred language for this question. Defaults to student profile.",
     )
+    exam_type: str | None = Field(
+        None,
+        pattern=r"^(JEE|NEET|WBCHSE)$",
+        description="Student's exam target — used to frame practice problems in the right style.",
+    )
 
 
 class PracticeProblem(BaseModel):
     question: str
     answer: str
+    question_type: str | None = None   # MCQ | Integer | Short Answer | Long Answer
+    marks: int | None = None
+    marking_scheme: str | None = None  # e.g. "+4/-1", "+4/0", "no negative marking"
 
 
 class AskResponse(BaseModel):
@@ -70,6 +78,9 @@ class AskResponse(BaseModel):
     worked_example: str
     practice_problems: list[PracticeProblem]
     language: str
+    question_type: str | None = None   # top-level question type for the whole answer
+    marks: int | None = None
+    marking_scheme: str | None = None
     raw_output: str | None = None  # populated when LLM returns non-JSON
 
 
@@ -332,6 +343,7 @@ async def ask(
             student_id,
             lang,
             weak_topics,
+            body.exam_type,
         )
     except Exception:
         log.error(
@@ -414,11 +426,20 @@ async def ask(
         explanation=parsed.get("explanation") or fallback_explanation,
         worked_example=parsed.get("worked_example", ""),
         practice_problems=[
-            PracticeProblem(**p)
+            PracticeProblem(
+                question=p["question"],
+                answer=p["answer"],
+                question_type=p.get("question_type"),
+                marks=p.get("marks"),
+                marking_scheme=p.get("marking_scheme"),
+            )
             for p in parsed.get("practice_problems", [])
             if isinstance(p, dict) and "question" in p and "answer" in p
         ],
         language=lang,
+        question_type=parsed.get("question_type"),
+        marks=parsed.get("marks"),
+        marking_scheme=parsed.get("marking_scheme"),
         raw_output=raw_output if not parsed else None,
     )
 
@@ -470,7 +491,13 @@ async def _get_weak_topics(student_id, db: AsyncSession) -> list[str]:
     return weak[:3]
 
 
-def _run_crew_sync(question: str, student_id: str, lang: str, weak_topics: list[str]) -> str:
+def _run_crew_sync(
+    question: str,
+    student_id: str,
+    lang: str,
+    weak_topics: list[str],
+    exam_type: str | None = None,
+) -> str:
     """Synchronous wrapper around QuestionCrew — runs in a thread pool."""
     from app.agents.crew import QuestionCrew
     return QuestionCrew().run(
@@ -478,4 +505,5 @@ def _run_crew_sync(question: str, student_id: str, lang: str, weak_topics: list[
         student_id=student_id,
         language=lang,
         weak_topics=weak_topics,
+        exam_type=exam_type,
     )

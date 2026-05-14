@@ -72,9 +72,13 @@ private func makeAskResponse(explanation: String = "Test explanation") -> AskRes
         explanation: explanation,
         workedExample: "F = ma",
         practiceProblems: [
-            AskResponse.PracticeProblem(question: "Q1", answer: "A1")
+            AskResponse.PracticeProblem(question: "Q1", answer: "A1",
+                                        questionType: nil, marks: nil, markingScheme: nil)
         ],
         language: "en",
+        questionType: nil,
+        marks: nil,
+        markingScheme: nil,
         rawOutput: nil
     )
 }

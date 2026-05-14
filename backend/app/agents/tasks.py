@@ -134,18 +134,21 @@ def make_question_task(agent: Agent) -> Task:
     """
     Answer a student's question with RAG context.
 
-    Placeholders: {question}, {student_id}, {language}
+    Placeholders: {question}, {student_id}, {language}, {weak_topics}, {exam_context}
     """
     return Task(
         description=(
             "Answer the following question for student {student_id}: {question}\n"
             "The student's current weak topics are: {weak_topics}.\n"
+            "Exam context: {exam_context}\n"
             "Steps:\n"
             "1. Use rag_search_tool to retrieve the top 5 relevant content chunks.\n"
             "2. Use those chunks as context to write a clear explanation.\n"
             "3. If the question touches any of the student's weak topics, provide extra depth,\n"
             "   highlight common mistakes students make on that topic, and add an encouraging note.\n"
             "4. Respond in {language} — use simple language suitable for a Class 11–12 student.\n"
+            "5. Format each practice problem according to the exam context above — include\n"
+            "   the question_type, marks, and marking_scheme appropriate for that exam.\n"
             "Return ONLY valid JSON — no prose outside the JSON object."
         ),
         expected_output=(
@@ -154,8 +157,19 @@ def make_question_task(agent: Agent) -> Task:
             '  "explanation": "...",\n'
             '  "worked_example": "...",\n'
             '  "practice_problems": [\n'
-            '    {"question": "...", "answer": "..."}\n'
-            "  ]\n"
+            '    {\n'
+            '      "question": "...",\n'
+            '      "answer": "...",\n'
+            '      "question_type": "MCQ",\n'
+            '      "marks": 4,\n'
+            '      "marking_scheme": "+4/-1"\n'
+            '    }\n'
+            "  ],\n"
+            '  "topic": "topic name",\n'
+            '  "subject": "subject name",\n'
+            '  "question_type": "MCQ",\n'
+            '  "marks": 4,\n'
+            '  "marking_scheme": "+4/-1"\n'
             "}"
         ),
         agent=agent,
