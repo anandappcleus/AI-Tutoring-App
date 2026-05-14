@@ -37,17 +37,20 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application source
 COPY --chown=appuser:appuser . .
 
-# Pre-create the chroma_data directory owned by appuser so the volume
-# mount (which lands as root) can be written by appuser at runtime.
-# Railway mounts the volume over /app/chroma_data at container start,
-# preserving the ownership set here if the volume is freshly provisioned.
-RUN mkdir -p /app/chroma_data && chown appuser:appuser /app/chroma_data
-
-USER appuser
+# Remove the pre-create step — Railway volume mount overwrites the dir anyway
+# The CMD runs the seed as root (before su to appuser) to bypass volume perms.
 
 EXPOSE 8000
 
-# Run alembic migrations then start uvicorn.
-# Using sh -c so ${PORT:-8000} is expanded by the shell.
-# Railway sets PORT at runtime; fall back to 8000 for local docker compose.
-CMD ["sh", "-c", "if [ -d /app/chroma_db ] && [ ! -f /app/chroma_data/chroma.sqlite3 ]; then echo '[INIT] Seeding chroma_data from bundled chroma_db...'; mkdir -p /app/chroma_data && cp -rp /app/chroma_db/. /app/chroma_data/ && echo '[INIT] Seed OK' || echo '[WARN] Seed failed, continuing'; fi; alembic upgrade head || echo '[WARN] Migrations skipped'; exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info"]
+# Startup sequence (runs as root so it can write to the Railway volume mount):
+#   1. Seed /app/chroma_data from bundled chroma_db if volume is empty
+#   2. Fix ownership so appuser can read the seeded files
+#   3. Run alembic migrations as appuser
+#   4. exec uvicorn as appuser
+CMD ["sh", "-c", "\
+  if [ -d /app/chroma_db ] && [ ! -f /app/chroma_data/chroma.sqlite3 ]; then \
+    echo '[INIT] Seeding chroma_data from bundled chroma_db...'; \
+    cp -rp /app/chroma_db/. /app/chroma_data/ && chown -R appuser:appuser /app/chroma_data && echo '[INIT] Seed OK'; \
+  fi; \
+  su appuser -s /bin/sh -c 'alembic upgrade head || echo [WARN] Migrations skipped'; \
+  exec su appuser -s /bin/sh -c 'exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info'"]
