@@ -15,9 +15,9 @@
 | Sprint 5 | iOS Core — Study Screen | ✅ Complete | 9–10 |
 | Sprint 6 | iOS — Voice, Progress, Onboarding | ✅ Complete | 11–12 |
 | Sprint 7 | Subscription + Freemium | 🔲 Not Started | 13–14 |
-| Sprint 8 | Offline Packs + Content QA | 🔲 Not Started | 15–16 |
+| Sprint 8 | Offline Packs + Content QA | � In Progress (4/6 tasks) | 15–16 |
 | Sprint 9 | Production LLM Switch + Deployment | 🔲 Not Started | 17–18 |
-| Sprint 10 | Hindi Support + B2B Admin Panel | 🔲 Not Started | 19–20 |
+| Sprint 10 | Indic Language Expansion + B2B Admin | 🔲 Not Started | 19–20 |
 | Sprint 11 | App Store Submission + Launch | 🔲 Not Started | 21–22 |
 | Sprint 12 | Analytics, Crash Reporting, Retention | 🔲 Not Started | 23–24 |
 
@@ -179,7 +179,7 @@
 
 ---
 
-## Sprint 8 — Offline Packs + Content QA 🔲 Not Started
+## Sprint 8 — Offline Packs + Content QA � In Progress
 
 **Goal:** Offline question packs downloadable, Bengali/Hindi output QA reviewed
 
@@ -187,12 +187,12 @@
 
 | # | Task | File | Status |
 |---|------|------|--------|
-| 1 | `GET /packs` — list available topic packs | `backend/app/routers/packs.py` | 🔲 |
-| 2 | `GET /packs/:id/download` — return question JSON | `backend/app/routers/packs.py` | 🔲 |
-| 3 | Wire `OfflinePacksView.swift` — download + Core Data | `Features/OfflinePacks/OfflinePacksView.swift` | 🔲 |
-| 4 | Core Data: `OfflinePack` + `OfflineQuestion` entities | `Core/Persistence/` | 🔲 |
-| 5 | Content QA: 50 Bengali answers reviewed by native speaker | — | 🔲 |
-| 6 | Prompt tuning based on QA feedback | `backend/app/agents/prompts.py` | 🔲 |
+| 1 | `GET /packs` — list available topic packs | `backend/app/routers/packs.py` | ✅ Done — 6 JEE packs (Physics, Chemistry, Maths) |
+| 2 | `GET /packs/:id/download` — return question JSON | `backend/app/routers/packs.py` | ✅ Done — 5 questions/pack (30 total, English placeholders) |
+| 3 | Wire `OfflinePacksView.swift` — download + Core Data | `Features/OfflinePacks/OfflinePacksView.swift`, `OfflinePacksViewModel.swift` | ✅ Done |
+| 4 | Core Data: `OfflinePack` + `OfflineQuestion` entities | `Core/Persistence/OfflinePackEntity.swift` | ✅ Done |
+| 5 | Content QA: 50 Bengali answers reviewed by native speaker | — | 🔲 Manual step |
+| 6 | Prompt tuning based on QA feedback | `backend/app/agents/prompts.py` | 🔲 Deferred to Sprint 8 QA round |
 
 ---
 
@@ -216,7 +216,7 @@
 
 | Sprint | Theme | Key Deliverables |
 |--------|-------|-----------------|
-| 10 | Hindi Support + B2B Admin | Hindi Localizable.strings, coaching institute admin panel |
+| 10 | Indic Language Expansion + B2B Admin | Bengali, Tamil, Telugu, Marathi Localizable.strings + coaching institute admin panel |
 | 11 | App Store Launch | App Review submission, marketing to school WhatsApp groups |
 | 12 | Analytics + Retention | Mixpanel events, Sentry crash reporting, win-back push campaigns |
 

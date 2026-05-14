@@ -21,7 +21,8 @@ struct DashboardView: View {
                 VStack(spacing: 0) {
                     DashboardHeaderSection(
                         askText: $askText,
-                        studentName: appState.currentProfile?.name ?? "Student"
+                        studentName: appState.currentProfile?.name ?? "Student",
+                        language: appState.currentProfile?.preferredLanguage ?? .english
                     )
 
                     VStack(spacing: 28) {
@@ -58,6 +59,18 @@ struct DashboardView: View {
 private struct DashboardHeaderSection: View {
     @Binding var askText: String
     let studentName: String
+    let language: StudentProfile.Language
+
+    private var askPlaceholder: String {
+        switch language {
+        case .english: return "Ask a doubt in English..."
+        case .hindi:   return "हिंदी में प्रश्न पूछें..."
+        case .bengali: return "বাংলায় প্রশ্ন করুন..."
+        case .tamil:   return "தமிழில் கேள்வி கேளுங்கள்..."
+        case .telugu:  return "తెలుగులో సందేహం అడగండి..."
+        case .marathi: return "मराठीत प्रश्न विचारा..."
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -112,7 +125,7 @@ private struct DashboardHeaderSection: View {
                     .font(.system(size: 20))
                     .foregroundColor(.indigo)
 
-                TextField("Ask a doubt in Bengali...", text: $askText)
+                TextField(askPlaceholder, text: $askText)
                     .font(.system(size: 15, weight: .medium))
 
                 Spacer(minLength: 0)

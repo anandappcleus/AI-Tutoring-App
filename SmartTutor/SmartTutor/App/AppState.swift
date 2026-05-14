@@ -37,6 +37,15 @@ final class AppState: ObservableObject {
 
     init(apiClient: APIClient = .shared) {
         self.apiClient = apiClient
+        // iOS Keychain survives app deletion. On a fresh install we must wipe
+        // any stale tokens/profile so the user sees the Login screen.
+        let hasLaunchedBefore = UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
+        if !hasLaunchedBefore {
+            TokenStore.clearAll()
+            StudentProfile.clear()
+            UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
+            logger.info("AppState: fresh install — Keychain wiped")
+        }
         // Restore session from Keychain on cold start
         currentProfile = StudentProfile.load()
         logger.info("AppState: restored  authenticated=\(self.isAuthenticated)  id=\(self.currentProfile?.id ?? "none")")

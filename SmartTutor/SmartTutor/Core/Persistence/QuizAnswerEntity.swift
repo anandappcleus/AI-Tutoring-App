@@ -50,7 +50,8 @@ extension NSManagedObjectModel {
             attr("synced",      type: .booleanAttributeType),
         ]
 
-        model.entities = [entity]
+        // Include Sprint 8 offline pack entities
+        model.entities = [entity] + NSManagedObjectModel.offlinePackEntities()
         return model
     }
 }

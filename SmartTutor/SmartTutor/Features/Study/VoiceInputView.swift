@@ -162,7 +162,7 @@ struct VoiceInputView: View {
     /// Drives the pulse ring animation while recording.
     @State private var isPulsing = false
 
-    init(languageCode: String = "bn-IN", onTranscribe: @escaping (String) -> Void) {
+    init(languageCode: String = "en-IN", onTranscribe: @escaping (String) -> Void) {
         self.languageCode = languageCode
         self.onTranscribe = onTranscribe
         _manager = StateObject(wrappedValue: VoiceRecorderManager(languageCode: languageCode))

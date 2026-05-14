@@ -88,7 +88,7 @@ actor SarvamSpeechClient {
     ///   - audioURL: Local file URL of the recorded audio (WAV, 16 kHz mono recommended).
     ///   - languageCode: BCP-47 code, e.g. "bn-IN", "hi-IN". Defaults to "bn-IN".
     /// - Returns: Transcribed text string.
-    func transcribe(audioURL: URL, languageCode: String = "bn-IN") async throws -> String {
+    func transcribe(audioURL: URL, languageCode: String = "en-IN") async throws -> String {
         let key = try apiKey
         let audioData = try Data(contentsOf: audioURL)
         let boundary = "Boundary-\(UUID().uuidString)"
@@ -146,7 +146,7 @@ actor SarvamSpeechClient {
     ///   - text: The text to speak (≤ 500 characters per call).
     ///   - languageCode: BCP-47 code, e.g. "bn-IN", "hi-IN".
     /// - Returns: Raw WAV audio `Data` ready for `AVAudioPlayer`.
-    func synthesise(text: String, languageCode: String = "bn-IN") async throws -> Data {
+    func synthesise(text: String, languageCode: String = "en-IN") async throws -> Data {
         let key = try apiKey
 
         let payload: [String: Any] = [

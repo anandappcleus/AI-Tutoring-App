@@ -67,7 +67,7 @@ class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
-    preferred_language: str = Field("bn", pattern=r"^(bn|hi|ta|te|mr|gu|kn|ml|or|pa|en)$")
+    preferred_language: str = Field("en", pattern=r"^(bn|hi|ta|te|mr|gu|kn|ml|or|pa|en)$")
     exam_target: str = Field("JEE", pattern=r"^(JEE|NEET|WBCHSE)$")
 
 

@@ -2,47 +2,24 @@
 //  OfflinePacksView.swift
 //  SmartTutor
 //
-//  Converted from OfflinePacksScreen.tsx
-//  Download management with simulated progress, storage meter.
+//  Sprint 8 — Wired to OfflinePacksViewModel + Core Data.
+//  Downloads real packs from GET /packs and caches questions locally.
 //
 
 import SwiftUI
 
 struct OfflinePacksView: View {
 
-    struct OfflinePack: Identifiable {
-        let id: String
-        let subject: String
-        let topic: String
-        let questions: Int
-        let sizeMB: Int
-        var downloaded: Bool
-        let icon: String
-        let color: Color
-    }
+    @StateObject private var vm = OfflinePacksViewModel()
+    @EnvironmentObject private var appState: AppState
 
-    @State private var packs: [OfflinePack] = [
-        OfflinePack(id: "1", subject: "Physics",   topic: "Mechanics – Laws of Motion",         questions: 50, sizeMB: 12, downloaded: true,  icon: "⚡", color: .blue),
-        OfflinePack(id: "2", subject: "Chemistry",  topic: "Organic Chemistry – Reactions",      questions: 45, sizeMB: 10, downloaded: false, icon: "🧪", color: .green),
-        OfflinePack(id: "3", subject: "Maths",     topic: "Calculus – Integration",              questions: 60, sizeMB:  8, downloaded: true,  icon: "📐", color: .purple),
-        OfflinePack(id: "4", subject: "Physics",   topic: "Electromagnetism",                    questions: 40, sizeMB: 11, downloaded: false, icon: "⚡", color: .blue),
-        OfflinePack(id: "5", subject: "Chemistry",  topic: "Physical Chemistry – Thermodynamics",questions: 38, sizeMB:  9, downloaded: false, icon: "🧪", color: .green),
-        OfflinePack(id: "6", subject: "Maths",     topic: "Algebra – Quadratic Equations",       questions: 55, sizeMB:  7, downloaded: false, icon: "📐", color: .purple),
-    ]
-
-    @State private var downloadingId: String? = nil
-    @State private var downloadProgress: Double = 0
-    @State private var downloadTimer: Timer? = nil
-
-    private var downloadedPacks: [OfflinePack] { packs.filter(\.downloaded) }
-    private var availablePacks:  [OfflinePack] { packs.filter { !$0.downloaded } }
-    private var usedMB: Int { downloadedPacks.reduce(0) { $0 + $1.sizeMB } }
-    private let totalMB = 500
+    private let totalKB = 500_000   // 500 MB storage cap for display
 
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Header
+
+                // ── Header ────────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -54,7 +31,7 @@ struct OfflinePacksView: View {
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text("\(downloadedPacks.count)")
+                            Text("\(vm.downloadedPacks.count)")
                                 .font(.system(size: 26, weight: .bold))
                             Text("Downloaded")
                                 .font(.system(size: 11))
@@ -73,12 +50,12 @@ struct OfflinePacksView: View {
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(.white)
                                 Spacer()
-                                Text("\(usedMB) / \(totalMB) MB")
+                                Text(storageLabel)
                                     .font(.system(size: 12))
                                     .foregroundColor(.white.opacity(0.8))
                             }
                             LinearProgressBar(
-                                value: Double(usedMB) / Double(totalMB),
+                                value: Double(vm.usedKB) / Double(totalKB),
                                 foreground: .white.opacity(0.9),
                                 background: .white.opacity(0.2)
                             )
@@ -100,40 +77,73 @@ struct OfflinePacksView: View {
                     )
                 )
 
+                // ── Content ───────────────────────────────────────────
                 VStack(spacing: 24) {
-                    // Downloaded section
-                    if !downloadedPacks.isEmpty {
-                        PacksSection(
-                            title: "Downloaded (\(downloadedPacks.count))",
-                            icon: "checkmark.circle.fill",
-                            iconColor: .green
-                        ) {
-                            ForEach(downloadedPacks) { pack in
-                                DownloadedPackCard(pack: pack) {
-                                    if let idx = packs.firstIndex(where: { $0.id == pack.id }) {
-                                        packs[idx].downloaded = false
+                    if vm.isLoading {
+                        ProgressView("Loading packs…")
+                            .padding(.top, 40)
+                    } else if let error = vm.errorMessage {
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 36))
+                                .foregroundColor(.orange)
+                            Text(error)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Retry") {
+                                Task { await vm.loadPacks() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .padding(.top, 40)
+
+                    } else {
+                        // Downloaded packs
+                        if !vm.downloadedPacks.isEmpty {
+                            PacksSectionView(
+                                title: "Downloaded (\(vm.downloadedPacks.count))",
+                                icon: "checkmark.circle.fill",
+                                iconColor: .green
+                            ) {
+                                ForEach(vm.downloadedPacks) { pack in
+                                    DownloadedPackCard(pack: pack) {
+                                        vm.deletePack(pack)
                                     }
                                 }
                             }
                         }
-                    }
 
-                    // Available section
-                    if !availablePacks.isEmpty {
-                        PacksSection(
-                            title: "Available to Download (\(availablePacks.count))",
-                            icon: "arrow.down.circle.fill",
-                            iconColor: .blue
-                        ) {
-                            ForEach(availablePacks) { pack in
-                                AvailablePackCard(
-                                    pack: pack,
-                                    isDownloading: downloadingId == pack.id,
-                                    progress: downloadingId == pack.id ? downloadProgress : 0
-                                ) {
-                                    startDownload(packId: pack.id)
+                        // Available packs
+                        if !vm.availablePacks.isEmpty {
+                            PacksSectionView(
+                                title: "Available to Download (\(vm.availablePacks.count))",
+                                icon: "arrow.down.circle.fill",
+                                iconColor: .blue
+                            ) {
+                                ForEach(vm.availablePacks) { pack in
+                                    AvailablePackCard(
+                                        pack: pack,
+                                        isDownloading: vm.downloadingPackId == pack.id,
+                                        progress: vm.downloadProgress[pack.id] ?? 0
+                                    ) {
+                                        Task { await vm.download(pack) }
+                                    }
                                 }
                             }
+                        }
+
+                        // Empty state
+                        if vm.packs.isEmpty {
+                            VStack(spacing: 12) {
+                                Image(systemName: "tray.fill")
+                                    .font(.system(size: 36))
+                                    .foregroundColor(.secondary)
+                                Text("No packs available")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.top, 40)
                         }
                     }
                 }
@@ -146,36 +156,18 @@ struct OfflinePacksView: View {
         .ignoresSafeArea(edges: .top)
         .navigationTitle("Offline Packs")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await vm.loadPacks() }
     }
 
-    // MARK: - Download logic
-
-    private func startDownload(packId: String) {
-        guard downloadingId == nil else { return }
-        downloadingId = packId
-        downloadProgress = 0
-
-        downloadTimer?.invalidate()
-        downloadTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { timer in
-            downloadProgress += 0.1
-            if downloadProgress >= 1.0 {
-                timer.invalidate()
-                downloadTimer = nil
-                if let idx = packs.firstIndex(where: { $0.id == packId }) {
-                    packs[idx].downloaded = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    downloadingId = nil
-                    downloadProgress = 0
-                }
-            }
-        }
+    private var storageLabel: String {
+        let usedMB = Double(vm.usedKB) / 1000.0
+        return String(format: "%.1f MB / 500 MB", usedMB)
     }
 }
 
 // MARK: - Section wrapper
 
-private struct PacksSection<Content: View>: View {
+private struct PacksSectionView<Content: View>: View {
     let title: String
     let icon: String
     let iconColor: Color
@@ -186,10 +178,7 @@ private struct PacksSection<Content: View>: View {
             Label(title, systemImage: icon)
                 .font(.system(size: 17, weight: .bold))
                 .foregroundColor(iconColor)
-
-            VStack(spacing: 12) {
-                content
-            }
+            VStack(spacing: 12) { content }
         }
     }
 }
@@ -197,7 +186,7 @@ private struct PacksSection<Content: View>: View {
 // MARK: - Downloaded Pack Card
 
 private struct DownloadedPackCard: View {
-    let pack: OfflinePacksView.OfflinePack
+    let pack: PackListItem
     let onDelete: () -> Void
 
     var body: some View {
@@ -205,19 +194,21 @@ private struct DownloadedPackCard: View {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(pack.color.opacity(0.15))
+                        .fill(pack.subjectColor.opacity(0.15))
                         .frame(width: 48, height: 48)
-                    Text(pack.icon).font(.system(size: 24))
+                    Image(systemName: pack.iconName)
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundColor(pack.subjectColor)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(pack.topic)
                         .font(.system(size: 15, weight: .semibold))
                     HStack(spacing: 8) {
-                        Label("\(pack.questions) questions", systemImage: "book")
+                        Label("\(pack.questionCount) questions", systemImage: "book")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                         Text("•").foregroundColor(.secondary)
-                        Text("\(pack.sizeMB) MB")
+                        Text(pack.sizeDisplay)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
@@ -234,7 +225,7 @@ private struct DownloadedPackCard: View {
             }
 
             Button {
-                // Practice this pack
+                // TODO Sprint 9: navigate to offline practice session
             } label: {
                 Text("Practice Now")
                     .font(.system(size: 14, weight: .semibold))
@@ -255,7 +246,7 @@ private struct DownloadedPackCard: View {
 // MARK: - Available Pack Card
 
 private struct AvailablePackCard: View {
-    let pack: OfflinePacksView.OfflinePack
+    let pack: PackListItem
     let isDownloading: Bool
     let progress: Double
     let onDownload: () -> Void
@@ -265,19 +256,21 @@ private struct AvailablePackCard: View {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(pack.color.opacity(0.12))
+                        .fill(pack.subjectColor.opacity(0.12))
                         .frame(width: 48, height: 48)
-                    Text(pack.icon).font(.system(size: 24))
+                    Image(systemName: pack.iconName)
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundColor(pack.subjectColor)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(pack.topic)
                         .font(.system(size: 15, weight: .semibold))
                     HStack(spacing: 8) {
-                        Label("\(pack.questions) questions", systemImage: "book")
+                        Label("\(pack.questionCount) questions", systemImage: "book")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                         Text("•").foregroundColor(.secondary)
-                        Text("\(pack.sizeMB) MB")
+                        Text(pack.sizeDisplay)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
@@ -288,7 +281,7 @@ private struct AvailablePackCard: View {
             if isDownloading {
                 VStack(spacing: 6) {
                     HStack {
-                        Text("Downloading...")
+                        Text("Downloading…")
                             .font(.system(size: 12)).foregroundColor(.secondary)
                         Spacer()
                         Text("\(Int(progress * 100))%")

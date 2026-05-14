@@ -93,10 +93,16 @@ async def get_db():
     """
     FastAPI dependency: yield an async DB session.
     Rolls back automatically on any unhandled exception inside the route handler.
+    HTTPException (4xx/5xx) causes a rollback but is not logged as an error —
+    those are normal application control-flow, not database problems.
     """
+    from fastapi import HTTPException as _HTTPException
     async with AsyncSessionFactory() as session:
         try:
             yield session
+        except _HTTPException:
+            await session.rollback()
+            raise
         except Exception:
             log.error("db.session_error  rolling_back", exc_info=True)
             await session.rollback()

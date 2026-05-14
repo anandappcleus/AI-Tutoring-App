@@ -25,25 +25,30 @@ struct StudentProfile: Codable, Equatable {
     // MARK: - Language
 
     enum Language: String, Codable, CaseIterable, Identifiable {
-        case bengali = "bn"
+        // Phase 1 (launch)
+        case english = "en"
         case hindi   = "hi"
+        // Phase 2 (post-launch)
+        case bengali = "bn"
         case tamil   = "ta"
         case telugu  = "te"
         case marathi = "mr"
-        case english = "en"
 
         var id: String { rawValue }
 
         var displayName: String {
             switch self {
-            case .bengali: return "বাংলা (Bengali)"
+            case .english: return "English"
             case .hindi:   return "हिन्दी (Hindi)"
+            case .bengali: return "বাংলা (Bengali)"
             case .tamil:   return "தமிழ் (Tamil)"
             case .telugu:  return "తెలుగు (Telugu)"
             case .marathi: return "मराठी (Marathi)"
-            case .english: return "English"
             }
         }
+
+        /// Languages available in the initial app release.
+        static var launchLanguages: [Language] { [.english, .hindi] }
     }
 
     // MARK: - Exam Target

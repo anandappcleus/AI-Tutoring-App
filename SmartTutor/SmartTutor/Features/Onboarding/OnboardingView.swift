@@ -13,13 +13,15 @@ struct OnboardingView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var vm = OnboardingViewModel()
 
+    // Phase 1 launch languages — Bengali + others added in Sprint 10
     let languages: [(code: String, name: String, flag: String)] = [
-        ("bn", "বাংলা", "🇮🇳"),
-        ("hi", "हिन्दी", "🇮🇳"),
-        ("en", "English", "🇬🇧"),
-        ("ta", "தமிழ்", "🇮🇳"),
-        ("te", "తెలుగు", "🇮🇳"),
-        ("mr", "मराठी", "🇮🇳"),
+        ("en", "English",  "🇬🇧"),
+        ("hi", "हिन्दी",   "🇮🇳"),
+    ]
+
+    // Coming-soon languages shown greyed out below the active list
+    let comingSoonLanguages: [String] = [
+        "বাংলা", "தமிழ்", "తెలుగు", "मराठी",
     ]
 
     let exams: [(id: String, name: String, icon: String)] = [
@@ -59,7 +61,11 @@ struct OnboardingView: View {
                 Group {
                     switch vm.step {
                     case 1:
-                        LanguageStepView(languages: languages, selectedLanguage: $vm.selectedLanguage)
+                        LanguageStepView(
+                            languages: languages,
+                            comingSoon: comingSoonLanguages,
+                            selectedLanguage: $vm.selectedLanguage
+                        )
                     case 2:
                         ExamStepView(exams: exams, selectedExam: $vm.selectedExam)
                     default:
@@ -117,6 +123,7 @@ struct OnboardingView: View {
 
 private struct LanguageStepView: View {
     let languages: [(code: String, name: String, flag: String)]
+    let comingSoon: [String]
     @Binding var selectedLanguage: String
 
     var body: some View {
@@ -162,6 +169,26 @@ private struct LanguageStepView: View {
                         .background(selectedLanguage == lang.code ? Color.white : Color.white.opacity(0.2))
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                         .scaleEffect(selectedLanguage == lang.code ? 1.05 : 1.0)
+                    }
+                }
+            }
+
+            // Coming-soon languages (greyed out)
+            if !comingSoon.isEmpty {
+                VStack(spacing: 8) {
+                    Text("More languages coming soon")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
+                    HStack(spacing: 8) {
+                        ForEach(comingSoon, id: \.self) { lang in
+                            Text(lang)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.white.opacity(0.45))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.white.opacity(0.08))
+                                .clipShape(Capsule())
+                        }
                     }
                 }
             }

@@ -36,9 +36,9 @@ enum Endpoint {
     // Sprint 6: APNs device token upload
     case registerDeviceToken(token: String)
 
-    // Sprint 8: Offline packs (placeholder — not wired yet)
-    // case packs
-    // case downloadPack(id: String)
+    // Sprint 8: Offline packs
+    case packs                          // GET /packs
+    case downloadPack(id: String)       // GET /packs/:id/download
 
     // MARK: Path
 
@@ -54,6 +54,8 @@ enum Endpoint {
         case .syncAnswers:          return "/sync-answers"
         case .updateProfile:        return "/auth/me"
         case .registerDeviceToken:  return "/auth/device-token"
+        case .packs:                return "/packs"
+        case .downloadPack(let id): return "/packs/\(id)/download"
         }
     }
 
@@ -63,7 +65,7 @@ enum Endpoint {
         switch self {
         case .login, .register, .refresh, .ask, .syncAnswers,
              .registerDeviceToken:                             return "POST"
-        case .me, .plan, .progress:                            return "GET"
+        case .me, .plan, .progress, .packs, .downloadPack:    return "GET"
         case .updateProfile:                                   return "PATCH"
         }
     }
@@ -241,4 +243,50 @@ struct StudentResponse: Decodable {
 struct SyncResponse: Decodable {
     let inserted: Int
     let skipped: Int
+}
+
+// MARK: - Sprint 8: Offline Pack Response Types
+
+struct PackResponse: Decodable, Identifiable {
+    let id: String
+    let subject: String
+    let topic: String
+    let examTarget: String
+    let language: String
+    let questionCount: Int
+    let sizeKB: Int
+    let iconName: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, subject, topic, language
+        case examTarget   = "exam_target"
+        case questionCount = "question_count"
+        case sizeKB       = "size_kb"
+        case iconName     = "icon_name"
+    }
+}
+
+struct PackDownloadResponse: Decodable {
+    let packId: String
+    let questions: [QuestionItem]
+
+    struct QuestionItem: Decodable {
+        let id: String
+        let topic: String
+        let subject: String
+        let questionText: String
+        let answerText: String
+        let language: String
+
+        enum CodingKeys: String, CodingKey {
+            case id, topic, subject, language
+            case questionText = "question_text"
+            case answerText   = "answer_text"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case packId   = "pack_id"
+        case questions
+    }
 }

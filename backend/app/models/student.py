@@ -19,7 +19,7 @@ class Student(Base):
     hashed_password: Mapped[str] = mapped_column(sa.String(128), nullable=False)
 
     # Localisation
-    preferred_language: Mapped[str] = mapped_column(sa.String(5), nullable=False, default="bn")
+    preferred_language: Mapped[str] = mapped_column(sa.String(5), nullable=False, default="en")
     exam_target: Mapped[str] = mapped_column(sa.String(10), nullable=False, default="JEE")
 
     # Subscription
