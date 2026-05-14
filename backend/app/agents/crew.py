@@ -114,6 +114,7 @@ class QuestionCrew:
         question: str,
         student_id: str,
         language: str = "en",
+        weak_topics: list[str] | None = None,
     ) -> str:
         log.info(
             "QuestionCrew.run  student_id=%s  lang=%s  q=%r",
@@ -132,11 +133,13 @@ class QuestionCrew:
             verbose=False,
         )
 
+        weak_topics_str = ", ".join(weak_topics) if weak_topics else "none identified yet"
         result = crew.kickoff(
             inputs={
                 "question": question,
                 "student_id": student_id,
                 "language": language,
+                "weak_topics": weak_topics_str,
             }
         )
         log.info("QuestionCrew.run  complete  student_id=%s", student_id)

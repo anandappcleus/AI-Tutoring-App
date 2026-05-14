@@ -31,15 +31,15 @@ import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.student import QuizAnswer, Student
+from app.models.student import QuizAnswer, Student, StudyPlan
 from app.routers.auth import get_current_student
 
 log = logging.getLogger(__name__)
@@ -220,6 +220,13 @@ async def ask(
     # ── Freemium gate ────────────────────────────────────────────────
     await _check_daily_limit(current_student, db)
 
+    # ── Fetch student's weak topics for personalised context ────────
+    weak_topics = await _get_weak_topics(current_student.id, db)
+    log.info(
+        "ask.weak_topics  student_id=%s  topics=%s",
+        student_id, weak_topics or "none",
+    )
+
     # ── Run crew in thread pool (blocks; must not run on event loop) ─
     t0 = time.perf_counter()
     try:
@@ -230,6 +237,7 @@ async def ask(
             body.question,
             student_id,
             lang,
+            weak_topics,
         )
     except Exception:
         log.error(
@@ -290,7 +298,59 @@ async def ask(
     )
 
 
-def _run_crew_sync(question: str, student_id: str, lang: str) -> str:
+async def _get_weak_topics(student_id, db: AsyncSession) -> list[str]:
+    """
+    Return up to 3 weak topic names for the student.
+
+    Priority:
+      1. Today's study plan topics (the nightly crew already identified these).
+      2. Fallback: topics from the last 7 days of quiz_answers where accuracy < 60%
+         across at least 2 attempts.
+    """
+    # 1. Today's plan
+    result = await db.execute(
+        select(StudyPlan).where(
+            StudyPlan.student_id == student_id,
+            StudyPlan.plan_date == date.today(),
+        )
+    )
+    plan = result.scalar_one_or_none()
+    if plan and plan.plan_json:
+        topics = [slot["topic"] for slot in plan.plan_json if "topic" in slot]
+        if topics:
+            return topics[:3]
+
+    # 2. Fallback: derive from recent quiz answers
+    cutoff = datetime.combine(
+        date.today() - timedelta(days=7), datetime.min.time()
+    ).replace(tzinfo=timezone.utc)
+    rows = (await db.execute(
+        select(
+            QuizAnswer.topic,
+            func.count().label("total"),
+            func.sum(cast(QuizAnswer.is_correct, Integer)).label("correct"),
+        )
+        .where(
+            QuizAnswer.student_id == student_id,
+            QuizAnswer.answered_at >= cutoff,
+            QuizAnswer.topic.isnot(None),
+        )
+        .group_by(QuizAnswer.topic)
+        .having(func.count() >= 2)
+    )).all()
+    weak = [
+        row.topic for row in rows
+        if row.total > 0 and (row.correct or 0) / row.total < 0.60
+    ]
+    return weak[:3]
+
+
+def _run_crew_sync(question: str, student_id: str, lang: str, weak_topics: list[str]) -> str:
     """Synchronous wrapper around QuestionCrew — runs in a thread pool."""
     from app.agents.crew import QuestionCrew
-    return QuestionCrew().run(question=question, student_id=student_id, language=lang)
+    return QuestionCrew().run(
+        question=question,
+        student_id=student_id,
+        language=lang,
+        weak_topics=weak_topics,
+    )

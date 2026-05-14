@@ -139,10 +139,13 @@ def make_question_task(agent: Agent) -> Task:
     return Task(
         description=(
             "Answer the following question for student {student_id}: {question}\n"
+            "The student's current weak topics are: {weak_topics}.\n"
             "Steps:\n"
             "1. Use rag_search_tool to retrieve the top 5 relevant content chunks.\n"
             "2. Use those chunks as context to write a clear explanation.\n"
-            "3. Respond in {language} — use simple language suitable for a Class 11–12 student.\n"
+            "3. If the question touches any of the student's weak topics, provide extra depth,\n"
+            "   highlight common mistakes students make on that topic, and add an encouraging note.\n"
+            "4. Respond in {language} — use simple language suitable for a Class 11–12 student.\n"
             "Return ONLY valid JSON — no prose outside the JSON object."
         ),
         expected_output=(
