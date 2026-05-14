@@ -15,6 +15,10 @@ struct StudyView: View {
     @State private var showPaywall = false
     @State private var showVoiceInput = false
 
+    /// Bridge from Dashboard / Syllabus / Formula "Ask AI" CTAs.
+    /// Set by the caller before switching to the Study tab; consumed once on appear.
+    @AppStorage("pendingStudyTopic") private var pendingStudyTopic = ""
+
     private let subjects = ["Physics", "Chemistry", "Maths", "Biology"]
 
     // Derived from ViewModel state
@@ -76,6 +80,18 @@ struct StudyView: View {
             if case .error(let code) = state {
                 if code == "daily_limit_reached" { showPaywall = true }
                 // "unauthorized" handled at ContentView level via AppState
+            }
+        }
+        .onAppear {
+            // Consume any topic pre-filled by Dashboard → Start AI Lesson, Syllabus Map,
+            // Formula Sheets, Mock Tests, or camera/voice search bar submissions.
+            let topic = pendingStudyTopic.trimmingCharacters(in: .whitespaces)
+            guard !topic.isEmpty else { return }
+            pendingStudyTopic = ""
+            AppLogger.study.info("StudyView.onAppear: consuming pendingStudyTopic  preview=\(topic.prefix(60))")
+            // Small delay so the tab transition animation completes first.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                vm.ask(question: topic)
             }
         }
     }

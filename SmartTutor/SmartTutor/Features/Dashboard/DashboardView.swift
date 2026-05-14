@@ -2,8 +2,8 @@
 //  DashboardView.swift
 //  SmartTutor
 //
-//  Converted from Dashboard.tsx
-//  Displays profile header, AI ask bar, Today's Focus card, and learning module grid.
+//  Home tab — profile header, AI search bar, Today's Focus, and learning module grid.
+//  Sprint 7+: camera & voice input, Mock Tests, Syllabus Map, Formula Sheets, Start AI Lesson.
 //
 
 import SwiftUI
@@ -11,11 +11,24 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var vm = DashboardViewModel()
-    @AppStorage("selectedMainTab") private var selectedMainTab = 0
+
+    // Tab navigation bridge
+    @AppStorage("selectedMainTab")   private var selectedMainTab   = 0
+    @AppStorage("pendingStudyTopic") private var pendingStudyTopic = ""
+
+    // Search bar state
     @State private var askText = ""
-    @State private var showOfflinePacks = false
+
+    // Sheet / navigation flags
+    @State private var showOfflinePacks    = false
     @State private var showParentDashboard = false
-    @State private var showComingSoon = false
+    @State private var showMockTests       = false
+    @State private var showSyllabusMap     = false
+    @State private var showFormulaSheets   = false
+    @State private var showVoiceInput      = false
+    @State private var showCameraPicker    = false
+    @State private var pickedImage: UIImage?
+    @State private var showPickedImageSheet = false
 
     var body: some View {
         NavigationStack {
@@ -25,21 +38,48 @@ struct DashboardView: View {
                         askText: $askText,
                         studentName: appState.currentProfile?.name ?? "Student",
                         language: appState.currentProfile?.preferredLanguage ?? .english,
-                        onSubmit: { selectedMainTab = 1 },
-                        onCameraTap: { showComingSoon = true }
+                        onSubmit: {
+                            let q = askText.trimmingCharacters(in: .whitespaces)
+                            guard !q.isEmpty else { return }
+                            AppLogger.userAction(AppLogger.dashboard,
+                                                 action: "search-submit", context: q)
+                            pendingStudyTopic = q
+                            askText = ""
+                            selectedMainTab = 1
+                            AppLogger.navigated(to: "StudyView", from: "DashboardSearchBar")
+                        },
+                        onCameraTap: {
+                            AppLogger.userAction(AppLogger.camera, action: "camera-tap")
+                            showCameraPicker = true
+                        },
+                        onMicTap: {
+                            AppLogger.userAction(AppLogger.voice, action: "mic-tap-from-search-bar")
+                            showVoiceInput = true
+                        }
                     )
 
                     VStack(spacing: 28) {
                         TodaysFocusSection(
                             studyPlan: vm.studyPlan,
                             isLoading: vm.isLoading,
-                            onPlannerTap: { selectedMainTab = 1 }
+                            onPlannerTap: { selectedMainTab = 1 },
+                            onStartLesson: { topic in
+                                AppLogger.userAction(AppLogger.dashboard,
+                                                     action: "start-ai-lesson",
+                                                     context: topic)
+                                pendingStudyTopic = topic
+                                selectedMainTab = 1
+                                AppLogger.navigated(to: "StudyView[topic=\(topic)]",
+                                                    from: "TodaysFocus")
+                            }
                         )
                         LearningModulesSection(
-                            showOfflinePacks: $showOfflinePacks,
+                            showOfflinePacks:    $showOfflinePacks,
                             showParentDashboard: $showParentDashboard,
-                            onNavigateToStudy: { selectedMainTab = 1 },
-                            onComingSoonTap: { showComingSoon = true }
+                            showMockTests:       $showMockTests,
+                            showSyllabusMap:     $showSyllabusMap,
+                            showFormulaSheets:   $showFormulaSheets,
+                            onNavigateToStudy: { selectedMainTab = 1 }
                         )
                     }
                     .padding(.horizontal, 20)
@@ -49,23 +89,116 @@ struct DashboardView: View {
             }
             .background(Color(UIColor.systemGroupedBackground))
             .ignoresSafeArea(edges: .top)
+            // ── Navigation destinations ──
             .navigationDestination(isPresented: $showOfflinePacks) {
                 OfflinePacksView()
             }
             .navigationDestination(isPresented: $showParentDashboard) {
                 ParentDashboardView()
             }
-            .alert("Coming Soon", isPresented: $showComingSoon) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("This feature is coming in the next update.")
+            .navigationDestination(isPresented: $showMockTests) {
+                MockTestsView()
+            }
+            .navigationDestination(isPresented: $showSyllabusMap) {
+                SyllabusMapView()
+            }
+            .navigationDestination(isPresented: $showFormulaSheets) {
+                FormulaSheetView()
+            }
+        }
+        // ── Camera picker sheet ──
+        .sheet(isPresented: $showCameraPicker) {
+            ImagePickerView { image in
+                AppLogger.camera.info("DashboardView: image picked — showing preview sheet")
+                pickedImage = image
+                showPickedImageSheet = true
+            }
+        }
+        // ── Picked image preview sheet ──
+        .sheet(isPresented: $showPickedImageSheet) {
+            if let img = pickedImage {
+                PickedImageQuerySheet(image: img) { query in
+                    AppLogger.userAction(AppLogger.camera,
+                                         action: "image-query-submitted", context: query)
+                    pendingStudyTopic = query
+                    showPickedImageSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        selectedMainTab = 1
+                        AppLogger.navigated(to: "StudyView[image-query]", from: "Dashboard")
+                    }
+                }
+            }
+        }
+        // ── Voice input sheet (from search bar mic) ──
+        .sheet(isPresented: $showVoiceInput) {
+            let langCode = (appState.currentProfile?.preferredLanguage.rawValue ?? "en") + "-IN"
+            VoiceInputView(languageCode: langCode) { transcript in
+                AppLogger.voice.info("DashboardView: voice transcript received  preview=\(transcript.prefix(60))")
+                askText = transcript
+                showVoiceInput = false
             }
         }
         .task {
             if let id = appState.currentProfile?.id {
+                AppLogger.dashboard.info("DashboardView.task: loading plan  studentId=\(id)")
                 await vm.loadPlan(studentId: id)
             }
         }
+    }
+}
+
+// MARK: - Picked Image Query Sheet
+
+private struct PickedImageQuerySheet: View {
+    let image: UIImage
+    let onSubmit: (String) -> Void
+    @State private var questionText = ""
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 240)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .shadow(radius: 4)
+
+                Text("What would you like to know about this?")
+                    .font(.system(size: 15, weight: .semibold))
+
+                TextField("e.g. Solve this problem step by step", text: $questionText, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(3, reservesSpace: true)
+
+                Button {
+                    let q = questionText.trimmingCharacters(in: .whitespaces)
+                    let finalQuery = q.isEmpty ? "Explain and solve the question in this image" : q
+                    onSubmit(finalQuery)
+                } label: {
+                    Label("Ask AI Tutor", systemImage: "brain.head.profile")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.indigo)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .navigationTitle("Question from Image")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -77,6 +210,7 @@ private struct DashboardHeaderSection: View {
     let language: StudentProfile.Language
     let onSubmit: () -> Void
     let onCameraTap: () -> Void
+    let onMicTap: () -> Void
 
     private var askPlaceholder: String {
         switch language {
@@ -142,13 +276,14 @@ private struct DashboardHeaderSection: View {
                             .font(.system(size: 20))
                             .foregroundColor(.secondary)
                     }
+                    .accessibilityLabel("Camera — photograph a question")
 
                     Rectangle()
                         .fill(Color.gray.opacity(0.25))
                         .frame(width: 1, height: 24)
 
                     Button {
-                        // Mic action
+                        onMicTap()
                     } label: {
                         ZStack {
                             Circle()
@@ -160,6 +295,7 @@ private struct DashboardHeaderSection: View {
                                 .foregroundColor(.white)
                         }
                     }
+                    .accessibilityLabel("Voice input — speak your question")
                 }
             }
             .padding(.horizontal, 16)
@@ -193,6 +329,7 @@ private struct TodaysFocusSection: View {
     let studyPlan: StudyPlanResponse?
     let isLoading: Bool
     let onPlannerTap: () -> Void
+    let onStartLesson: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -257,7 +394,13 @@ private struct TodaysFocusSection: View {
                             .lineSpacing(3)
                             .padding(.bottom, 20)
 
-                        Button { onPlannerTap() } label: {
+                        Button {
+                            if let topic = studyPlan?.topics.first?.topic {
+                                onStartLesson(topic)
+                            } else {
+                                onPlannerTap()
+                            }
+                        } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "play.fill")
                                     .font(.system(size: 15))
@@ -296,10 +439,12 @@ private struct TodaysFocusSection: View {
 // MARK: - Learning Modules
 
 private struct LearningModulesSection: View {
-    @Binding var showOfflinePacks: Bool
+    @Binding var showOfflinePacks:    Bool
     @Binding var showParentDashboard: Bool
+    @Binding var showMockTests:       Bool
+    @Binding var showSyllabusMap:     Bool
+    @Binding var showFormulaSheets:   Bool
     let onNavigateToStudy: () -> Void
-    let onComingSoonTap: () -> Void
 
     struct ModuleItem: Identifiable {
         let id = UUID()
@@ -325,9 +470,19 @@ private struct LearningModulesSection: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
                 ForEach(modules) { mod in
                     ModuleCard(item: mod) {
+                        AppLogger.userAction(AppLogger.dashboard,
+                                             action: "module-tap", context: mod.title)
                         switch mod.title {
-                        case "Offline Packs": showOfflinePacks = true
-                        default:              onComingSoonTap()
+                        case "Mock Tests":     showMockTests     = true
+                            AppLogger.navigated(to: "MockTestsView",    from: "Dashboard")
+                        case "Syllabus Map":   showSyllabusMap   = true
+                            AppLogger.navigated(to: "SyllabusMapView",  from: "Dashboard")
+                        case "Offline Packs":  showOfflinePacks  = true
+                            AppLogger.navigated(to: "OfflinePacksView", from: "Dashboard")
+                        case "Formula Sheets": showFormulaSheets = true
+                            AppLogger.navigated(to: "FormulaSheetView", from: "Dashboard")
+                        default:
+                            AppLogger.dashboard.warning("module-tap: unhandled module '\(mod.title)'")
                         }
                     }
                 }

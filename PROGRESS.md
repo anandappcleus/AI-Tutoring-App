@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 14 May 2026 (Post-Sprint 6 production hardening + exam framing)*
+*Last updated: 14 May 2026 (Home tab — Mock Tests, Syllabus Map, Formula Sheets, camera/voice, logging)*
 
 ---
 
@@ -180,13 +180,29 @@
 | 8 | **Prose fallback** — when no JSON and no "Final Answer:" marker, shows user-friendly message instead of 1973-char raw thinking dump | `app/routers/ask.py` | `798df8b` | ✅ Deployed |
 | 9 | **Exam-specific framing** — `exam_type` (JEE/NEET/WBCHSE) flows through `AskRequest → crew → task prompt`; response includes `question_type`, `marks`, `marking_scheme` per exam style | `app/routers/ask.py`, `app/agents/crew.py`, `app/agents/tasks.py` | `1329d89` | ✅ Deployed |
 
-### iOS Changes (committed, pending Xcode build)
+### iOS Changes (deployed)
 
 | # | Change | File(s) | Commit | Status |
 |---|--------|---------|--------|--------|
 | 1 | **Exam framing in chat bubble** — `buildAnswerText` renders badge `🎯 JEE Mains & Advanced • MCQ • 4 marks (+4/-1)` above explanation; `examTarget` from `StudentProfile` sent automatically | `StudyViewModel.swift` | `1329d89` | ✅ Committed |
 | 2 | **AskResponse / PracticeProblem** extended with `questionType`, `marks`, `markingScheme` optional fields | `Endpoints.swift` | `1329d89` | ✅ Committed |
 | 3 | **Tests updated** for new `AskResponse` + `PracticeProblem` memberwise init | `StudyViewModelTests.swift`, `OfflineSyncManagerTests.swift` | `1329d89` | ✅ Committed |
+| 4 | **PROGRESS.md** updated | `PROGRESS.md` | `7543850` | ✅ Committed |
+| 5 | **Exam framing unit tests** — `test_ask_sendsExamType_fromStudentProfile`, `test_buildAnswerText_rendersBadge_withExamFields` | `StudyViewModelTests.swift` | `0eee69b` | ✅ Committed |
+| 6 | **Offline practice session** — `OfflinePracticeView` (flashcard Q&A, 3D flip, progress bar, completion screen), `fetchQuestions(for:)` Core Data helper, `OfflinePacksView` wired to sheet | `OfflinePracticeView.swift`, `OfflinePackEntity.swift`, `OfflinePacksView.swift` | `72de625` | ✅ Committed |
+
+### Home Tab Feature Work (14 May 2026)
+
+| # | Feature | File(s) | Commit | Status |
+|---|---------|---------|--------|--------|
+| 1 | **AppLogger** — centralized `os.Logger` wrapper with category-specific loggers (Dashboard, MockTests, SyllabusMap, FormulaSheets, Camera, Voice, Study, Navigation, Network, Auth, OfflinePacks) | `Core/Logging/AppLogger.swift` | pending | ✅ Coded |
+| 2 | **ImagePickerView** — `PHPickerViewController` SwiftUI wrapper; permission-safe, logs pick/cancel/error | `Core/UI/ImagePickerView.swift` | pending | ✅ Coded |
+| 3 | **MockTestsView** — full test catalog (JEE/NEET/WBCHSE static + API fallback), filter chips, empty/error state, `MockTestDetailView` → "Practise with AI Tutor" bridges to Study tab via `pendingStudyTopic` | `Features/MockTests/MockTestsView.swift` | pending | ✅ Coded |
+| 4 | **SyllabusMapView** — full JEE/NEET/WBCHSE syllabus (subjects → chapters → topics), progress overlay from `GET /progress`, chapter tap → auto-ask AI tutor | `Features/SyllabusMap/SyllabusMapView.swift` | pending | ✅ Coded |
+| 5 | **FormulaSheetView** — 80+ formulas across Physics/Chemistry/Maths categories, searchable, expandable accordion, "Ask AI to Explain" CTA per formula | `Features/FormulaSheets/FormulaSheetView.swift` | pending | ✅ Coded |
+| 6 | **DashboardView wired** — Learning Modules all navigate (not "coming soon"); camera tap → `ImagePickerView` → `PickedImageQuerySheet`; mic tap → `VoiceInputView`; "Start AI Lesson" pre-fills Study topic; search bar submit bridges to Study | `Features/Dashboard/DashboardView.swift` | pending | ✅ Coded |
+| 7 | **StudyView.onAppear** — consumes `pendingStudyTopic` `@AppStorage` bridge set by Dashboard/SyllabusMap/FormulaSheets/MockTests; auto-asks with 0.2s delay for tab-switch animation | `Features/Study/StudyView.swift` | pending | ✅ Coded |
+| 8 | **Endpoints.mockTests** — `GET /mock-tests` endpoint (static fallback in ViewModel on 404) | `Core/Networking/Endpoints.swift` | pending | ✅ Coded |
 
 ### Production Verification (Railway logs, 14 May 2026)
 
@@ -266,13 +282,17 @@ No `ask.parse_failed` in any of the above. All 200s. ✅
 | Screen | File | UI Shell | Backend Wired | Sprint to Wire |
 |--------|------|----------|---------------|---------------|
 | Onboarding | `Features/Onboarding/OnboardingView.swift` | ✅ | ✅ | 6 |
-| Dashboard | `Features/Dashboard/DashboardView.swift` | ✅ | ✅ | 5 |
+| Dashboard | `Features/Dashboard/DashboardView.swift` | ✅ | ✅ | 5+7+ |
 | Study / Ask | `Features/Study/StudyView.swift` | ✅ | ✅ | 5 |
 | Progress | `Features/Progress/LearnerProgressView.swift` | ✅ | ✅ | 6 |
 | Parent Dashboard | `Features/Parent/ParentDashboardView.swift` | ✅ | ✅ | 6 |
 | Paywall | `Features/Paywall/PaywallView.swift` | ✅ | 🔲 | 7 |
-| Offline Packs | `Features/OfflinePacks/OfflinePacksView.swift` | ✅ | 🔲 | 8 |
-| Settings | `Features/Settings/SettingsView.swift` | ✅ | 🔲 | 6 |
+| Offline Packs | `Features/OfflinePacks/OfflinePacksView.swift` | ✅ | ✅ | 8 |
+| Offline Practice | `Features/OfflinePacks/OfflinePracticeView.swift` | ✅ | ✅ | 8+ |
+| Mock Tests | `Features/MockTests/MockTestsView.swift` | ✅ | ✅ (static+API) | 7+ |
+| Syllabus Map | `Features/SyllabusMap/SyllabusMapView.swift` | ✅ | ✅ (progress overlay) | 7+ |
+| Formula Sheets | `Features/FormulaSheets/FormulaSheetView.swift` | ✅ | ✅ | 7+ |
+| Settings | `Features/Settings/SettingsView.swift` | ✅ | ✅ | 6 |
 | Voice Input | `Features/Study/VoiceInputView.swift` | ✅ | ✅ | 6 |
 | Study ViewModel | `Features/Study/StudyViewModel.swift` | ✅ | ✅ | 5 |
 | Onboarding ViewModel | `Features/Onboarding/OnboardingViewModel.swift` | ✅ | ✅ | 6 |
@@ -282,3 +302,5 @@ No `ask.parse_failed` in any of the above. All 200s. ✅
 | Sarvam Speech Client | `Core/Networking/SarvamSpeechClient.swift` | ✅ | ✅ | 6 |
 | Parent Dashboard ViewModel | `Features/Parent/ParentDashboardViewModel.swift` | ✅ | ✅ | 6 |
 | Progress ViewModel | `Features/Progress/ProgressViewModel.swift` | ✅ | ✅ | 6 |
+| AppLogger | `Core/Logging/AppLogger.swift` | ✅ | — | 7+ |
+| ImagePickerView | `Core/UI/ImagePickerView.swift` | ✅ | — | 7+ |

@@ -40,6 +40,9 @@ enum Endpoint {
     case packs                          // GET /packs
     case downloadPack(id: String)       // GET /packs/:id/download
 
+    // Sprint 7+: Mock tests (static fallback in MockTestsViewModel if 404)
+    case mockTests                      // GET /mock-tests
+
     // MARK: Path
 
     var path: String {
@@ -56,6 +59,7 @@ enum Endpoint {
         case .registerDeviceToken:  return "/auth/device-token"
         case .packs:                return "/packs"
         case .downloadPack(let id): return "/packs/\(id)/download"
+        case .mockTests:            return "/mock-tests"
         }
     }
 
@@ -65,7 +69,7 @@ enum Endpoint {
         switch self {
         case .login, .register, .refresh, .ask, .syncAnswers,
              .registerDeviceToken:                             return "POST"
-        case .me, .plan, .progress, .packs, .downloadPack:    return "GET"
+        case .me, .plan, .progress, .packs, .downloadPack, .mockTests:  return "GET"
         case .updateProfile:                                   return "PATCH"
         }
     }
