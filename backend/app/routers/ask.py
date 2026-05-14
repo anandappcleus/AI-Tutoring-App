@@ -155,6 +155,39 @@ def _escape_latex_backslashes(text: str) -> str:
     return "".join(out)
 
 
+def _fix_control_chars_in_strings(text: str) -> str:
+    """
+    Replace literal control characters that appear INSIDE JSON string values
+    with their JSON escape sequences.
+
+    json.loads() rejects raw \\n / \\r / \\t inside a string literal — they must
+    be written as the two-character sequences \\\\n etc.  Thinking models like
+    sarvam-m frequently emit multi-line explanations with real newlines.
+    """
+    result: list[str] = []
+    in_string = False
+    escaped = False
+    for c in text:
+        if escaped:
+            result.append(c)
+            escaped = False
+        elif c == "\\" and in_string:
+            result.append(c)
+            escaped = True
+        elif c == '"':
+            result.append(c)
+            in_string = not in_string
+        elif in_string and c == "\n":
+            result.append("\\n")
+        elif in_string and c == "\r":
+            result.append("\\r")
+        elif in_string and c == "\t":
+            result.append("\\t")
+        else:
+            result.append(c)
+    return "".join(result)
+
+
 def _extract_last_json_object(text: str) -> str | None:
     """
     Walk *text* character-by-character tracking brace depth.
@@ -240,6 +273,19 @@ def _parse_crew_output(raw: str) -> dict:
     try:
         return json.loads(_escape_latex_backslashes(text))
     except (json.JSONDecodeError, Exception):
+        pass
+
+    # Pass 3: fix literal control characters (newlines, tabs) inside string values.
+    # Thinking models like sarvam-m frequently write real newline chars in JSON strings.
+    try:
+        return json.loads(_fix_control_chars_in_strings(text))
+    except (json.JSONDecodeError, Exception):
+        pass
+
+    # Pass 4: fix both control chars AND LaTeX escapes
+    try:
+        return json.loads(_escape_latex_backslashes(_fix_control_chars_in_strings(text)))
+    except (json.JSONDecodeError, Exception):
         return {}
 
 
@@ -308,9 +354,20 @@ async def ask(
     # ── Parse crew output ────────────────────────────────────────────
     parsed = _parse_crew_output(raw_output)
     if not parsed:
+        extracted_preview = ""
+        json_err = ""
+        try:
+            _extracted = _extract_last_json_object(raw_output.strip())
+            if _extracted:
+                extracted_preview = _extracted[:300]
+                json.loads(_fix_control_chars_in_strings(_extracted))
+        except json.JSONDecodeError as e:
+            json_err = str(e)
         log.warning(
-            "ask.parse_failed  student_id=%s  raw_len=%d  raw_preview=%r",
+            "ask.parse_failed  student_id=%s  raw_len=%d  "
+            "raw_preview=%r  extracted_preview=%r  json_err=%s",
             student_id, len(raw_output), raw_output[:120],
+            extracted_preview, json_err,
         )
 
     # ── Persist to quiz_answers for rate-limiting + progress tracking ─

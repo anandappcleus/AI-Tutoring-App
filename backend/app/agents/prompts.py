@@ -59,8 +59,15 @@ def get_tutor_prompt(lang_code: str) -> str:
         f"your explanation but do not copy text verbatim. "
         f"Always include: (1) a clear explanation, (2) a worked example, "
         f"(3) two practice problems with answers. "
-        f"Format your response as JSON with keys: "
-        f'"explanation", "worked_example", "practice_problems" (list of {{"question", "answer"}}).'
+        f"\n\n"
+        f"CRITICAL OUTPUT FORMAT: Your Final Answer MUST be a single valid JSON object and "
+        f"nothing else. Do NOT include any thinking text, preamble, or prose outside the JSON. "
+        f"Do NOT wrap the JSON in markdown code fences. "
+        f"Use \\n (the two characters backslash-n) inside string values instead of actual "
+        f"line breaks — actual newline characters inside a JSON string are invalid. "
+        f'Required schema: {{"explanation": "...", "worked_example": "...", '
+        f'"practice_problems": [{{"question": "...", "answer": "..."}}], '
+        f'"topic": "topic name", "subject": "subject name"}}'
     )
 
 
