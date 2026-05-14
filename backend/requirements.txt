@@ -12,7 +12,8 @@ alembic>=1.13.0
 crewai>=1.14.0,<2.0.0
 litellm>=1.83.0           # required by crewai for openai-compatible custom endpoints
 openai>=2.24.0,<3.0.0
-chromadb>=0.5.0,<0.6.0      # 0.6.x has breaking Rust bindings change (AttributeError: 'RustBindingsAPI')
+# chromadb version driven by crewai (crewai>=1.14 requires chromadb~=1.1.0)
+# PersistentClient API is unchanged; 0.5.x DBs are forward-compatible with 1.x
 
 # ── Scheduling ───────────────────────────────────────────────────────
 apscheduler>=3.10.0
