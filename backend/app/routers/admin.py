@@ -21,6 +21,9 @@ from app.config import get_settings
 log = logging.getLogger(__name__)
 router = APIRouter()
 
+# Simple in-process guard — prevents concurrent crew runs from double-triggering
+_crew_running: bool = False
+
 
 def _verify_secret(x_admin_secret: str | None) -> None:
     """Raise 403 if the header is missing or doesn't match ADMIN_SECRET."""
@@ -47,12 +50,28 @@ async def trigger_nightly_crew(
     Returns 202 Accepted and fires the crew in the background so the HTTP
     response is instant. Watch Railway logs for nightly_crew.* log lines.
     """
+    global _crew_running
     _verify_secret(x_admin_secret)
+
+    if _crew_running:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A crew run is already in progress. Try again after it finishes.",
+        )
 
     from app.scheduler import run_nightly_crew
 
     log.info("admin.trigger_nightly_crew  manual run requested")
-    asyncio.create_task(run_nightly_crew())
+
+    async def _guarded_run() -> None:
+        global _crew_running
+        _crew_running = True
+        try:
+            await run_nightly_crew()
+        finally:
+            _crew_running = False
+
+    asyncio.create_task(_guarded_run())
 
     return {
         "status": "accepted",

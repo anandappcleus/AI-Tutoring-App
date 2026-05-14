@@ -45,7 +45,7 @@ from app.routers.auth import get_current_student
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-FREE_DAILY_LIMIT = 10           # free-tier questions per UTC day
+FREE_DAILY_LIMIT = 50           # free-tier questions per UTC day (raised for testing)
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="crewai")
 
 
