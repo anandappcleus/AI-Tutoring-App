@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_NUMBER_ID: str = ""      # Sender phone number ID from Meta dashboard
     WHATSAPP_API_VERSION: str = "v20.0"
 
+    # ── Admin ─────────────────────────────────────────────────────────
+    ADMIN_SECRET: str = ""          # set in .env / Railway to protect /admin routes
+
     # ── App ──────────────────────────────────────────────────────────
     APP_ENV: str = "development"
     LOG_LEVEL: str = "INFO"          # DEBUG | INFO | WARNING | ERROR

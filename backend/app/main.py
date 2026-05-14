@@ -93,13 +93,14 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 
 # ── Routes ────────────────────────────────────────────────────
-from app.routers import auth, ask, plan, progress, packs
+from app.routers import auth, ask, plan, progress, packs, admin
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(ask.router, tags=["ask"])
 app.include_router(plan.router, tags=["plan"])
 app.include_router(progress.router, tags=["progress"])
 app.include_router(packs.router, prefix="/packs", tags=["packs"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 
 @app.get("/health", tags=["health"])
