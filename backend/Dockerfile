@@ -37,6 +37,12 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application source
 COPY --chown=appuser:appuser . .
 
+# Pre-create the chroma_data directory owned by appuser so the volume
+# mount (which lands as root) can be written by appuser at runtime.
+# Railway mounts the volume over /app/chroma_data at container start,
+# preserving the ownership set here if the volume is freshly provisioned.
+RUN mkdir -p /app/chroma_data && chown appuser:appuser /app/chroma_data
+
 USER appuser
 
 EXPOSE 8000
