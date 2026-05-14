@@ -25,50 +25,6 @@ struct MockTest: Identifiable, Hashable {
     let difficulty: String      // Easy | Medium | Hard
 }
 
-// MARK: - Static Catalog (fallback when backend returns 404)
-
-private let staticMockTests: [MockTest] = [
-    // JEE
-    MockTest(id: "jee-2024-j1-s1", title: "JEE Mains Jan 2024 — Shift 1",
-             examType: "JEE",   subjects: "Physics · Chemistry · Maths",
-             year: 2024, questionCount: 90, durationMinutes: 180, difficulty: "Hard"),
-    MockTest(id: "jee-2024-j1-s2", title: "JEE Mains Jan 2024 — Shift 2",
-             examType: "JEE",   subjects: "Physics · Chemistry · Maths",
-             year: 2024, questionCount: 90, durationMinutes: 180, difficulty: "Hard"),
-    MockTest(id: "jee-2023-j1-s1", title: "JEE Mains Jan 2023 — Shift 1",
-             examType: "JEE",   subjects: "Physics · Chemistry · Maths",
-             year: 2023, questionCount: 90, durationMinutes: 180, difficulty: "Medium"),
-    MockTest(id: "jee-adv-2024-p1", title: "JEE Advanced 2024 — Paper 1",
-             examType: "JEE",   subjects: "Physics · Chemistry · Maths",
-             year: 2024, questionCount: 54, durationMinutes: 180, difficulty: "Hard"),
-    MockTest(id: "jee-adv-2023-p1", title: "JEE Advanced 2023 — Paper 1",
-             examType: "JEE",   subjects: "Physics · Chemistry · Maths",
-             year: 2023, questionCount: 54, durationMinutes: 180, difficulty: "Hard"),
-    // NEET
-    MockTest(id: "neet-2024",      title: "NEET UG 2024",
-             examType: "NEET",  subjects: "Physics · Chemistry · Biology",
-             year: 2024, questionCount: 180, durationMinutes: 200, difficulty: "Hard"),
-    MockTest(id: "neet-2023",      title: "NEET UG 2023",
-             examType: "NEET",  subjects: "Physics · Chemistry · Biology",
-             year: 2023, questionCount: 180, durationMinutes: 200, difficulty: "Medium"),
-    MockTest(id: "neet-2022",      title: "NEET UG 2022",
-             examType: "NEET",  subjects: "Physics · Chemistry · Biology",
-             year: 2022, questionCount: 180, durationMinutes: 200, difficulty: "Medium"),
-    // WBCHSE
-    MockTest(id: "wbchse-phy-2024",  title: "WBCHSE Physics 2024",
-             examType: "WBCHSE", subjects: "Physics",
-             year: 2024, questionCount: 50, durationMinutes: 90, difficulty: "Medium"),
-    MockTest(id: "wbchse-chem-2024", title: "WBCHSE Chemistry 2024",
-             examType: "WBCHSE", subjects: "Chemistry",
-             year: 2024, questionCount: 50, durationMinutes: 90, difficulty: "Medium"),
-    MockTest(id: "wbchse-math-2024", title: "WBCHSE Mathematics 2024",
-             examType: "WBCHSE", subjects: "Mathematics",
-             year: 2024, questionCount: 50, durationMinutes: 90, difficulty: "Medium"),
-    MockTest(id: "wbchse-bio-2024",  title: "WBCHSE Biology 2024",
-             examType: "WBCHSE", subjects: "Biology",
-             year: 2024, questionCount: 50, durationMinutes: 90, difficulty: "Easy"),
-]
-
 // MARK: - ViewModel
 
 @MainActor
@@ -102,8 +58,12 @@ final class MockTestsViewModel: ObservableObject {
         AppLogger.apiStart(AppLogger.mockTests, endpoint: "GET /mock-tests")
         loadState = .loading
 
+        // Pre-select the student's exam filter so the relevant papers show first
+        if let exam = examTarget, !exam.isEmpty {
+            selectedFilter = exam
+        }
+
         do {
-            // Backend endpoint not yet implemented — this will 404 and fall through to static
             let tests: [MockTestResponse] = try await apiClient.request(.mockTests)
             let mapped = tests.map { r in
                 MockTest(id: r.id, title: r.title, examType: r.examType,
@@ -116,13 +76,8 @@ final class MockTestsViewModel: ObservableObject {
                                  detail: "count=\(mapped.count)")
             loadState = mapped.isEmpty ? .empty : .loaded(mapped)
         } catch {
-            AppLogger.mockTests.info("GET /mock-tests not available — using static catalog  reason=\(error.localizedDescription)")
-            // Filter static catalog to match exam target when possible
-            let all = staticMockTests
-            if let exam = examTarget, exam != "" {
-                selectedFilter = exam
-            }
-            loadState = all.isEmpty ? .empty : .loaded(all)
+            AppLogger.apiFailure(AppLogger.mockTests, endpoint: "GET /mock-tests", error: error)
+            loadState = .error(error.localizedDescription)
         }
     }
 
@@ -132,7 +87,7 @@ final class MockTestsViewModel: ObservableObject {
     }
 }
 
-// MARK: - Network Response (matches GET /mock-tests when backend adds it)
+// MARK: - Network Response (matches GET /mock-tests)
 
 private struct MockTestResponse: Decodable {
     let id: String
