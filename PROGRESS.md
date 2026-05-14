@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 13 May 2026*
+*Last updated: 14 May 2026*
 
 ---
 
@@ -13,7 +13,7 @@
 | Sprint 3 | CrewAI Agents | ✅ Complete | 5–6 |
 | Sprint 4 | FastAPI Routes + Auth | ✅ Complete | 7–8 |
 | Sprint 5 | iOS Core — Study Screen | ✅ Complete | 9–10 |
-| Sprint 6 | iOS — Voice, Progress, Onboarding | 🔲 Not Started | 11–12 |
+| Sprint 6 | iOS — Voice, Progress, Onboarding | � In Progress | 11–12 |
 | Sprint 7 | Subscription + Freemium | 🔲 Not Started | 13–14 |
 | Sprint 8 | Offline Packs + Content QA | 🔲 Not Started | 15–16 |
 | Sprint 9 | Production LLM Switch + Deployment | 🔲 Not Started | 17–18 |
@@ -132,19 +132,19 @@
 
 ---
 
-## Sprint 6 — iOS: Voice, Progress, Onboarding 🔲 Not Started
+## Sprint 6 — iOS: Voice, Progress, Onboarding � In Progress
 
 **Goal:** Voice input, progress charts, language onboarding, parent dashboard
 
-> Note: All view files are already designed. Tasks focus on wiring + Bhashini integration.
+> Note: All view files are already designed. Tasks focus on wiring + Sarvam speech API (Saaras v2 STT, Bulbul v2 TTS) — same vendor as NIM LLM.
 
 | # | Task | File | Status |
 |---|------|------|--------|
-| 1 | Wire `OnboardingView.swift` — `OnboardingViewModel` | `Features/Onboarding/OnboardingViewModel.swift` | 🔲 |
-| 2 | `VoiceInputView.swift` — AVFoundation microphone capture | `Features/Study/VoiceInputView.swift` | 🔲 |
-| 3 | `BhashiniClient.swift` — STT + TTS integration | `Core/Networking/BhashiniClient.swift` | 🔲 |
-| 4 | Wire `LearnerProgressView.swift` — Swift Charts | `Features/Progress/LearnerProgressView.swift` | 🔲 |
-| 5 | Wire `ParentDashboardView.swift` — `/progress` API | `Features/Parent/ParentDashboardView.swift` | 🔲 |
+| 1 | Wire `OnboardingView.swift` — `OnboardingViewModel` | `Features/Onboarding/OnboardingViewModel.swift` | ✅ Done |
+| 2 | `VoiceInputView.swift` — AVFoundation microphone capture | `Features/Study/VoiceInputView.swift` | ✅ Done |
+| 3 | `SarvamSpeechClient.swift` — Sarvam Saaras v2 STT + Bulbul v2 TTS | `Core/Networking/SarvamSpeechClient.swift` | ✅ Done |
+| 4 | Wire `LearnerProgressView.swift` — Swift Charts + `ProgressViewModel` | `Features/Progress/LearnerProgressView.swift`, `Features/Progress/ProgressViewModel.swift` | ✅ Done |
+| 5 | Wire `ParentDashboardView.swift` — `/progress` API | `Features/Parent/ParentDashboardView.swift`, `Features/Parent/ParentDashboardViewModel.swift` | ✅ Done |
 | 6 | `Localizable.strings` — Bengali + Hindi UI labels | `Resources/bn.lproj/`, `Resources/hi.lproj/` | 🔲 |
 | 7 | Push notification registration + APNs token upload | `SmartTutorApp.swift` | 🔲 |
 

@@ -11,11 +11,7 @@ import SwiftUI
 struct OnboardingView: View {
     @Binding var isOnboardingComplete: Bool
     @EnvironmentObject private var appState: AppState
-
-    @State private var step = 1
-    @State private var selectedLanguage = ""
-    @State private var selectedExam = ""
-    @State private var name = ""
+    @StateObject private var vm = OnboardingViewModel()
 
     let languages: [(code: String, name: String, flag: String)] = [
         ("bn", "বাংলা", "🇮🇳"),
@@ -31,15 +27,6 @@ struct OnboardingView: View {
         ("neet",   "NEET",                   "⚕️"),
         ("wbchse", "WB Board (Class 11-12)", "📚"),
     ]
-
-    private var canProceed: Bool {
-        switch step {
-        case 1: return !selectedLanguage.isEmpty
-        case 2: return !selectedExam.isEmpty
-        case 3: return !name.trimmingCharacters(in: .whitespaces).isEmpty
-        default: return false
-        }
-    }
 
     var body: some View {
         ZStack {
@@ -59,9 +46,9 @@ struct OnboardingView: View {
                 HStack(spacing: 8) {
                     ForEach(1...3, id: \.self) { s in
                         Capsule()
-                            .fill(s <= step ? Color.white : Color.white.opacity(0.3))
+                            .fill(s <= vm.step ? Color.white : Color.white.opacity(0.3))
                             .frame(height: 4)
-                            .animation(.easeInOut(duration: 0.3), value: step)
+                            .animation(.easeInOut(duration: 0.3), value: vm.step)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -70,13 +57,13 @@ struct OnboardingView: View {
                 Spacer()
 
                 Group {
-                    switch step {
+                    switch vm.step {
                     case 1:
-                        LanguageStepView(languages: languages, selectedLanguage: $selectedLanguage)
+                        LanguageStepView(languages: languages, selectedLanguage: $vm.selectedLanguage)
                     case 2:
-                        ExamStepView(exams: exams, selectedExam: $selectedExam)
+                        ExamStepView(exams: exams, selectedExam: $vm.selectedExam)
                     default:
-                        NameStepView(name: $name, selectedLanguage: selectedLanguage, selectedExam: selectedExam)
+                        NameStepView(name: $vm.name, selectedLanguage: vm.selectedLanguage, selectedExam: vm.selectedExam)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -89,29 +76,23 @@ struct OnboardingView: View {
 
                 Button {
                     withAnimation(.easeInOut(duration: 0.35)) {
-                        if step < 3 {
-                            step += 1
+                        if vm.step < 3 {
+                            vm.advance()
                         } else {
-                            // Save language + exam preferences to server, then mark complete
-                            let lang = selectedLanguage.isEmpty ? "en" : selectedLanguage
-                            let exam = selectedExam.isEmpty ? "JEE" : selectedExam.uppercased()
-                            let displayName = name.trimmingCharacters(in: .whitespaces)
-                            Task {
-                                await appState.updateProfile(
-                                    language: lang,
-                                    examTarget: exam,
-                                    name: displayName.isEmpty ? nil : displayName
-                                )
-                            }
-                            isOnboardingComplete = true
+                            Task { await vm.submit(via: appState) }
                         }
                     }
                 } label: {
                     HStack(spacing: 8) {
-                        Text(step == 3 ? "Get Started" : "Continue")
-                            .font(.system(size: 17, weight: .bold))
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 15, weight: .bold))
+                        if vm.isSubmitting {
+                            ProgressView()
+                                .tint(Color(red: 0.58, green: 0.28, blue: 0.91))
+                        } else {
+                            Text(vm.step == 3 ? "Get Started" : "Continue")
+                                .font(.system(size: 17, weight: .bold))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 15, weight: .bold))
+                        }
                     }
                     .foregroundColor(Color(red: 0.58, green: 0.28, blue: 0.91))
                     .frame(maxWidth: .infinity)
@@ -120,10 +101,13 @@ struct OnboardingView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
                 }
-                .disabled(!canProceed)
-                .opacity(canProceed ? 1 : 0.5)
+                .disabled(!vm.canProceed || vm.isSubmitting)
+                .opacity(vm.canProceed && !vm.isSubmitting ? 1 : 0.5)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 52)
+                .onChange(of: vm.isComplete) { _, done in
+                    if done { isOnboardingComplete = true }
+                }
             }
         }
     }

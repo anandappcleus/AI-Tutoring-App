@@ -10,36 +10,8 @@ import SwiftUI
 
 struct ParentDashboardView: View {
 
-    private let weeklyReport = (
-        totalTime:            "6h 15m",
-        questionsAttempted:   87,
-        avgAccuracy:          78,
-        streak:               7,
-        improvement:          "+12%"
-    )
-
-    private let alerts: [ParentAlert] = [
-        ParentAlert(
-            type: .warning,
-            topic: "Organic Chemistry",
-            message: "Riya has been stuck on organic chemistry reactions for 3 days"
-        ),
-        ParentAlert(
-            type: .success,
-            topic: "Calculus",
-            message: "Great improvement in calculus – 85% accuracy this week!"
-        ),
-    ]
-
-    private let dailyActivity: [ParentDayActivity] = [
-        ParentDayActivity(day: "Monday",    time: "45 min",  questions: 12, accuracy: 75),
-        ParentDayActivity(day: "Tuesday",   time: "60 min",  questions: 15, accuracy: 80),
-        ParentDayActivity(day: "Wednesday", time: "30 min",  questions:  8, accuracy: 72),
-        ParentDayActivity(day: "Thursday",  time: "75 min",  questions: 18, accuracy: 82),
-        ParentDayActivity(day: "Friday",    time: "50 min",  questions: 14, accuracy: 78),
-        ParentDayActivity(day: "Saturday",  time: "90 min",  questions: 20, accuracy: 85),
-        ParentDayActivity(day: "Sunday",    time: "65 min",  questions: 16, accuracy: 80),
-    ]
+    @EnvironmentObject private var appState: AppState
+    @StateObject private var vm = ParentDashboardViewModel()
 
     @State private var whatsappEnabled = true
 
@@ -54,7 +26,7 @@ struct ParentDashboardView: View {
                         Text("Parent Dashboard")
                             .font(.system(size: 24, weight: .bold))
                     }
-                    Text("Monitoring Riya's progress")
+                    Text(vm.weekRange.map { "Week: \($0)" } ?? "Monitoring your child's progress")
                         .font(.subheadline)
                         .foregroundColor(.white.opacity(0.85))
                 }
@@ -72,6 +44,15 @@ struct ParentDashboardView: View {
                 )
 
                 VStack(spacing: 16) {
+                    if vm.isLoading {
+                        ProgressView("Loading…")
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 40)
+                    } else if let error = vm.errorMessage {
+                        Text(error)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 40)
+                    } else {
                     // Weekly summary
                     VStack(alignment: .leading, spacing: 16) {
                         Label("This Week's Summary", systemImage: "target")
@@ -79,49 +60,68 @@ struct ParentDashboardView: View {
                             .foregroundColor(.primary)
 
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                            SummaryCell(value: weeklyReport.totalTime, label: "Study Time",  color: .blue)
-                            SummaryCell(value: "\(weeklyReport.questionsAttempted)", label: "Questions",   color: .green)
-                            SummaryCell(value: "\(weeklyReport.avgAccuracy)%",       label: "Avg Accuracy", color: .purple)
-                            SummaryCell(value: "\(weeklyReport.streak) days",         label: "Streak",       color: .orange)
+                            SummaryCell(value: "—",                              label: "Study Time",    color: .blue)
+                            SummaryCell(value: "\(vm.questionsAttempted)",       label: "Questions",     color: .green)
+                            SummaryCell(value: "\(vm.avgAccuracy)%",             label: "Avg Accuracy",  color: .purple)
+                            SummaryCell(value: "—",                              label: "Streak",        color: .orange)
                         }
 
                         HStack(spacing: 8) {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .foregroundColor(.green)
-                            Text("\(weeklyReport.improvement) improvement from last week")
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.secondary)
+                            Text("Study time & streak coming soon")
                                 .font(.system(size: 13))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.secondary)
                         }
                         .padding(12)
-                        .background(Color.green.opacity(0.08))
+                        .background(Color.secondary.opacity(0.07))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.green.opacity(0.2), lineWidth: 1))
                     }
                     .padding(20)
                     .background(Color(UIColor.systemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
 
-                    // Alerts
-                    ForEach(alerts) { (alert: ParentAlert) in
-                        AlertCard(alert: alert)
-                    }
-
-                    // Daily activity log
-                    VStack(alignment: .leading, spacing: 14) {
-                        Label("Daily Activity Log", systemImage: "book.fill")
-                            .font(.system(size: 16, weight: .bold))
-
-                        VStack(spacing: 8) {
-                            ForEach(dailyActivity) { (activity: ParentDayActivity) in
-                                ActivityRow(activity: activity)
-                            }
+                    // Alerts derived from weak topics
+                    if !vm.weakTopics.isEmpty {
+                        ForEach(vm.weakTopics, id: \.self) { topic in
+                            AlertCard(alert: ParentAlert(
+                                type: .warning,
+                                topic: topic,
+                                message: "Needs more practice on \(topic) — accuracy below 70%"
+                            ))
                         }
                     }
-                    .padding(20)
-                    .background(Color(UIColor.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+
+                    // Topic accuracy breakdown
+                    if !vm.topicBreakdown.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Label("Topic Accuracy", systemImage: "chart.bar.fill")
+                                .font(.system(size: 16, weight: .bold))
+                            VStack(spacing: 10) {
+                                ForEach(vm.topicBreakdown, id: \.topic) { t in
+                                    HStack {
+                                        Text(t.topic)
+                                            .font(.system(size: 14))
+                                            .lineLimit(1)
+                                        Spacer()
+                                        Text("\(Int(t.accuracyPct))%")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundColor(t.accuracyPct >= 70 ? .green : .orange)
+                                    }
+                                    LinearProgressBar(
+                                        value: t.accuracyPct / 100,
+                                        foreground: t.accuracyPct >= 70 ? .green : .orange,
+                                        background: Color(UIColor.systemGray5)
+                                    )
+                                }
+                            }
+                        }
+                        .padding(20)
+                        .background(Color(UIColor.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                    }
 
                     // Exam prediction
                     VStack(alignment: .leading, spacing: 14) {
@@ -197,6 +197,7 @@ struct ParentDashboardView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.green.opacity(0.25), lineWidth: 2))
                     .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                    } // end else
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, -16)
@@ -207,6 +208,11 @@ struct ParentDashboardView: View {
         .ignoresSafeArea(edges: .top)
         .navigationTitle("Parent Dashboard")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            if let id = appState.currentProfile?.id {
+                await vm.load(studentId: id)
+            }
+        }
     }
 }
 
@@ -218,14 +224,6 @@ fileprivate struct ParentAlert: Identifiable {
     let topic: String
     let message: String
     enum AlertKind { case warning, success }
-}
-
-fileprivate struct ParentDayActivity: Identifiable {
-    let id = UUID()
-    let day: String
-    let time: String
-    let questions: Int
-    let accuracy: Int
 }
 
 // MARK: - Supporting Views
@@ -295,45 +293,5 @@ private struct AlertCard: View {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(isWarning ? Color.yellow.opacity(0.3) : Color.green.opacity(0.3), lineWidth: 1)
         )
-    }
-}
-
-private struct ActivityRow: View {
-    let activity: ParentDayActivity
-
-    private var accuracyColor: Color {
-        activity.accuracy >= 80 ? .green
-        : activity.accuracy >= 70 ? .yellow
-        : .red
-    }
-
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(activity.day)
-                    .font(.system(size: 14, weight: .semibold))
-                Text("\(activity.questions) questions")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-            HStack(spacing: 16) {
-                HStack(spacing: 4) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    Text(activity.time)
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
-                }
-                Text("\(activity.accuracy)%")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(accuracyColor)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(Color(UIColor.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }

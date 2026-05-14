@@ -22,6 +22,11 @@ pip-delete-this-directory.txt
 !.env.example
 *.pem
 *.key
+# iOS Info.plist contains hardcoded API keys in dev — never commit
+SmartTutor/SmartTutor/Info.plist
+# xcconfig files that hold secrets (Secrets.xcconfig)
+*.xcconfig
+!SmartTutor/*.xcconfig
 
 # ── Database ─────────────────────────────────────────────────────────
 *.db

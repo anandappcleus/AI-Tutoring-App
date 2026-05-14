@@ -6,5 +6,9 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SmartTutor uses the microphone so you can ask questions aloud in Bengali, Hindi or English.</string>
+	<key>SARVAM_API_KEY</key>
+	<string>sk_m4mlc1fc_H6a0oJwhyeaIqkRsOWdTrG9i</string>
 </dict>
 </plist>

@@ -13,6 +13,7 @@ struct StudyView: View {
     @State private var inputText = ""
     @State private var isRecording = false
     @State private var showPaywall = false
+    @State private var showVoiceInput = false
 
     private let subjects = ["Physics", "Chemistry", "Maths", "Biology"]
 
@@ -65,6 +66,12 @@ struct StudyView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView(onSubscribe: { showPaywall = false })
         }
+        .sheet(isPresented: $showVoiceInput, onDismiss: { isRecording = false }) {
+            let langCode = (StudentProfile.load()?.preferredLanguage.rawValue ?? "bn") + "-IN"
+            VoiceInputView(languageCode: langCode) { transcription in
+                inputText = transcription
+            }
+        }
         .onChange(of: vm.viewState) { _, state in
             if case .error(let code) = state {
                 if code == "daily_limit_reached" { showPaywall = true }
@@ -83,14 +90,8 @@ struct StudyView: View {
     }
 
     private func handleVoiceInput() {
-        // Voice input wired in Sprint 6 — placeholder toggles recording state
-        isRecording.toggle()
-        if isRecording {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                inputText = "নিউটনের দ্বিতীয় সূত্র কি?"
-                isRecording = false
-            }
-        }
+        isRecording = true
+        showVoiceInput = true
     }
 }
 
