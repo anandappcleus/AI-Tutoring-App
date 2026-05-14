@@ -36,9 +36,12 @@ final class MockAPIClient: APIClient {
 
     var stub: Stub = .failure(.noNetwork)
     var callCount = 0
+    /// The most-recent endpoint passed to request<T>(_:)
+    var lastEndpoint: Endpoint?
 
     override func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T {
         callCount += 1
+        lastEndpoint = endpoint
         switch stub {
         case .success(let response):
             guard let cast = response as? T else {
@@ -250,6 +253,86 @@ final class StudyViewModelTests: XCTestCase {
         try await Task.sleep(nanoseconds: 100_000_000)
         sut.dismissError()
         XCTAssertEqual(sut.viewState, .idle)
+    }
+
+    // MARK: - Exam framing
+
+    func test_ask_sendsExamType_fromStudentProfile() async throws {
+        // Arrange: profile with JEE exam target
+        let jeeProfile = StudentProfile(
+            id: "test-id", name: "Test", email: "test@test.com",
+            preferredLanguage: .english, examTarget: .jee, isPremium: false
+        )
+        let vm = StudyViewModel(
+            apiClient: mockAPI,
+            syncManager: mockSync,
+            profile: { jeeProfile }
+        )
+        mockAPI.stub = .success(makeAskResponse())
+
+        vm.ask(question: "Newton's second law")
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        // The endpoint captured by MockAPIClient must carry examType == "JEE"
+        if case .ask(_, _, let examType) = mockAPI.lastEndpoint {
+            XCTAssertEqual(examType, "JEE",
+                "Expected exam_type='JEE' from StudentProfile.examTarget")
+        } else {
+            XCTFail("Expected .ask endpoint to be recorded")
+        }
+    }
+
+    func test_buildAnswerText_rendersBadge_withExamFields() async throws {
+        // Arrange: JEE profile + response with exam metadata
+        let jeeProfile = StudentProfile(
+            id: "test-id", name: "Test", email: "test@test.com",
+            preferredLanguage: .english, examTarget: .jee, isPremium: false
+        )
+        let vm = StudyViewModel(
+            apiClient: mockAPI,
+            syncManager: mockSync,
+            profile: { jeeProfile }
+        )
+        let jeeResponse = AskResponse(
+            explanation: "Newton's second law states F = ma.",
+            workedExample: "If F=10N and m=2kg then a=5 m/s².",
+            practiceProblems: [
+                AskResponse.PracticeProblem(
+                    question: "A 3 kg object has 12 N applied. Find acceleration.",
+                    answer: "4 m/s²",
+                    questionType: "MCQ", marks: 4, markingScheme: "+4/-1"
+                )
+            ],
+            language: "en",
+            questionType: "MCQ",
+            marks: 4,
+            markingScheme: "+4/-1",
+            rawOutput: nil
+        )
+        mockAPI.stub = .success(jeeResponse)
+
+        vm.ask(question: "Newton's second law")
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let answerText = vm.messages.last?.text ?? ""
+
+        // Badge line must be present
+        XCTAssertTrue(answerText.contains("🎯"),
+            "Expected exam badge emoji in answer text")
+        XCTAssertTrue(answerText.contains("MCQ"),
+            "Expected question type 'MCQ' in badge")
+        XCTAssertTrue(answerText.contains("4 marks"),
+            "Expected '4 marks' in badge")
+        XCTAssertTrue(answerText.contains("+4/-1"),
+            "Expected marking scheme '+4/-1' in badge")
+        // Badge must appear BEFORE the explanation
+        let badgeRange = answerText.range(of: "🎯")!
+        let explanationRange = answerText.range(of: "Newton's second law")!
+        XCTAssertLessThan(badgeRange.lowerBound, explanationRange.lowerBound,
+            "Badge must appear before explanation")
+        // Practice problem must show question type tag
+        XCTAssertTrue(answerText.contains("[MCQ, 4 marks]"),
+            "Expected per-problem type tag in practice section")
     }
 
     // MARK: - Edge cases
