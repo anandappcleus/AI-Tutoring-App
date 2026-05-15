@@ -8,7 +8,6 @@
 
 import os
 import SwiftUI
-import Vision
 
 
 struct DashboardView: View {
@@ -177,9 +176,6 @@ private struct PickedImageQuerySheet: View {
     let image: UIImage
     let onSubmit: (String) -> Void
     @State private var questionText = ""
-    @State private var isProcessing = false
-    @State private var showNoTextAlert = false
-    @State private var noTextAlertMessage = ""
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -201,54 +197,23 @@ private struct PickedImageQuerySheet: View {
                     .lineLimit(3, reservesSpace: true)
 
                 Button {
-                    isProcessing = true
-                    // Store image so StudyView can display the thumbnail in the chat.
+                    // Compress image to ~200KB JPEG, base64-encode, store for API call.
+                    // UIImage stored separately so StudyView can render the thumbnail.
                     PendingImageStore.shared.image = image
-                    extractText(from: image) { ocrText in
-                        let q = questionText.trimmingCharacters(in: .whitespaces)
-                        if ocrText == nil || ocrText!.isEmpty {
-                            // OCR found nothing — could be a non-text photo OR an OCR failure.
-                            // If the user also typed nothing we have zero context for the AI; block.
-                            // If they typed a question, offer "Ask Anyway" so a genuine OCR failure
-                            // doesn't completely strand them.
-                            PendingImageStore.shared.image = nil  // image has no readable context
-                            isProcessing = false
-                            if q.isEmpty {
-                                AppLogger.camera.info("PickedImageQuerySheet: no OCR text, no question — hard block")
-                                noTextAlertMessage = "The AI Tutor is text-only and can't analyse photos, selfies, or images without printed content.\n\nFor best results, use a photo of a textbook page or worksheet where text and equations are clearly visible.\n\nOr type your question directly in the AI Tutor chat."
-                            } else {
-                                AppLogger.camera.info("PickedImageQuerySheet: no OCR text but question typed — soft block")
-                                noTextAlertMessage = "No printed text was recognised in this image, so the AI won't have visual context.\n\nYour typed question will still be answered — tap 'Ask Anyway' to send it. If the image should contain text, try re-scanning with better lighting."
-                            }
-                            showNoTextAlert = true
-                            return
-                        }
-                        let userQuestion = q.isEmpty ? "Explain and solve this question" : q
-                        AppLogger.camera.info("PickedImageQuerySheet: OCR found \(ocrText!.count) chars")
-                        let fullQuery = "\(userQuestion)\n\n[Text from image: \(ocrText!)]"
-                        isProcessing = false
-                        onSubmit(fullQuery)
-                    }
+                    PendingImageStore.shared.imageBase64 = compressToBase64(image: image)
+                    let q = questionText.trimmingCharacters(in: .whitespaces)
+                    let userQuestion = q.isEmpty ? "Explain and solve this question" : q
+                    AppLogger.camera.info("PickedImageQuerySheet: submitting with image")
+                    onSubmit(userQuestion)
                 } label: {
-                    if isProcessing {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .tint(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.indigo)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    } else {
-                        Label("Ask AI Tutor", systemImage: "brain.head.profile")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.indigo)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    }
+                    Label("Ask AI Tutor", systemImage: "brain.head.profile")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.indigo)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                .disabled(isProcessing)
 
                 Spacer()
             }
@@ -263,39 +228,20 @@ private struct PickedImageQuerySheet: View {
             }
         }
         .presentationDetents([.medium, .large])
-        .alert("Couldn't Read Image Text", isPresented: $showNoTextAlert) {
-            // Only offer "Ask Anyway" when the user has typed a question —
-            // a vague image-dependent question with no OCR text is still useless.
-            if !questionText.trimmingCharacters(in: .whitespaces).isEmpty {
-                Button("Ask Anyway") {
-                    let q = questionText.trimmingCharacters(in: .whitespaces)
-                    AppLogger.camera.info("PickedImageQuerySheet: Ask Anyway — submitting typed question only")
-                    onSubmit(q)
-                }
-            }
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(noTextAlertMessage)
-        }
     }
 
-    // MARK: - OCR Helper
+    // MARK: - Image Compression
 
-    private func extractText(from image: UIImage, completion: @escaping (String?) -> Void) {
-        guard let cgImage = image.cgImage else { completion(nil); return }
-        let request = VNRecognizeTextRequest { req, _ in
-            let lines = (req.results as? [VNRecognizedTextObservation] ?? [])
-                .compactMap { $0.topCandidates(1).first?.string }
-            DispatchQueue.main.async {
-                completion(lines.isEmpty ? nil : lines.joined(separator: " "))
-            }
-        }
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        DispatchQueue.global(qos: .userInitiated).async {
-            try? handler.perform([request])
-        }
+    /// Scale image down to max 800 px on the longest side and encode as JPEG at 70% quality.
+    /// Typical output is 50–150 KB — well within the 4 MB backend limit.
+    private func compressToBase64(image: UIImage) -> String? {
+        let maxDimension: CGFloat = 800
+        let scale = min(maxDimension / max(image.size.width, image.size.height), 1.0)
+        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resized = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+        guard let jpegData = resized.jpegData(compressionQuality: 0.7) else { return nil }
+        return jpegData.base64EncodedString()
     }
 }
 

@@ -39,6 +39,7 @@ enum StudyViewState: Equatable {
 final class PendingImageStore {
     static let shared = PendingImageStore()
     var image: UIImage?
+    var imageBase64: String?
     private init() {}
 }
 
@@ -132,20 +133,14 @@ final class StudyViewModel: ObservableObject {
         // Claim the image (if any) queued by the camera sheet before this ask.
         let pendingImage = PendingImageStore.shared.image
         PendingImageStore.shared.image = nil
+        let pendingImageBase64 = PendingImageStore.shared.imageBase64
+        PendingImageStore.shared.imageBase64 = nil
 
-        // For display, strip the OCR annotation appended by PickedImageQuerySheet.
-        let displayText: String
-        if let range = trimmed.range(of: "\n\n[Text from image:") {
-            displayText = String(trimmed[trimmed.startIndex..<range.lowerBound])
-        } else {
-            displayText = trimmed
-        }
-
-        messages.append(StudyMessage(role: .user, text: displayText, image: pendingImage))
+        messages.append(StudyMessage(role: .user, text: trimmed, image: pendingImage))
         viewState = .loading
 
         Task { [weak self] in
-            await self?.performAsk(trimmed: trimmed, language: language)
+            await self?.performAsk(trimmed: trimmed, language: language, imageBase64: pendingImageBase64)
         }
     }
 
@@ -164,11 +159,11 @@ final class StudyViewModel: ObservableObject {
 
     // MARK: - Private
 
-    private func performAsk(trimmed: String, language: String?) async {
+    private func performAsk(trimmed: String, language: String?, imageBase64: String?) async {
         let examType = profile()?.examTarget.rawValue  // "JEE" | "NEET" | "WBCHSE"
         do {
             let response: AskResponse = try await apiClient.request(
-                .ask(question: trimmed, language: language, examType: examType)
+                .ask(question: trimmed, language: language, examType: examType, imageBase64: imageBase64)
             )
 
             let answerText = buildAnswerText(from: response)

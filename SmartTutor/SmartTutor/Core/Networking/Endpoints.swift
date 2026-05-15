@@ -21,7 +21,7 @@ enum Endpoint {
     case me                                        // GET /auth/me
 
     // Study — triggers Question Generator agent
-    case ask(question: String, language: String?, examType: String?)
+    case ask(question: String, language: String?, examType: String?, imageBase64: String?)
 
     // Study Plan — returns today's Curriculum Planner output
     case plan(studentId: String)
@@ -98,10 +98,11 @@ enum Endpoint {
         case .refresh(let token):
             return try? JSONSerialization.data(withJSONObject: ["refresh_token": token])
 
-        case .ask(let question, let language, let examType):
+        case .ask(let question, let language, let examType, let imageBase64):
             var body: [String: String] = ["question": question]
-            if let lang = language     { body["language"] = lang }
-            if let exam = examType     { body["exam_type"] = exam }
+            if let lang = language      { body["language"] = lang }
+            if let exam = examType      { body["exam_type"] = exam }
+            if let b64 = imageBase64    { body["image_b64"] = b64 }
             return try? JSONSerialization.data(withJSONObject: body)
 
         case .syncAnswers(let answers):

@@ -38,6 +38,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from litellm import acompletion
+
+from app.config import get_settings
 from app.database import get_db
 from app.models.student import QuizAnswer, Student, StudyPlan
 from app.routers.auth import get_current_student
@@ -47,6 +50,7 @@ router = APIRouter()
 
 FREE_DAILY_LIMIT = 50           # free-tier questions per UTC day (raised for testing)
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="crewai")
+_VISION_MODEL = "meta/llama-3.2-11b-vision-instruct"
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────
@@ -62,6 +66,11 @@ class AskRequest(BaseModel):
         None,
         pattern=r"^(JEE|NEET|WBCHSE)$",
         description="Student's exam target — used to frame practice problems in the right style.",
+    )
+    image_b64: str | None = Field(
+        None,
+        max_length=4_000_000,   # ~3 MB raw image — generous limit
+        description="JPEG image as base64 string. When present, the 11B vision model extracts math text.",
     )
 
 
@@ -85,6 +94,54 @@ class AskResponse(BaseModel):
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
+
+async def _extract_image_content(image_b64: str) -> str:
+    """
+    Use llama-3.2-11b-vision-instruct (NIM) to analyse the attached image.
+
+    Returns:
+      - "NOT_EDUCATIONAL" (exact string) if the image is not a textbook problem.
+      - Extracted math/text content preserving fractions (e.g. H/2, not "H 2")
+        for any educational image.
+
+    The returned text is appended to the student's question before handing off
+    to the 70B reasoning crew.
+    """
+    s = get_settings()
+    response = await acompletion(
+        model=f"openai/{_VISION_MODEL}",
+        api_base=s.LLM_BASE_URL,
+        api_key=s.LLM_API_KEY,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"},
+                },
+                {
+                    "type": "text",
+                    "text": (
+                        "You are helping a JEE/NEET student with their studies.\n"
+                        "Examine this image carefully:\n"
+                        "1. If it shows a textbook/exam question, equation, formula, "
+                        "diagram, or graph: extract ALL text exactly, preserving "
+                        "fractions with '/' (write H/2 not 'H 2', H/4 not 'H 4'), "
+                        "all equations, and all numbered answer options. "
+                        "Output ONLY the extracted text — nothing else.\n"
+                        "2. If it is NOT educational content (selfie, food, landscape, "
+                        "random photo, meme, screenshot of a chat): "
+                        "output exactly: NOT_EDUCATIONAL\n"
+                        "No explanations, no preamble — only the extracted text or "
+                        "NOT_EDUCATIONAL."
+                    ),
+                },
+            ],
+        }],
+        max_tokens=600,
+    )
+    return response.choices[0].message.content.strip()
+
 
 async def _check_daily_limit(student: Student, db: AsyncSession) -> None:
     """Raise 429 if a free-tier student has hit their daily question cap."""
@@ -332,6 +389,37 @@ async def ask(
         student_id, weak_topics or "none",
     )
 
+    # ── Vision pipeline: image extraction / validation ───────────────
+    effective_question = body.question
+    if body.image_b64:
+        log.info("ask.vision_start  student_id=%s", student_id)
+        try:
+            extracted = await _extract_image_content(body.image_b64)
+        except Exception:
+            log.error(
+                "ask.vision_failed  student_id=%s", student_id, exc_info=True
+            )
+            extracted = ""  # degrade gracefully — proceed without image text
+
+        if extracted == "NOT_EDUCATIONAL":
+            log.info("ask.vision_irrelevant  student_id=%s", student_id)
+            return AskResponse(
+                explanation=(
+                    "I can see your image, but it doesn't look like a textbook question, "
+                    "equation, or diagram. Please send a photo of a maths or science problem "
+                    "you need help with, and I'll solve it step by step!"
+                ),
+                worked_example="",
+                practice_problems=[],
+                language=lang,
+            )
+        elif extracted:
+            log.info(
+                "ask.vision_extracted  student_id=%s  chars=%d",
+                student_id, len(extracted),
+            )
+            effective_question = f"{body.question}\n\n[Image content: {extracted}]"
+
     # ── Run crew in thread pool (blocks; must not run on event loop) ─
     t0 = time.perf_counter()
     try:
@@ -339,7 +427,7 @@ async def ask(
         raw_output: str = await loop.run_in_executor(
             _executor,
             _run_crew_sync,
-            body.question,
+            effective_question,
             student_id,
             lang,
             weak_topics,
@@ -385,7 +473,7 @@ async def ask(
     # ── Persist to quiz_answers for rate-limiting + progress tracking ─
     answer_record = QuizAnswer(
         student_id=current_student.id,
-        question=body.question[:1000],  # cap at column limit
+        question=body.question[:1000],  # cap at column limit; store original question
         topic=parsed.get("topic"),
         subject=parsed.get("subject"),
         is_correct=True,  # open-ended questions are not graded; treated as "attempted"
