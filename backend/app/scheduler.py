@@ -27,7 +27,7 @@ import asyncio
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -86,7 +86,11 @@ async def run_nightly_crew() -> None:
     NightlyTutorCrew for each one sequentially (to stay within NIM rate limits).
     """
     t0 = time.perf_counter()
-    today = date.today()
+    # Use IST (UTC+5:30) to get the correct local date. The job fires at
+    # 20:30 UTC = 02:00 IST the *next* calendar day, so date.today() (UTC)
+    # would return yesterday from the students' perspective.
+    IST = timezone(timedelta(hours=5, minutes=30))
+    today = datetime.now(tz=IST).date()
     log.info("nightly_crew.start  date=%s", today.isoformat())
 
     students = await _fetch_active_students()
@@ -123,7 +127,6 @@ async def _fetch_active_students() -> list[Student]:
     Return active students who have answered at least one question in the last 7 days.
     This avoids running the crew for completely dormant accounts.
     """
-    from datetime import timedelta
     from app.models.student import QuizAnswer
 
     since = datetime.now(tz=timezone.utc) - timedelta(days=7)
