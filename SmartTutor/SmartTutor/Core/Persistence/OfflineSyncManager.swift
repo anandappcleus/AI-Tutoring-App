@@ -35,11 +35,17 @@ protocol OfflineSyncManaging {
 @MainActor
 final class OfflineSyncManager: ObservableObject, OfflineSyncManaging {
 
+    /// App-wide singleton. ViewModels that need reachability or sync status
+    /// should reference this rather than creating their own instance.
+    static let shared = OfflineSyncManager()
+
     // MARK: Published state
 
     @Published private(set) var pendingCount: Int = 0
     @Published private(set) var isSyncing: Bool   = false
     @Published private(set) var lastSyncError: String? = nil
+    /// True when the device has a usable network path. KVO-observable by any View or ViewModel.
+    @Published private(set) var isNetworkReachable: Bool = false
 
     // MARK: Dependencies
 
@@ -50,7 +56,6 @@ final class OfflineSyncManager: ObservableObject, OfflineSyncManaging {
 
     private let monitor = NWPathMonitor()
     private let monitorQueue = DispatchQueue(label: "com.smarttutor.netmonitor", qos: .utility)
-    private var isNetworkReachable = false
     private let maxBatchSize = 50
 
     // MARK: Init
@@ -103,6 +108,7 @@ final class OfflineSyncManager: ObservableObject, OfflineSyncManaging {
                 guard let self else { return }
                 let wasUnreachable = !self.isNetworkReachable
                 self.isNetworkReachable = reachable
+                logger.info("OfflineSyncManager: isNetworkReachable=\(reachable)")
                 logger.info("OfflineSyncManager: network=\(reachable ? "reachable" : "unreachable")")
                 if reachable && wasUnreachable && self.pendingCount > 0 {
                     logger.info("OfflineSyncManager: reconnected — triggering sync  pending=\(self.pendingCount)")

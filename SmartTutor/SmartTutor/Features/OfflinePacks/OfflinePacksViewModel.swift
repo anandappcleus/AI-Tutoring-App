@@ -50,6 +50,18 @@ struct PackListItem: Identifiable {
         self.isDownloaded  = isDownloaded
     }
 
+    /// Construct from a locally-stored Core Data entity (offline fallback).
+    init(local entity: OfflinePackEntity) {
+        self.id            = entity.packId
+        self.subject       = entity.subject
+        self.topic         = entity.topic
+        self.questionCount = Int(entity.questionCount)
+        self.sizeKB        = Int(entity.sizeKB)
+        self.iconName      = entity.iconName
+        self.subjectColor  = PackListItem.colorForSubject(entity.subject)
+        self.isDownloaded  = true
+    }
+
     private static func colorForSubject(_ subject: String) -> Color {
         switch subject.lowercased() {
         case "physics":     return .blue
@@ -90,17 +102,21 @@ final class OfflinePacksViewModel: ObservableObject {
         errorMessage = nil
         logger.info("OfflinePacksViewModel.loadPacks: start")
 
+        // Always load Core Data first — this works fully offline.
+        let localPacks = coreData.viewContext.fetchAllDownloadedPacks()
+        let downloadedIds = Set(localPacks.map(\.packId))
+
         do {
             let serverPacks: [PackResponse] = try await apiClient.request(.packs)
-            let downloadedIds = coreData.viewContext.fetchDownloadedPackIds()
             packs = serverPacks.map { PackListItem(response: $0, isDownloaded: downloadedIds.contains($0.id)) }
             logger.info("OfflinePacksViewModel.loadPacks: loaded \(serverPacks.count) packs, \(downloadedIds.count) downloaded")
-        } catch let error as APIError {
-            errorMessage = error.userMessage
-            logger.error("OfflinePacksViewModel.loadPacks: \(error.localizedDescription ?? "")")
         } catch {
-            errorMessage = "Failed to load packs."
-            logger.error("OfflinePacksViewModel.loadPacks: \(error.localizedDescription)")
+            // Network unavailable — show only what's already on device.
+            packs = localPacks.map { PackListItem(local: $0) }
+            if self.packs.isEmpty {
+                errorMessage = "No internet connection. Download packs while online to study offline."
+            }
+            logger.info("OfflinePacksViewModel.loadPacks: offline fallback  downloaded=\(self.packs.count)")
         }
 
         isLoading = false

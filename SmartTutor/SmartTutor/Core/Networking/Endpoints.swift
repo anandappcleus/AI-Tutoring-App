@@ -182,13 +182,13 @@ struct AskResponse: Decodable, Equatable {
     }
 }
 
-struct StudyPlanResponse: Decodable {
+struct StudyPlanResponse: Codable {
     let studentId: String
     let planDate: String
     let topics: [TopicSlot]
     let createdAt: String
 
-    struct TopicSlot: Decodable {
+    struct TopicSlot: Codable {
         let topic: String
         let durationMin: Int
         let priority: Int
@@ -207,7 +207,7 @@ struct StudyPlanResponse: Decodable {
     }
 }
 
-struct ProgressResponse: Decodable {
+struct ProgressResponse: Codable {
     let studentId: String
     let weekStart: String
     let weekEnd: String
@@ -217,7 +217,7 @@ struct ProgressResponse: Decodable {
     let topics: [TopicProgress]
     let weakTopics: [String]
 
-    struct TopicProgress: Decodable {
+    struct TopicProgress: Codable {
         let topic: String
         let subject: String?
         let correct: Int

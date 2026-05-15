@@ -166,6 +166,14 @@ struct LearnerProgressView: View {
                             .foregroundColor(.red)
                             .frame(maxWidth: .infinity)
                             .padding(20)
+                    } else if vm.isShowingCachedData {
+                        Label("Showing cached data — will refresh when online", systemImage: "wifi.slash")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color(UIColor.secondarySystemBackground))
+                            .clipShape(Capsule())
                     }
                 }
                 .padding(.horizontal, 16)

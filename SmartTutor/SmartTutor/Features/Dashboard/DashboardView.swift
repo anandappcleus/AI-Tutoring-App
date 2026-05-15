@@ -61,6 +61,16 @@ struct DashboardView: View {
                     )
 
                     VStack(spacing: 28) {
+                        if vm.isShowingCachedPlan {
+                            Label("Showing cached plan — will refresh when online", systemImage: "wifi.slash")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color(UIColor.secondarySystemBackground))
+                                .clipShape(Capsule())
+                                .padding(.horizontal, 16)
+                        }
                         TodaysFocusSection(
                             studyPlan: vm.studyPlan,
                             isLoading: vm.isLoading,

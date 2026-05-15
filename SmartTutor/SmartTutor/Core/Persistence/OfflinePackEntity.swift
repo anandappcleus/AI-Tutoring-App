@@ -152,6 +152,14 @@ extension NSManagedObjectContext {
         return Set(packs.map(\.packId))
     }
 
+    /// Fetch all downloaded packs as full entities, newest first.
+    /// Used for offline fallback when the server is unreachable.
+    func fetchAllDownloadedPacks() -> [OfflinePackEntity] {
+        let request = OfflinePackEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "downloadedAt", ascending: false)]
+        return (try? fetch(request)) ?? []
+    }
+
     /// Delete a pack and all its questions.
     func deletePack(packId: String) {
         let pRequest = OfflinePackEntity.fetchRequest()
