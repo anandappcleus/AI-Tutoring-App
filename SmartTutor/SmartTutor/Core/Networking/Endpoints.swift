@@ -261,7 +261,7 @@ struct StudentResponse: Decodable {
 }
 
 struct SyncResponse: Decodable {
-    let inserted: Int
+    let synced: Int
     let skipped: Int
 }
 

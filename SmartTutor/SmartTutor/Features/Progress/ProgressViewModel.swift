@@ -66,7 +66,10 @@ final class ProgressViewModel: ObservableObject {
             .sink { [weak self] _ in
                 guard let self, !self.currentStudentId.isEmpty else { return }
                 logger.info("ProgressViewModel: network restored — refreshing progress")
-                Task { await self.load(studentId: self.currentStudentId) }
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    await self.load(studentId: self.currentStudentId)
+                }
             }
             .store(in: &cancellables)
     }

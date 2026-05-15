@@ -71,7 +71,11 @@ final class DashboardViewModel: ObservableObject {
             .sink { [weak self] _ in
                 guard let self, !self.currentStudentId.isEmpty else { return }
                 logger.info("DashboardViewModel: network restored — refreshing plan")
-                Task { await self.loadPlan(studentId: self.currentStudentId) }
+                Task {
+                    // Wait for the network stack to fully establish before hitting the API.
+                    try? await Task.sleep(for: .seconds(2))
+                    await self.loadPlan(studentId: self.currentStudentId)
+                }
             }
             .store(in: &cancellables)
     }

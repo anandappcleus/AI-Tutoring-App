@@ -112,6 +112,8 @@ final class OfflineSyncManager: ObservableObject, OfflineSyncManaging {
                 logger.info("OfflineSyncManager: network=\(reachable ? "reachable" : "unreachable")")
                 if reachable && wasUnreachable && self.pendingCount > 0 {
                     logger.info("OfflineSyncManager: reconnected — triggering sync  pending=\(self.pendingCount)")
+                    // Give the network stack ~2s to fully establish before hitting remote endpoints.
+                    try? await Task.sleep(for: .seconds(2))
                     await self.performSync()
                 }
             }
@@ -152,7 +154,7 @@ final class OfflineSyncManager: ObservableObject, OfflineSyncManaging {
             let payloads = batch.map { $0.toSyncPayload() }
             do {
                 let response: SyncResponse = try await apiClient.request(.syncAnswers(payloads))
-                logger.info("OfflineSyncManager.performSync: batch ok  inserted=\(response.inserted)  skipped=\(response.skipped)")
+                logger.info("OfflineSyncManager.performSync: batch ok  synced=\(response.synced)  skipped=\(response.skipped)")
 
                 // Mark rows as synced on background context
                 await ctx.perform {
