@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 14 May 2026 (Home tab — Mock Tests, Syllabus Map, Formula Sheets, camera/voice, logging)*
+*Last updated: 15 May 2026 (Image OCR pipeline, chat thumbnail, irrelevant-image guard)*
 
 ---
 
@@ -212,6 +212,23 @@
 15:18:14 → POST /ask  lang=en  ← status=200  12.2s  model=meta/llama-3.3-70b-instruct
 ```
 No `ask.parse_failed` in any of the above. All 200s. ✅
+
+---
+
+## Post-Sprint 6 (cont.) — Camera / Image-to-AI Pipeline ✅ Complete
+
+*15 May 2026 — image pipeline, OCR, chat thumbnail, irrelevant-image guard. Commit `30df8ef`.*
+
+| # | Change | File(s) | Status |
+|---|--------|---------|--------|
+| 1 | **`sheet(item:)` blank-screen fix** — replaced `sheet(isPresented:) { if let img }` (stale closure nil-race) with `sheet(item: $pickedImageItem)` + `IdentifiableImage: Identifiable` wrapper; image always non-nil when sheet renders | `DashboardView.swift` | ✅ |
+| 2 | **On-device Vision OCR** — `VNRecognizeTextRequest` (`.accurate`, language correction on) runs when user taps *Ask AI Tutor*; extracted text appended as `[Text from image: …]` in the query sent to `/ask`; backend unchanged (text-only LLM) | `DashboardView.swift` | ✅ |
+| 3 | **OCR loading state** — button shows `ProgressView` spinner and is disabled while OCR runs (~0.3–0.8s); prevents double-tap | `DashboardView.swift` | ✅ |
+| 4 | **Irrelevant-image guard** — hard block (alert, OK only) when OCR finds no text AND user typed nothing; soft block (alert + *Ask Anyway*) when OCR fails but user typed a question (handles genuine OCR failures on valid images); `PendingImageStore` cleared in both block paths | `DashboardView.swift` | ✅ |
+| 5 | **`PendingImageStore` singleton** — carries `UIImage` from `PickedImageQuerySheet` across the Dashboard→Study tab boundary; claimed and cleared immediately in `StudyViewModel.ask()` | `StudyViewModel.swift` | ✅ |
+| 6 | **`StudyMessage.image: UIImage?`** — user messages now carry an optional image; custom `Equatable` (id-based, since `UIImage` isn't `Equatable`); `ask()` strips the `[Text from image:]` annotation from the display text so the chat bubble stays clean | `StudyViewModel.swift` | ✅ |
+| 7 | **Image thumbnail in chat** — `ChatMessage` and `ChatBubble` updated; user question bubbles show a 160 pt rounded thumbnail above the message text when an image was attached | `StudyView.swift` | ✅ |
+| 8 | **`ImagePickerView` logging** — added `didFinishPicking` count + dismiss log, asset-load size log, main-dispatch log | `ImagePickerView.swift` | ✅ |
 
 ---
 
