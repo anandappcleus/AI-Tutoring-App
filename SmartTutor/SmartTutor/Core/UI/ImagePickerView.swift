@@ -50,6 +50,7 @@ struct ImagePickerView: UIViewControllerRepresentable {
         init(_ parent: ImagePickerView) { self.parent = parent }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            AppLogger.camera.info("ImagePickerView: didFinishPicking  count=\(results.count) — calling dismiss()")
             parent.dismiss()
 
             guard let result = results.first else {
@@ -68,7 +69,7 @@ struct ImagePickerView: UIViewControllerRepresentable {
                     AppLogger.camera.error("ImagePickerView: cast to UIImage failed")
                     return
                 }
-                AppLogger.camera.info("ImagePickerView: loaded  size=\(image.size.width)×\(image.size.height)  scale=\(image.scale)")
+                AppLogger.camera.info("ImagePickerView: loaded  size=\(image.size.width)×\(image.size.height)  scale=\(image.scale) — dispatching onImage to main")
                 DispatchQueue.main.async { self?.parent.onImage(image) }
             }
         }

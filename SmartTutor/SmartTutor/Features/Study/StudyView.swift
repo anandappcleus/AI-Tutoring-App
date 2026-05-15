@@ -40,7 +40,8 @@ struct StudyView: View {
                 messages: vm.messages.map {
                     ChatMessage(
                         type: $0.role == .user ? .question : .answer,
-                        text: $0.text
+                        text: $0.text,
+                        image: $0.image
                     )
                 },
                 isLoading: isLoading
@@ -118,8 +119,15 @@ struct ChatMessage: Identifiable {
     let id = UUID()
     let type: MessageType
     let text: String
+    let image: UIImage?
 
     enum MessageType { case question, answer }
+
+    init(type: MessageType, text: String, image: UIImage? = nil) {
+        self.type  = type
+        self.text  = text
+        self.image = image
+    }
 }
 
 // MARK: - Header
@@ -248,6 +256,13 @@ private struct ChatBubble: View {
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.indigo)
                     }
+                }
+                if isQuestion, let img = message.image {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 160)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 Text(message.text)
                     .font(.system(size: 15))

@@ -20,6 +20,7 @@
 import Combine
 import Foundation
 import os.log
+import UIKit
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "StudyViewModel")
 
@@ -31,6 +32,16 @@ enum StudyViewState: Equatable {
     case error(String)  // user-visible message
 }
 
+// MARK: - Pending Image Store
+
+/// Carries a UIImage from the Dashboard camera sheet to StudyView across the tab boundary.
+/// The ViewModel claims and clears it immediately in `ask()`.
+final class PendingImageStore {
+    static let shared = PendingImageStore()
+    var image: UIImage?
+    private init() {}
+}
+
 // MARK: - Chat Message (ViewModel layer model)
 
 struct StudyMessage: Identifiable, Equatable {
@@ -38,15 +49,21 @@ struct StudyMessage: Identifiable, Equatable {
     let id: UUID
     let role: Role
     let text: String
+    /// Thumbnail image attached by the user (camera input). nil for text-only messages.
+    let image: UIImage?
     /// Full parsed response — nil for user messages and raw-output fallbacks
     let response: AskResponse?
 
-    init(role: Role, text: String, response: AskResponse? = nil) {
+    init(role: Role, text: String, image: UIImage? = nil, response: AskResponse? = nil) {
         self.id       = UUID()
         self.role     = role
         self.text     = text
+        self.image    = image
         self.response = response
     }
+
+    // UIImage is not Equatable; identity comparison via id is sufficient.
+    static func == (lhs: StudyMessage, rhs: StudyMessage) -> Bool { lhs.id == rhs.id }
 }
 
 // MARK: - ViewModel
@@ -112,7 +129,19 @@ final class StudyViewModel: ObservableObject {
 
         logger.info("StudyViewModel.ask  lang=\(language)  q=\(trimmed.prefix(80))")
 
-        messages.append(StudyMessage(role: .user, text: trimmed))
+        // Claim the image (if any) queued by the camera sheet before this ask.
+        let pendingImage = PendingImageStore.shared.image
+        PendingImageStore.shared.image = nil
+
+        // For display, strip the OCR annotation appended by PickedImageQuerySheet.
+        let displayText: String
+        if let range = trimmed.range(of: "\n\n[Text from image:") {
+            displayText = String(trimmed[trimmed.startIndex..<range.lowerBound])
+        } else {
+            displayText = trimmed
+        }
+
+        messages.append(StudyMessage(role: .user, text: displayText, image: pendingImage))
         viewState = .loading
 
         Task { [weak self] in
