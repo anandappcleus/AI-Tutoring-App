@@ -37,5 +37,6 @@ aiosqlite>=0.20.0          # in-memory SQLite for API tests (no Postgres needed)
 
 # ── Utilities ────────────────────────────────────────────────────────
 python-dotenv>=1.0.0
+sympy>=1.13.0               # symbolic math verifier — ground-truth answers before LLM explanation
 # macOS Homebrew Python: use system Keychain certs instead of certifi
 truststore>=0.10.0

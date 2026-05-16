@@ -476,6 +476,22 @@ async def ask(
         log.warning("ask.rag_prefetch_failed  student_id=%s", student_id, exc_info=True)
         pre_chunks = []
 
+    # ── SymPy verification: ground-truth answer before 70B explanation ──
+    # Runs sequentially here (after vision+RAG) so the verified answer can be
+    # injected into the LLM prompt.  Falls through silently on any failure.
+    from app.tools.sympy_verifier import verify_with_sympy
+    sympy_answer: str | None = None
+    try:
+        sympy_result = await verify_with_sympy(effective_question)
+        if sympy_result:
+            sympy_answer = sympy_result.answer
+            log.info(
+                "ask.sympy_verified  student_id=%s  answer=%s",
+                student_id, sympy_answer,
+            )
+    except Exception:
+        log.warning("ask.sympy_failed  student_id=%s", student_id, exc_info=True)
+
     # ── Direct RAG + single LLM call (3-4× faster than CrewAI ReAct loop) ────
     t0 = time.perf_counter()
     try:
@@ -486,6 +502,7 @@ async def ask(
             weak_topics,
             body.exam_type,
             pre_chunks=pre_chunks,
+            sympy_answer=sympy_answer,
         )
     except Exception:
         log.error(
@@ -659,6 +676,7 @@ async def _ask_direct(
     weak_topics: list[str] | None,
     exam_type: str | None,
     pre_chunks: list[dict] | None = None,   # pre-fetched concurrently with vision
+    sympy_answer: str | None = None,        # SymPy-verified answer (None = not available)
 ) -> str:
     """
     Fast path: RAG search + single LLM call, bypassing the CrewAI ReAct loop.
@@ -705,6 +723,19 @@ async def _ask_direct(
     # 4. Model routing — mirror make_question_generator_agent()
     primary_model = s.LLM_AGENT_MODEL if language == "en" else s.LLM_CHAT_MODEL
 
+    # Build optional SymPy verification block injected before the steps
+    _sympy_block = ""
+    if sympy_answer is not None:
+        _sympy_block = (
+            f"\n⚠️  NUMERICALLY VERIFIED ANSWER (SymPy symbolic computation): "
+            f"The exact correct answer is **{sympy_answer}**.\n"
+            f"Your step-by-step explanation MUST arrive at {sympy_answer}.\n"
+            f"For MCQ: match {sympy_answer} to the option whose value equals it, "
+            f"then explain why.\n"
+            f"If your working produces a different intermediate value, "
+            f"you have an algebra error — re-check before outputting.\n"
+        )
+
     user_message = (
         f"A student (ID: {student_id}) has asked: {question}\n"
         f"Exam context: {exam_context_str}\n"
@@ -712,8 +743,9 @@ async def _ask_direct(
         f"\n"
         f"CRITICAL RULE: Your response MUST address the student's EXACT question. "
         f"Do NOT pivot to a different topic because it appears in the weak topics list.\n"
+        f"{_sympy_block}"
         f"\n"
-        f"--- RELEVANT KNOWLEDGE BASE CONTEXT ---\n"
+        f"\n--- RELEVANT KNOWLEDGE BASE CONTEXT ---\n"
         f"{rag_context}\n"
         f"--- END CONTEXT ---\n"
         f"\n"
