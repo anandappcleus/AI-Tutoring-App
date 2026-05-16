@@ -92,8 +92,10 @@ struct StudyView: View {
             pendingStudyTopic = ""
             AppLogger.study.info("StudyView.onAppear: consuming pendingStudyTopic  preview=\(topic.prefix(60))")
             // Small delay so the tab transition animation completes first.
-            try? await Task.sleep(for: .milliseconds(200))
-            vm.ask(question: topic)
+            Task {
+                try? await Task.sleep(for: .milliseconds(200))
+                vm.ask(question: topic)
+            }
         }
     }
 
