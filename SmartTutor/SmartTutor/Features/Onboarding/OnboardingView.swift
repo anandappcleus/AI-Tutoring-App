@@ -100,7 +100,7 @@ struct OnboardingView: View {
                                 .font(.system(size: 15, weight: .bold))
                         }
                     }
-                    .foregroundColor(Color(red: 0.58, green: 0.28, blue: 0.91))
+                    .foregroundStyle(Color(red: 0.58, green: 0.28, blue: 0.91))
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
                     .background(Color.white)
@@ -135,15 +135,15 @@ private struct LanguageStepView: View {
                         .frame(width: 72, height: 72)
                     Image(systemName: "globe")
                         .font(.system(size: 32))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
                 Text("Choose Your Language")
                     .font(.system(size: 30, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                 Text("Select your preferred learning language")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -158,7 +158,7 @@ private struct LanguageStepView: View {
                                 .font(.system(size: 32))
                             Text(lang.name)
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(
+                                .foregroundStyle(
                                     selectedLanguage == lang.code
                                     ? Color(red: 0.58, green: 0.28, blue: 0.91)
                                     : .white
@@ -178,12 +178,12 @@ private struct LanguageStepView: View {
                 VStack(spacing: 8) {
                     Text("More languages coming soon")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.6))
                     HStack(spacing: 8) {
                         ForEach(comingSoon, id: \.self) { lang in
                             Text(lang)
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.white.opacity(0.45))
+                                .foregroundStyle(.white.opacity(0.45))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
                                 .background(Color.white.opacity(0.08))
@@ -211,15 +211,15 @@ private struct ExamStepView: View {
                         .frame(width: 72, height: 72)
                     Image(systemName: "graduationcap.fill")
                         .font(.system(size: 30))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
                 Text("Select Your Exam")
                     .font(.system(size: 30, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                 Text("What are you preparing for?")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
             }
 
             VStack(spacing: 12) {
@@ -234,12 +234,12 @@ private struct ExamStepView: View {
                                 .font(.system(size: 30))
                             Text(exam.name)
                                 .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(selectedExam == exam.id ? .black : .white)
+                                .foregroundStyle(selectedExam == exam.id ? .black : .white)
                                 .multilineTextAlignment(.leading)
                             Spacer()
                             if selectedExam == exam.id {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                    .foregroundStyle(.green)
                                     .font(.system(size: 22))
                             }
                         }
@@ -271,20 +271,20 @@ private struct NameStepView: View {
                         .frame(width: 72, height: 72)
                     Image(systemName: "sparkles")
                         .font(.system(size: 30))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
                 Text("Welcome!")
                     .font(.system(size: 30, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 Text("What should we call you?")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
             }
 
             VStack(spacing: 16) {
                 TextField("Enter your name", text: $name)
                     .font(.system(size: 17))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .tint(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 18)
@@ -301,23 +301,23 @@ private struct NameStepView: View {
                         Text("✨")
                         Text("Your Setup")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                     Divider().background(Color.white.opacity(0.3))
                     HStack {
                         Text("Language:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.7))
                         Spacer()
                         Text(selectedLanguage.uppercased())
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .font(.system(size: 14, weight: .semibold))
                     }
                     HStack {
                         Text("Exam:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.7))
                         Spacer()
                         Text(selectedExam.uppercased())
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .font(.system(size: 14, weight: .semibold))
                     }
                 }

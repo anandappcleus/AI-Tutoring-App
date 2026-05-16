@@ -22,10 +22,10 @@ struct LearnerProgressView: View {
                         .font(.system(size: 24, weight: .bold))
                     Text(vm.progressData != nil ? "Week: \(vm.progressData!.weekStart) – \(vm.progressData!.weekEnd)" : "Keep up the great work!")
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundStyle(.white.opacity(0.85))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
                 .padding(.bottom, 36)
@@ -63,7 +63,7 @@ struct LearnerProgressView: View {
                                     .annotation(position: .top) {
                                         Text("\(Int(item.accuracyPct))%")
                                             .font(.system(size: 10, weight: .semibold))
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                                 .chartYScale(domain: 0...110)
@@ -85,7 +85,7 @@ struct LearnerProgressView: View {
                                         Circle().fill(Color.red).frame(width: 32, height: 32)
                                         Image(systemName: "exclamationmark.triangle.fill")
                                             .font(.system(size: 13))
-                                            .foregroundColor(.white)
+                                            .foregroundStyle(.white)
                                     }
                                     Text("Topics Needing Attention")
                                         .font(.system(size: 16, weight: .bold))
@@ -102,7 +102,7 @@ struct LearnerProgressView: View {
                                 Button { } label: {
                                     Text("Practice Weak Topics")
                                         .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                         .frame(maxWidth: .infinity)
                                         .frame(height: 48)
                                         .background(
@@ -135,10 +135,10 @@ struct LearnerProgressView: View {
                                  ? "Great work! Keep practising to maintain your accuracy."
                                  : "Focus on \(data.weakTopics.prefix(2).joined(separator: " and ")) to improve your score.")
                                 .font(.system(size: 13))
-                                .foregroundColor(.white.opacity(0.85))
+                                .foregroundStyle(.white.opacity(0.85))
                                 .lineSpacing(3)
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(20)
                         .background(
                             LinearGradient(colors: [.green, .teal], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -149,12 +149,12 @@ struct LearnerProgressView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "chart.bar.xaxis")
                                 .font(.system(size: 40))
-                                .foregroundColor(.secondary.opacity(0.5))
+                                .foregroundStyle(.secondary.opacity(0.5))
                             Text("No progress yet")
                                 .font(.system(size: 17, weight: .semibold))
                             Text("Answer some questions in the Study tab and your progress will appear here.")
                                 .font(.system(size: 14))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity)
@@ -163,13 +163,13 @@ struct LearnerProgressView: View {
                     if let errMsg = vm.errorMessage {
                         Text(errMsg)
                             .font(.system(size: 14))
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                             .frame(maxWidth: .infinity)
                             .padding(20)
                     } else if vm.isShowingCachedData {
                         Label("Showing cached data — will refresh when online", systemImage: "wifi.slash")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background(Color(UIColor.secondarySystemBackground))
@@ -206,11 +206,11 @@ private struct ProgressStatCard: View {
                 Circle().fill(bgColor).frame(width: 44, height: 44)
                 Image(systemName: icon)
                     .font(.system(size: 18))
-                    .foregroundColor(iconColor)
+                    .foregroundStyle(iconColor)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(value).font(.system(size: 22, weight: .bold))
-                Text(label).font(.system(size: 11)).foregroundColor(.secondary)
+                Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -233,7 +233,7 @@ private struct ChartCard<ChartContent: View>: View {
                 Text(title).font(.system(size: 16, weight: .bold))
                 Spacer()
                 Image(systemName: trailingIcon)
-                    .foregroundColor(trailingColor)
+                    .foregroundStyle(trailingColor)
             }
             chart
         }
@@ -255,12 +255,12 @@ private struct WeakTopicRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(name).font(.system(size: 14, weight: .semibold))
                     Text("\(questions) questions attempted")
-                        .font(.system(size: 12)).foregroundColor(.secondary)
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text("\(accuracy)%")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
             }
             LinearProgressBar(
                 value: Double(accuracy) / 100.0,

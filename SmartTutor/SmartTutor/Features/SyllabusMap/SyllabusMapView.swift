@@ -257,7 +257,7 @@ private struct SubjectAccordion: View {
                             .frame(width: 42, height: 42)
                         Image(systemName: subject.icon)
                             .font(.system(size: 18))
-                            .foregroundColor(subject.color)
+                            .foregroundStyle(subject.color)
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -266,12 +266,12 @@ private struct SubjectAccordion: View {
                         HStack(spacing: 6) {
                             Text("\(subject.chapters.count) chapters")
                                 .font(.system(size: 12))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             Text("·")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             Text("\(completedCount) done")
                                 .font(.system(size: 12))
-                                .foregroundColor(subject.color)
+                                .foregroundStyle(subject.color)
                         }
                     }
 
@@ -287,13 +287,13 @@ private struct SubjectAccordion: View {
                             .rotationEffect(.degrees(-90))
                         Text("\(Int(progressFraction * 100))%")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(subject.color)
+                            .foregroundStyle(subject.color)
                     }
                     .frame(width: 36, height: 36)
 
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .padding(16)
             }
@@ -345,17 +345,17 @@ private struct ChapterRow: View {
             HStack(spacing: 14) {
                 Image(systemName: statusIcon)
                     .font(.system(size: 18))
-                    .foregroundColor(statusColor)
+                    .foregroundStyle(statusColor)
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(chapter.title)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     Text(chapter.topics.prefix(3).joined(separator: " · "))
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
 
@@ -364,12 +364,12 @@ private struct ChapterRow: View {
                 if let acc = chapter.accuracy {
                     Text("\(Int(acc))%")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(statusColor)
+                        .foregroundStyle(statusColor)
                 }
 
                 Image(systemName: "arrow.right.circle")
                     .font(.system(size: 14))
-                    .foregroundColor(color.opacity(0.7))
+                    .foregroundStyle(color.opacity(0.7))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

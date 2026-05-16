@@ -28,7 +28,7 @@ struct OfflinePacksView: View {
                                 .font(.system(size: 24, weight: .bold))
                             Text("Study without internet")
                                 .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.85))
+                                .foregroundStyle(.white.opacity(0.85))
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
@@ -36,7 +36,7 @@ struct OfflinePacksView: View {
                                 .font(.system(size: 26, weight: .bold))
                             Text("Downloaded")
                                 .font(.system(size: 11))
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundStyle(.white.opacity(0.8))
                         }
                     }
 
@@ -44,16 +44,16 @@ struct OfflinePacksView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "internaldrive.fill")
                             .font(.system(size: 18))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text("Storage Used")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                 Spacer()
                                 Text(storageLabel)
                                     .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.8))
+                                    .foregroundStyle(.white.opacity(0.8))
                             }
                             LinearProgressBar(
                                 value: Double(vm.usedKB) / Double(totalKB),
@@ -66,7 +66,7 @@ struct OfflinePacksView: View {
                     .background(Color.white.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
                 .padding(.bottom, 36)
@@ -87,10 +87,10 @@ struct OfflinePacksView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 36))
-                                .foregroundColor(.orange)
+                                .foregroundStyle(.orange)
                             Text(error)
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                             Button("Retry") {
                                 Task { await vm.loadPacks() }
@@ -141,10 +141,10 @@ struct OfflinePacksView: View {
                             VStack(spacing: 12) {
                                 Image(systemName: "tray.fill")
                                     .font(.system(size: 36))
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                 Text("No packs available")
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                             .padding(.top, 40)
                         }
@@ -183,7 +183,7 @@ private struct PacksSectionView<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: icon)
                 .font(.system(size: 17, weight: .bold))
-                .foregroundColor(iconColor)
+                .foregroundStyle(iconColor)
             VStack(spacing: 12) { content }
         }
     }
@@ -205,7 +205,7 @@ private struct DownloadedPackCard: View {
                         .frame(width: 48, height: 48)
                     Image(systemName: pack.iconName)
                         .font(.system(size: 22, weight: .medium))
-                        .foregroundColor(pack.subjectColor)
+                        .foregroundStyle(pack.subjectColor)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(pack.topic)
@@ -213,18 +213,18 @@ private struct DownloadedPackCard: View {
                     HStack(spacing: 8) {
                         Label("\(pack.questionCount) questions", systemImage: "book")
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        Text("•").foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
+                        Text("•").foregroundStyle(.secondary)
                         Text(pack.sizeDisplay)
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
                 Button(action: onDelete) {
                     Image(systemName: "trash")
                         .font(.system(size: 15))
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                         .frame(width: 36, height: 36)
                         .background(Color.red.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -236,7 +236,7 @@ private struct DownloadedPackCard: View {
             } label: {
                 Text("Practice Now")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.indigo)
+                    .foregroundStyle(.indigo)
                     .frame(maxWidth: .infinity)
                     .frame(height: 40)
                     .background(Color.indigo.opacity(0.08))
@@ -267,7 +267,7 @@ private struct AvailablePackCard: View {
                         .frame(width: 48, height: 48)
                     Image(systemName: pack.iconName)
                         .font(.system(size: 22, weight: .medium))
-                        .foregroundColor(pack.subjectColor)
+                        .foregroundStyle(pack.subjectColor)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(pack.topic)
@@ -275,11 +275,11 @@ private struct AvailablePackCard: View {
                     HStack(spacing: 8) {
                         Label("\(pack.questionCount) questions", systemImage: "book")
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        Text("•").foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
+                        Text("•").foregroundStyle(.secondary)
                         Text(pack.sizeDisplay)
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
@@ -289,10 +289,10 @@ private struct AvailablePackCard: View {
                 VStack(spacing: 6) {
                     HStack {
                         Text("Downloading…")
-                            .font(.system(size: 12)).foregroundColor(.secondary)
+                            .font(.system(size: 12)).foregroundStyle(.secondary)
                         Spacer()
                         Text("\(Int(progress * 100))%")
-                            .font(.system(size: 12, weight: .semibold)).foregroundColor(.indigo)
+                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(.indigo)
                     }
                     LinearProgressBar(
                         value: progress,
@@ -306,7 +306,7 @@ private struct AvailablePackCard: View {
                 Button(action: onDownload) {
                     Label("Download", systemImage: "arrow.down.circle.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 40)
                         .background(Color.indigo)

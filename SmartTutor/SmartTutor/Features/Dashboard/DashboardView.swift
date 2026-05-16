@@ -63,7 +63,7 @@ struct DashboardView: View {
                         if vm.isShowingCachedPlan {
                             Label("Showing cached plan — will refresh when online", systemImage: "wifi.slash")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                                 .background(Color(UIColor.secondarySystemBackground))
@@ -208,7 +208,7 @@ private struct PickedImageQuerySheet: View {
                 } label: {
                     Label("Ask AI Tutor", systemImage: "brain.head.profile")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .background(Color.indigo)
@@ -282,13 +282,13 @@ private struct DashboardHeaderSection: View {
                         .frame(width: 50, height: 50)
                     Text(String(studentName.prefix(1).uppercased()))
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Welcome back,")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Text("\(studentName) 👋")
                         .font(.system(size: 22, weight: .bold))
                 }
@@ -303,7 +303,7 @@ private struct DashboardHeaderSection: View {
             HStack(spacing: 12) {
                 Image(systemName: "cpu")
                     .font(.system(size: 20))
-                    .foregroundColor(.indigo)
+                    .foregroundStyle(.indigo)
 
                 TextField(askPlaceholder, text: $askText)
                     .font(.system(size: 15, weight: .medium))
@@ -317,7 +317,7 @@ private struct DashboardHeaderSection: View {
                     } label: {
                         Image(systemName: "camera")
                             .font(.system(size: 20))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .accessibilityLabel("Camera — photograph a question")
 
@@ -335,7 +335,7 @@ private struct DashboardHeaderSection: View {
                                 .shadow(color: .indigo.opacity(0.35), radius: 6, y: 3)
                             Image(systemName: "mic.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         }
                     }
                     .accessibilityLabel("Voice input — speak your question")
@@ -383,7 +383,7 @@ private struct TodaysFocusSection: View {
                 Button(action: onPlannerTap) {
                     Label("AI Planner", systemImage: "cpu")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.indigo)
+                        .foregroundStyle(.indigo)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(Color.indigo.opacity(0.1))
@@ -415,7 +415,7 @@ private struct TodaysFocusSection: View {
                         ProgressView()
                         Text("Loading today\'s plan...")
                             .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(40)
@@ -433,7 +433,7 @@ private struct TodaysFocusSection: View {
 
                         Text("\(firstTopic.durationMin) min · \(plan.topics.count) topic\(plan.topics.count == 1 ? "" : "s") today")
                             .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .lineSpacing(3)
                             .padding(.bottom, 20)
 
@@ -450,7 +450,7 @@ private struct TodaysFocusSection: View {
                                 Text("Start AI Lesson")
                                     .font(.system(size: 15, weight: .bold))
                             }
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 52)
                             .background(Color(UIColor.label))
@@ -463,12 +463,12 @@ private struct TodaysFocusSection: View {
                     VStack(spacing: 12) {
                         Image(systemName: "moon.stars.fill")
                             .font(.system(size: 36))
-                            .foregroundColor(.indigo.opacity(0.6))
+                            .foregroundStyle(.indigo.opacity(0.6))
                         Text("Plan generates tonight")
                             .font(.system(size: 16, weight: .semibold))
                         Text("The AI tutor creates your personalised plan nightly at 2 AM IST.")
                             .font(.system(size: 13))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
@@ -579,17 +579,17 @@ private struct ModuleCard: View {
                         .frame(width: 44, height: 44)
                     Image(systemName: item.icon)
                         .font(.system(size: 20))
-                        .foregroundColor(item.iconColor)
+                        .foregroundStyle(item.iconColor)
                 }
                 .padding(.bottom, 14)
 
                 Text(item.title)
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text(item.subtitle)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.top, 2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -617,7 +617,7 @@ struct TagBadge: View {
     var body: some View {
         Text(text.uppercased())
             .font(.system(size: 11, weight: .bold))
-            .foregroundColor(color)
+            .foregroundStyle(color)
             .padding(.horizontal, 12)
             .padding(.vertical, 5)
             .background(color.opacity(0.1))

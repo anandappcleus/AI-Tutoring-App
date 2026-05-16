@@ -64,11 +64,11 @@ struct OfflinePracticeView: View {
                 HStack {
                     Text("Question \(currentIndex + 1) of \(questions.count)")
                         .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Text(pack.subject)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(pack.subjectColor)
@@ -129,11 +129,11 @@ struct OfflinePracticeView: View {
         VStack(spacing: 16) {
             Image(systemName: "questionmark.circle.fill")
                 .font(.system(size: 36))
-                .foregroundColor(.indigo)
+                .foregroundStyle(.indigo)
             Text(current?.questionText ?? "")
                 .font(.system(size: 16))
                 .multilineTextAlignment(.center)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(28)
@@ -149,11 +149,11 @@ struct OfflinePracticeView: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 36))
-                .foregroundColor(.green)
+                .foregroundStyle(.green)
             Text(current?.answerText ?? "")
                 .font(.system(size: 16))
                 .multilineTextAlignment(.center)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(28)
@@ -173,14 +173,14 @@ struct OfflinePracticeView: View {
 
             Image(systemName: "star.fill")
                 .font(.system(size: 64))
-                .foregroundColor(.yellow)
+                .foregroundStyle(.yellow)
 
             VStack(spacing: 8) {
                 Text("Pack Complete!")
                     .font(.system(size: 26, weight: .bold))
                 Text("You reviewed all \(questions.count) questions in \(pack.topic).")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -196,7 +196,7 @@ struct OfflinePracticeView: View {
 
                 Button("Done") { dismiss() }
                     .font(.system(size: 15))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
@@ -214,7 +214,7 @@ private struct PracticeButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 15, weight: .semibold))
-            .foregroundColor(style == .primary ? .white : .indigo)
+            .foregroundStyle(style == .primary ? .white : .indigo)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
             .background(

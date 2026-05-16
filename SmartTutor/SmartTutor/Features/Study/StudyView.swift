@@ -51,7 +51,7 @@ struct StudyView: View {
             if case .error(let code) = vm.viewState, code != "daily_limit_reached", code != "unauthorized" {
                 Text("Something went wrong. Tap to retry.")
                     .font(.system(size: 13))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity)
@@ -153,13 +153,13 @@ private struct StudyHeaderView: View {
                     Text(isPremium ? "∞" : "\(10 - questionsToday) left")
                         .font(.system(size: 12, weight: .semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(Color.white.opacity(0.2))
                 .clipShape(Capsule())
             }
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
 
             if !isPremium && questionsToday >= 5 {
                 HStack(alignment: .top, spacing: 8) {
@@ -178,7 +178,7 @@ private struct StudyHeaderView: View {
                         }
                     }
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(12)
                 .background(Color.yellow.opacity(0.2))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -220,10 +220,10 @@ private struct ChatScrollView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 16)
             }
-            .onChange(of: messages.count) { _ in
+            .onChange(of: messages.count) { _, _ in
                 withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
             }
-            .onChange(of: isLoading) { _ in
+            .onChange(of: isLoading) { _, _ in
                 withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
             }
         }
@@ -250,11 +250,11 @@ private struct ChatBubble: View {
                                 .frame(width: 24, height: 24)
                             Text("AI")
                                 .font(.system(size: 8, weight: .bold))
-                                .foregroundColor(.indigo)
+                                .foregroundStyle(.indigo)
                         }
                         Text("AI Tutor")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.indigo)
+                            .foregroundStyle(.indigo)
                     }
                 }
                 if isQuestion, let img = message.image {
@@ -293,9 +293,9 @@ private struct TypingIndicatorView: View {
                 HStack(spacing: 6) {
                     ZStack {
                         Circle().fill(Color.indigo.opacity(0.15)).frame(width: 24, height: 24)
-                        Text("AI").font(.system(size: 8, weight: .bold)).foregroundColor(.indigo)
+                        Text("AI").font(.system(size: 8, weight: .bold)).foregroundStyle(.indigo)
                     }
-                    Text("AI Tutor").font(.system(size: 12, weight: .semibold)).foregroundColor(.indigo)
+                    Text("AI Tutor").font(.system(size: 12, weight: .semibold)).foregroundStyle(.indigo)
                 }
                 HStack(spacing: 4) {
                     ForEach(0..<3) { i in
@@ -344,7 +344,7 @@ private struct InputAreaView: View {
                         } label: {
                             Text(subject)
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                                 .background(Color(UIColor.secondarySystemBackground))
@@ -376,7 +376,7 @@ private struct InputAreaView: View {
                             .frame(width: 44, height: 44)
                         Image(systemName: isRecording ? "mic.fill" : "mic")
                             .font(.system(size: 18))
-                            .foregroundColor(isRecording ? .white : .primary)
+                            .foregroundStyle(isRecording ? .white : .primary)
                     }
                 }
                 .scaleEffect(isRecording ? 1.1 : 1.0)
@@ -393,7 +393,7 @@ private struct InputAreaView: View {
                             .frame(width: 44, height: 44)
                         Image(systemName: "paperplane.fill")
                             .font(.system(size: 16))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
                 .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty || isLoading)

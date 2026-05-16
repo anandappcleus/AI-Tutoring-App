@@ -27,7 +27,7 @@ struct AuthFieldView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(accent)
+                .foregroundStyle(accent)
 
             HStack(spacing: 8) {
                 Group {
@@ -47,7 +47,7 @@ struct AuthFieldView: View {
                         showSecure.toggle()
                     } label: {
                         Image(systemName: showSecure ? "eye.slash.fill" : "eye.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.system(size: 16))
                             .frame(width: 28, height: 28)
                     }
@@ -99,17 +99,17 @@ struct LoginView: View {
                                     .shadow(color: .white.opacity(0.3), radius: 16)
                                 Image(systemName: "brain.head.profile")
                                     .font(.system(size: 48, weight: .medium))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             }
                             .padding(.top, 64)
 
                             Text("SmartTutor")
                                 .font(.system(size: 36, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
 
                             Text("AI Tutor for JEE, NEET & Board Exams")
                                 .font(.system(size: 15))
-                                .foregroundColor(.white.opacity(0.85))
+                                .foregroundStyle(.white.opacity(0.85))
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.bottom, 40)
@@ -125,7 +125,7 @@ struct LoginView: View {
                                     Text(error)
                                         .font(.system(size: 14))
                                 }
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,10 +206,10 @@ struct LoginView: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Text("Don't have an account?")
-                                    .foregroundColor(.white.opacity(0.85))
+                                    .foregroundStyle(.white.opacity(0.85))
                                 Text("Sign Up")
                                     .fontWeight(.bold)
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .underline()
                             }
                             .font(.system(size: 15))

@@ -342,7 +342,7 @@ struct FormulaSheetView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
                         .background(vm.selectedSubject == subject ? Color.indigo : Color(UIColor.systemGray5))
-                        .foregroundColor(vm.selectedSubject == subject ? .white : .primary)
+                        .foregroundStyle(vm.selectedSubject == subject ? .white : .primary)
                         .clipShape(Capsule())
                 }
             }
@@ -355,11 +355,11 @@ struct FormulaSheetView: View {
         VStack(spacing: 14) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundStyle(.secondary.opacity(0.5))
                 .padding(.top, 60)
             Text("No formulas found for \"\(vm.searchText)\"")
                 .font(.system(size: 15))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -384,7 +384,7 @@ private struct FormulaCategoryCard: View {
                             .frame(width: 38, height: 38)
                         Image(systemName: category.icon)
                             .font(.system(size: 16))
-                            .foregroundColor(category.color)
+                            .foregroundStyle(category.color)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -392,14 +392,14 @@ private struct FormulaCategoryCard: View {
                             .font(.system(size: 15, weight: .bold))
                         Text("\(category.subject) · \(category.formulas.count) formulas")
                             .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
 
                     Spacer()
 
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .padding(14)
             }
@@ -435,7 +435,7 @@ private struct FormulaRow: View {
                 // Expression badge
                 Text(formula.expression)
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(color.opacity(0.08))
@@ -445,10 +445,10 @@ private struct FormulaRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(formula.name)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     Text(formula.variables)
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
 
@@ -456,7 +456,7 @@ private struct FormulaRow: View {
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary.opacity(0.6))
+                    .foregroundStyle(.secondary.opacity(0.6))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
@@ -480,7 +480,7 @@ struct FormulaDetailSheet: View {
                 VStack(spacing: 8) {
                     Text(formula.expression)
                         .font(.system(size: 32, weight: .bold, design: .monospaced))
-                        .foregroundColor(.indigo)
+                        .foregroundStyle(.indigo)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .padding(24)
@@ -492,7 +492,7 @@ struct FormulaDetailSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Variables", systemImage: "square.and.pencil")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Text(formula.variables)
                         .font(.system(size: 15))
                 }
@@ -502,7 +502,7 @@ struct FormulaDetailSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Related topics", systemImage: "tag")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         FlowLayout(formula.tags)
                     }
                 }
@@ -522,7 +522,7 @@ struct FormulaDetailSheet: View {
                 } label: {
                     Label("Ask AI to Explain", systemImage: "brain.head.profile")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
                         .background(Color.indigo)
@@ -587,7 +587,7 @@ private struct FlowLayout: View {
     private func tagChip(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 11, weight: .medium))
-            .foregroundColor(.indigo)
+            .foregroundStyle(.indigo)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(Color.indigo.opacity(0.1))

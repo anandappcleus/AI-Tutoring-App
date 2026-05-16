@@ -156,7 +156,7 @@ struct MockTestsView: View {
                 .scaleEffect(1.4)
             Text("Loading mock tests…")
                 .font(.system(size: 15))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -174,7 +174,7 @@ struct MockTestsView: View {
                 if vm.filteredTests.isEmpty {
                     Text("No tests for \(vm.selectedFilter). Try 'All'.")
                         .font(.system(size: 15))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .padding(.top, 40)
                 } else {
                     ForEach(vm.filteredTests) { test in
@@ -198,12 +198,12 @@ struct MockTestsView: View {
         VStack(spacing: 16) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundStyle(.secondary.opacity(0.5))
             Text("No Mock Tests Yet")
                 .font(.system(size: 18, weight: .semibold))
             Text("Mock tests for JEE, NEET, and WBCHSE will appear here once available.")
                 .font(.system(size: 14))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
             Button("Refresh") {
@@ -220,12 +220,12 @@ struct MockTestsView: View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 48))
-                .foregroundColor(.orange)
+                .foregroundStyle(.orange)
             Text("Could not load tests")
                 .font(.system(size: 18, weight: .semibold))
             Text(message)
                 .font(.system(size: 13))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
             Button("Try Again") {
@@ -248,7 +248,7 @@ struct MockTestsView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
                     .background(vm.selectedFilter == f ? Color.indigo : Color(UIColor.systemGray5))
-                    .foregroundColor(vm.selectedFilter == f ? .white : .primary)
+                    .foregroundStyle(vm.selectedFilter == f ? .white : .primary)
                     .clipShape(Capsule())
             }
             Spacer()
@@ -297,46 +297,46 @@ private struct MockTestCard: View {
                 VStack {
                     Text(test.examType)
                         .font(.system(size: 11, weight: .black))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(examColor)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                     Text(String(test.year))
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(test.title)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
 
                     Text(test.subjects)
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     HStack(spacing: 10) {
                         Label("\(test.questionCount) Qs", systemImage: "list.bullet")
                         Label("\(test.durationMinutes) min", systemImage: "clock")
                         Text(test.difficulty)
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(difficultyColor)
+                            .foregroundStyle(difficultyColor)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(difficultyColor.opacity(0.12))
                             .clipShape(Capsule())
                     }
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .padding(16)
             .background(Color(UIColor.systemBackground))
@@ -379,7 +379,7 @@ struct MockTestDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Subjects covered", systemImage: "books.vertical")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     Text(test.subjects)
                         .font(.system(size: 15))
@@ -394,11 +394,11 @@ struct MockTestDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Exam Context", systemImage: "info.circle")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     Text(examContextText)
                         .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 24)
@@ -420,7 +420,7 @@ struct MockTestDetailView: View {
                     } label: {
                         Label("Practise with AI Tutor", systemImage: "brain.head.profile")
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 52)
                             .background(Color.indigo)
@@ -429,7 +429,7 @@ struct MockTestDetailView: View {
 
                     Text("Full paper mode coming soon")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 32)
@@ -460,7 +460,7 @@ struct MockTestDetailView: View {
             Image(systemName: icon).font(.system(size: 11))
             Text(label).font(.system(size: 12, weight: .semibold))
         }
-        .foregroundColor(color)
+        .foregroundStyle(color)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(color.opacity(0.1))

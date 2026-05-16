@@ -41,17 +41,17 @@ struct RegisterView: View {
                                 .frame(width: 72, height: 72)
                             Image(systemName: "person.badge.plus")
                                 .font(.system(size: 32, weight: .medium))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         }
                         .padding(.top, 32)
 
                         Text("Create Account")
                             .font(.system(size: 30, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
 
                         Text("Join thousands of students preparing for JEE & NEET")
                             .font(.system(size: 14))
-                            .foregroundColor(.white.opacity(0.85))
+                            .foregroundStyle(.white.opacity(0.85))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
                     }
@@ -75,7 +75,7 @@ struct RegisterView: View {
                                         .font(.system(size: 12, weight: .bold))
                                 }
                             }
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                             .background(Color.red.opacity(0.85))
@@ -113,7 +113,7 @@ struct RegisterView: View {
                             if !vm.password.isEmpty && vm.password.count < 6 {
                                 Text("Password must be at least 6 characters")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.orange)
+                                    .foregroundStyle(.orange)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.top, 4)
                             }
@@ -131,7 +131,7 @@ struct RegisterView: View {
                             if vm.passwordMismatch {
                                 Text("Passwords do not match")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.red)
+                                    .foregroundStyle(.red)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.top, 4)
                             }
@@ -141,7 +141,7 @@ struct RegisterView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Learning Language")
                                 .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color(red: 0.36, green: 0.33, blue: 0.93))
+                                .foregroundStyle(Color(red: 0.36, green: 0.33, blue: 0.93))
 
                             Picker("Language", selection: $vm.selectedLanguage) {
                                 ForEach(vm.languages, id: \.code) { lang in
@@ -205,10 +205,10 @@ struct RegisterView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Text("Already have an account?")
-                                .foregroundColor(.white.opacity(0.85))
+                                .foregroundStyle(.white.opacity(0.85))
                             Text("Sign In")
                                 .fontWeight(.bold)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .underline()
                         }
                         .font(.system(size: 15))
@@ -230,7 +230,7 @@ struct RegisterView: View {
                         Text("Sign In")
                             .font(.system(size: 16))
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 }
             }
         }

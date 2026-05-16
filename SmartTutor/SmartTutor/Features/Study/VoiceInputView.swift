@@ -222,7 +222,7 @@ struct VoiceInputView: View {
 
             Image(systemName: iconName)
                 .font(.system(size: 40))
-                .foregroundColor(iconForeground)
+                .foregroundStyle(iconForeground)
         }
         .frame(width: 120, height: 120)
     }
@@ -232,7 +232,7 @@ struct VoiceInputView: View {
     private var statusLabel: some View {
         Text(labelText)
             .font(.system(size: 16, weight: .medium))
-            .foregroundColor(manager.state == .failed("") ? .orange : .primary)
+            .foregroundStyle(manager.state == .failed("") ? .orange : .primary)
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
             .lineSpacing(3)
@@ -260,7 +260,7 @@ struct VoiceInputView: View {
                 ProgressView()
                 Text("Transcribing…")
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
         case .done:
@@ -344,7 +344,7 @@ private struct VoiceButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 16, weight: .semibold))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, 36)
             .padding(.vertical, 14)
             .background(color.opacity(configuration.isPressed ? 0.75 : 1.0))

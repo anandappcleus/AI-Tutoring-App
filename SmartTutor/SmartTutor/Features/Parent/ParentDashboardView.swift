@@ -28,10 +28,10 @@ struct ParentDashboardView: View {
                     }
                     Text(vm.weekRange.map { "Week: \($0)" } ?? "Monitoring your child's progress")
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundStyle(.white.opacity(0.85))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
                 .padding(.bottom, 36)
@@ -50,14 +50,14 @@ struct ParentDashboardView: View {
                             .padding(.top, 40)
                     } else if let error = vm.errorMessage {
                         Text(error)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .padding(.top, 40)
                     } else {
                     // Weekly summary
                     VStack(alignment: .leading, spacing: 16) {
                         Label("This Week's Summary", systemImage: "target")
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
 
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                             SummaryCell(value: "—",                              label: "Study Time",    color: .blue)
@@ -68,10 +68,10 @@ struct ParentDashboardView: View {
 
                         HStack(spacing: 8) {
                             Image(systemName: "info.circle")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             Text("Study time & streak coming soon")
                                 .font(.system(size: 13))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         .padding(12)
                         .background(Color.secondary.opacity(0.07))
@@ -107,7 +107,7 @@ struct ParentDashboardView: View {
                                         Spacer()
                                         Text("\(Int(t.accuracyPct))%")
                                             .font(.system(size: 14, weight: .semibold))
-                                            .foregroundColor(t.accuracyPct >= 70 ? .green : .orange)
+                                            .foregroundStyle(t.accuracyPct >= 70 ? .green : .orange)
                                     }
                                     LinearProgressBar(
                                         value: t.accuracyPct / 100,
@@ -127,7 +127,7 @@ struct ParentDashboardView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         Label("JEE Exam Readiness Prediction", systemImage: "target")
                             .font(.system(size: 17, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
 
                         HStack {
                             Text("Predicted Score Range")
@@ -136,7 +136,7 @@ struct ParentDashboardView: View {
                             Text("165–185 / 300")
                                 .font(.system(size: 14, weight: .bold))
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                         LinearProgressBar(
                             value: 0.62,
@@ -146,7 +146,7 @@ struct ParentDashboardView: View {
 
                         Text("Based on current performance, Riya is on track for a good score. Consistent practice on weak topics can improve the score by 15–20 marks.")
                             .font(.system(size: 13))
-                            .foregroundColor(.white.opacity(0.85))
+                            .foregroundStyle(.white.opacity(0.85))
                             .lineSpacing(3)
 
                         let subjectTags = ["Physics: 78%", "Chemistry: 65%", "Maths: 82%"]
@@ -154,7 +154,7 @@ struct ParentDashboardView: View {
                             ForEach(subjectTags, id: \.self) { tag in
                                 Text(tag)
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
                                     .background(Color.white.opacity(0.2))
@@ -185,7 +185,7 @@ struct ParentDashboardView: View {
                                 .font(.system(size: 15, weight: .bold))
                             Text("Get daily updates via WhatsApp")
                                 .font(.system(size: 13))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         Spacer()
                         Toggle("", isOn: $whatsappEnabled)
@@ -237,10 +237,10 @@ private struct SummaryCell: View {
         VStack(spacing: 4) {
             Text(value)
                 .font(.system(size: 22, weight: .bold))
-                .foregroundColor(color)
+                .foregroundStyle(color)
             Text(label)
                 .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
@@ -262,14 +262,14 @@ private struct AlertCard: View {
                     .frame(width: 40, height: 40)
                 Image(systemName: isWarning ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
                     .font(.system(size: 18))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(alert.topic)
                     .font(.system(size: 15, weight: .semibold))
                 Text(alert.message)
                     .font(.system(size: 13))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineSpacing(2)
                 if isWarning {
                     Button {
@@ -277,7 +277,7 @@ private struct AlertCard: View {
                     } label: {
                         Text("View Practice Plan →")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                     }
                 }
             }

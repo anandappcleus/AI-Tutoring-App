@@ -47,7 +47,7 @@ struct PaywallView: View {
                         Button { dismiss() } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .frame(width: 32, height: 32)
                                 .background(Color.white.opacity(0.2))
                                 .clipShape(Circle())
@@ -72,14 +72,14 @@ struct PaywallView: View {
                                     .shadow(color: .orange.opacity(0.4), radius: 16, y: 6)
                                 Image(systemName: "crown.fill")
                                     .font(.system(size: 34))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             }
                             Text("Upgrade to Premium")
                                 .font(.system(size: 28, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                             Text("Unlock unlimited learning potential")
                                 .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundStyle(.white.opacity(0.8))
                         }
 
                         // Features list
@@ -96,11 +96,11 @@ struct PaywallView: View {
                                             .frame(width: 40, height: 40)
                                         Image(systemName: feature.icon)
                                             .font(.system(size: 16))
-                                            .foregroundColor(.white)
+                                            .foregroundStyle(.white)
                                     }
                                     Text(feature.text)
                                         .font(.system(size: 15, weight: feature.highlight ? .semibold : .regular))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                     Spacer()
                                 }
                             }
@@ -155,7 +155,7 @@ struct PaywallView: View {
                                 }
                             }
                             .font(.system(size: 17, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 56)
                             .background(
@@ -175,7 +175,7 @@ struct PaywallView: View {
                             }
                             Text("7-day money-back guarantee")
                                 .font(.system(size: 12))
-                                .foregroundColor(.white.opacity(0.6))
+                                .foregroundStyle(.white.opacity(0.6))
                         }
 
                         // Testimonial
@@ -192,19 +192,19 @@ struct PaywallView: View {
                                     .frame(width: 40, height: 40)
                                 Text("R")
                                     .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             }
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("★★★★★").foregroundColor(.yellow).font(.system(size: 14))
+                                Text("★★★★★").foregroundStyle(.yellow).font(.system(size: 14))
                                 Text("""
                                      "Premium helped me improve my JEE rank by 5000 positions! \
                                      The unlimited questions and offline packs are amazing."
                                      """)
                                 .font(.system(size: 13))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 Text("– Rahul, JEE 2025 Aspirant")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .foregroundStyle(.white.opacity(0.6))
                             }
                         }
                         .padding(16)
@@ -242,19 +242,19 @@ private struct PlanButton: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(title)
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(isSelected ? .black : .white)
+                            .foregroundStyle(isSelected ? .black : .white)
                         Text(subtitle)
                             .font(.system(size: 13))
-                            .foregroundColor(isSelected ? .gray : .white.opacity(0.7))
+                            .foregroundStyle(isSelected ? .gray : .white.opacity(0.7))
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(price)
                             .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(isSelected ? .black : .white)
+                            .foregroundStyle(isSelected ? .black : .white)
                         Text(period)
                             .font(.system(size: 11))
-                            .foregroundColor(isSelected ? .gray : .white.opacity(0.7))
+                            .foregroundStyle(isSelected ? .gray : .white.opacity(0.7))
                     }
                 }
                 .padding(.horizontal, 20)
@@ -271,7 +271,7 @@ private struct PlanButton: View {
                 if let badge {
                     Text(badge)
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(
@@ -295,10 +295,10 @@ private struct PaywallTrustBadge: View {
         HStack(spacing: 5) {
             Image(systemName: icon)
                 .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.7))
             Text(text)
                 .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.7))
         }
     }
 }

@@ -35,10 +35,10 @@ struct SettingsView: View {
                         .font(.system(size: 24, weight: .bold))
                     Text("Manage your account & preferences")
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundStyle(.white.opacity(0.85))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
                 .padding(.bottom, 36)
@@ -67,19 +67,19 @@ struct SettingsView: View {
                                         .frame(width: 64, height: 64)
                                     Text(String((appState.currentProfile?.name ?? "?").prefix(1)))
                                         .font(.system(size: 26, weight: .bold))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                 }
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(appState.currentProfile?.name ?? "—")
                                         .font(.system(size: 17, weight: .bold))
                                     Text(appState.currentProfile?.email ?? "—")
                                         .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .padding(10)
                                     .background(Color(UIColor.secondarySystemBackground))
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -151,13 +151,13 @@ struct SettingsView: View {
                     VStack(spacing: 4) {
                         Text("SmartTutor")
                             .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Text("Version \(AppConfig.appVersion)")
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary.opacity(0.7))
+                            .foregroundStyle(.secondary.opacity(0.7))
                         Text("© 2026 SmartTutor. All rights reserved.")
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary.opacity(0.6))
+                            .foregroundStyle(.secondary.opacity(0.6))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(20)
@@ -174,7 +174,7 @@ struct SettingsView: View {
                             Text("Log Out")
                                 .font(.system(size: 16, weight: .semibold))
                         }
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
                         .background(Color.red.opacity(0.08))
@@ -235,7 +235,7 @@ private struct ProfileMetaCell: View {
         VStack(spacing: 4) {
             Text(label)
                 .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text(value)
                 .font(.system(size: 13, weight: .semibold))
                 .multilineTextAlignment(.center)
@@ -252,7 +252,7 @@ private struct SettingsGroupBox<Content: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
 
             VStack(spacing: 0) {
@@ -279,16 +279,16 @@ private struct SettingsNavRow: View {
             HStack(spacing: 14) {
                 ZStack {
                     Circle().fill(iconBg.opacity(0.15)).frame(width: 40, height: 40)
-                    Image(systemName: icon).foregroundColor(iconBg).font(.system(size: 17))
+                    Image(systemName: icon).foregroundStyle(iconBg).font(.system(size: 17))
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 15, weight: .semibold)).foregroundColor(.primary)
-                    Text(subtitle).font(.system(size: 13)).foregroundColor(.secondary)
+                    Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.primary)
+                    Text(subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
@@ -308,11 +308,11 @@ private struct SettingsToggleRow: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle().fill(iconBg.opacity(0.15)).frame(width: 40, height: 40)
-                Image(systemName: icon).foregroundColor(iconBg).font(.system(size: 17))
+                Image(systemName: icon).foregroundStyle(iconBg).font(.system(size: 17))
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 15, weight: .semibold))
-                Text(subtitle).font(.system(size: 13)).foregroundColor(.secondary)
+                Text(subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
             }
             Spacer()
             Toggle("", isOn: $isOn).labelsHidden().tint(.indigo)
@@ -333,11 +333,11 @@ private struct SettingsDisabledRow: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle().fill(iconBg.opacity(0.15)).frame(width: 40, height: 40)
-                Image(systemName: icon).foregroundColor(iconBg).font(.system(size: 17))
+                Image(systemName: icon).foregroundStyle(iconBg).font(.system(size: 17))
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 15, weight: .semibold))
-                Text(subtitle).font(.system(size: 13)).foregroundColor(.secondary)
+                Text(subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
             }
             Spacer()
             Toggle("", isOn: $value)
@@ -369,10 +369,10 @@ private struct LanguagePickerSheet: View {
                     }
                 } label: {
                     HStack {
-                        Text(lang.displayName).foregroundColor(.primary)
+                        Text(lang.displayName).foregroundStyle(.primary)
                         Spacer()
                         if lang == appState.currentProfile?.preferredLanguage {
-                            Image(systemName: "checkmark").foregroundColor(.indigo)
+                            Image(systemName: "checkmark").foregroundStyle(.indigo)
                         }
                     }
                 }
