@@ -114,6 +114,17 @@ expr = x**3 + 2*x**2 - 5*x + 1
 result = nsimplify(diff(expr, x).subs(x, 2))
 print(result)
 
+Problem: If 3^x = 4^(x-1), then x = ? [JEE-Advanced 2013]
+Code:
+from sympy import symbols, log, solve, nsimplify
+# NEVER do solve(3**x - 4**(x-1), x) — SymPy cannot solve transcendental eqs.
+# Instead take ln of both sides to get a LINEAR equation in x:
+# x*ln3 = (x-1)*ln4  =>  x*(ln3 - ln4) = -ln4  =>  x = ln4/(ln4-ln3)
+x = symbols('x')
+eq = x * log(3) - (x - 1) * log(4)
+result = nsimplify(solve(eq, x)[0])
+print(result)
+
 Problem: A ball is projected at 30 m/s at 60° angle. Find horizontal range (g=10).
 Code:
 from sympy import sin, cos, pi, nsimplify
@@ -264,7 +275,7 @@ def _execute_sympy_sync(code: str) -> Optional[str]:
         return lines[-1] if lines else None
 
     except Exception as exc:
-        log.debug(
+        log.info(
             "sympy_verifier.exec_exception  type=%s  msg=%s",
             type(exc).__name__, exc,
         )
@@ -326,7 +337,7 @@ async def verify_with_sympy(question_text: str) -> Optional[SympyResult]:
         log.info("sympy_verifier.cannot_evaluate")
         return None
 
-    log.debug("sympy_verifier.code  chars=%d  preview=%.120s", len(code), code)
+    log.info("sympy_verifier.code  chars=%d  preview=%.200s", len(code), code)
 
     # ── Step 2: Sandboxed execution ─────────────────────────────────
     loop = asyncio.get_running_loop()
