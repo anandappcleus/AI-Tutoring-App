@@ -54,14 +54,14 @@ final class CoreDataStack {
             container.persistentStoreDescriptions = [description]
         }
 
-        container.loadPersistentStores { storeDescription, error in
+        container.loadPersistentStores { [self] storeDescription, error in
             if let error {
                 // In production this is fatal — the app cannot function without Core Data.
                 // Crash early with a clear message so the crash log is actionable.
-                logger.critical("CoreDataStack: failed to load store url=\(storeDescription.url?.absoluteString ?? "nil") error=\(error.localizedDescription)")
+                self.logger.critical("CoreDataStack: failed to load store url=\(storeDescription.url?.absoluteString ?? "nil") error=\(error.localizedDescription)")
                 fatalError("CoreDataStack: persistent store load failed — \(error)")
             }
-            logger.info("CoreDataStack: store loaded url=\(storeDescription.url?.absoluteString ?? "in-memory")")
+            self.logger.info("CoreDataStack: store loaded url=\(storeDescription.url?.absoluteString ?? "in-memory")")
         }
 
         // Merge remote changes into viewContext automatically
