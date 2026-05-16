@@ -264,11 +264,8 @@ private struct ChatBubble: View {
                         .frame(maxHeight: 160)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                Text(message.text)
-                    .font(.system(size: 15))
-                    .foregroundColor(isQuestion ? .white : .primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(2)
+                MathTextView(message.text, fontSize: 15)
+                    .foregroundStyle(isQuestion ? Color.white : Color.primary)
             }
             .padding(16)
             .background(
