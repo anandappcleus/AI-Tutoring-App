@@ -15,8 +15,6 @@
 import Foundation
 import os.log
 
-private let logger = Logger(subsystem: "com.smarttutor.app", category: "SarvamSpeechClient")
-
 // MARK: - Errors
 
 enum SarvamError: LocalizedError {
@@ -39,16 +37,6 @@ enum SarvamError: LocalizedError {
     }
 }
 
-// MARK: - Response models
-
-private struct STTResponse: Decodable {
-    let transcript: String
-}
-
-private struct TTSResponse: Decodable {
-    let audios: [String]   // base64-encoded WAV chunks
-}
-
 // MARK: - Client
 
 /// Thread-safe wrapper around the Sarvam AI speech REST API.
@@ -56,6 +44,12 @@ private struct TTSResponse: Decodable {
 actor SarvamSpeechClient {
 
     static let shared = SarvamSpeechClient()
+
+    // Stored inside the actor so Swift 6 isolation is satisfied
+    private let logger = Logger(subsystem: "com.smarttutor.app", category: "SarvamSpeechClient")
+
+    private struct STTResponse: Decodable { let transcript: String }
+    private struct TTSResponse: Decodable { let audios: [String] }
 
     private let sttURL = URL(string: "https://api.sarvam.ai/speech-to-text")!
     private let ttsURL = URL(string: "https://api.sarvam.ai/text-to-speech")!
@@ -101,24 +95,24 @@ actor SarvamSpeechClient {
         var body = Data()
 
         // file
-        body.append("--\(boundary)\r\n")
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n")
-        body.append("Content-Type: audio/wav\r\n\r\n")
+        body.append(contentsOf: "--\(boundary)\r\n".utf8)
+        body.append(contentsOf: "Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n".utf8)
+        body.append(contentsOf: "Content-Type: audio/wav\r\n\r\n".utf8)
         body.append(audioData)
-        body.append("\r\n")
+        body.append(contentsOf: "\r\n".utf8)
 
         // language_code
-        body.append("--\(boundary)\r\n")
-        body.append("Content-Disposition: form-data; name=\"language_code\"\r\n\r\n")
-        body.append("\(languageCode)\r\n")
+        body.append(contentsOf: "--\(boundary)\r\n".utf8)
+        body.append(contentsOf: "Content-Disposition: form-data; name=\"language_code\"\r\n\r\n".utf8)
+        body.append(contentsOf: "\(languageCode)\r\n".utf8)
 
         // model
-        body.append("--\(boundary)\r\n")
-        body.append("Content-Disposition: form-data; name=\"model\"\r\n\r\n")
-        body.append("saaras:v2\r\n")
+        body.append(contentsOf: "--\(boundary)\r\n".utf8)
+        body.append(contentsOf: "Content-Disposition: form-data; name=\"model\"\r\n\r\n".utf8)
+        body.append(contentsOf: "saaras:v2\r\n".utf8)
 
         // closing boundary
-        body.append("--\(boundary)--\r\n")
+        body.append(contentsOf: "--\(boundary)--\r\n".utf8)
 
         request.httpBody = body
 
@@ -193,10 +187,4 @@ actor SarvamSpeechClient {
     }
 }
 
-// MARK: - Data convenience
 
-private extension Data {
-    mutating func append(_ string: String) {
-        if let d = string.data(using: .utf8) { append(d) }
-    }
-}

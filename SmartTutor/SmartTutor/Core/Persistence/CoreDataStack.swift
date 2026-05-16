@@ -66,7 +66,7 @@ final class CoreDataStack {
 
         // Merge remote changes into viewContext automatically
         container.viewContext.automaticallyMergesChangesFromParent = true
-        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        container.viewContext.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
     }
 
     // MARK: Background context factory
@@ -75,7 +75,7 @@ final class CoreDataStack {
     /// Always call save() on this context; changes are merged into viewContext.
     func newBackgroundContext() -> NSManagedObjectContext {
         let ctx = container.newBackgroundContext()
-        ctx.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        ctx.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
         return ctx
     }
 
