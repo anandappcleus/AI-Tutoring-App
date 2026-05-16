@@ -22,7 +22,7 @@
 //    synced      Bool    (false = pending upload)
 //
 
-import CoreData
+@preconcurrency import CoreData
 import os.log
 
 // MARK: - Stack

@@ -14,7 +14,7 @@
 //    • Dependency-injected APIClient + CoreDataStack for testability.
 //
 
-import CoreData
+@preconcurrency import CoreData
 import Foundation
 import Network
 import Observation
