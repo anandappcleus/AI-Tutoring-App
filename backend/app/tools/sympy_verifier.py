@@ -247,10 +247,16 @@ def _execute_sympy_sync(code: str) -> Optional[str]:
             )
         output = stdout_buf.getvalue().strip()
         if not output:
-            # Fallback: model may have assigned 'result' without calling print()
-            result_val = sandbox.get("result")
-            if result_val is not None:
-                output = str(result_val).strip()
+            # Fallback: model may have used a variable name other than 'result'
+            # Check common alternatives in the order most likely to be the answer
+            for _varname in ("result", "answer", "ans", "res", "value", "output", "val"):
+                _v = sandbox.get(_varname)
+                if _v is not None:
+                    _s = str(_v).strip()
+                    if _s and _s not in ("None", ""):
+                        output = _s
+                        log.debug("sympy_verifier.used_var  name=%s", _varname)
+                        break
         if not output:
             return None
         # Last non-empty line = final answer

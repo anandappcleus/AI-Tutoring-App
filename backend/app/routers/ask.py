@@ -302,9 +302,13 @@ def _recover_truncated_json(text: str) -> str | None:
     """
     Attempt to close a truncated JSON object.
 
-    Walks the text tracking brace/bracket depth and string state.
-    Truncates to the last cleanly-ended value, removes any trailing comma,
-    then appends the missing closing brackets/braces.
+    Most common case: LLM hits max_tokens mid-string inside the 'explanation'
+    field — the JSON looks like  {"explanation": "long text [CUTOFF]
+    The old approach (truncate to last clean endpoint) produced {"explanation"}
+    (no value) which is invalid.  This version instead COMPLETES the open
+    string with '...' and closes all open brackets/braces, giving:
+        {"explanation": "long text [CUTOFF]..."}
+    which is valid JSON and preserves what was generated.
     Returns None if text doesn't look like a truncated JSON object.
     """
     text = text.strip()
@@ -314,9 +318,8 @@ def _recover_truncated_json(text: str) -> str | None:
     depth_stack: list[str] = []
     in_string = False
     escaped = False
-    last_clean_end = 0  # last index where a value cleanly closed
 
-    for i, c in enumerate(text):
+    for c in text:
         if escaped:
             escaped = False
             continue
@@ -324,11 +327,7 @@ def _recover_truncated_json(text: str) -> str | None:
             escaped = True
             continue
         if c == '"':
-            if in_string:
-                in_string = False
-                last_clean_end = i
-            else:
-                in_string = True
+            in_string = not in_string
             continue
         if in_string:
             continue
@@ -339,15 +338,23 @@ def _recover_truncated_json(text: str) -> str | None:
         elif c in "}]":
             if depth_stack and depth_stack[-1] == c:
                 depth_stack.pop()
-                last_clean_end = i
 
-    if not depth_stack:
-        return None  # already balanced — no recovery needed
+    if not depth_stack and not in_string:
+        return None  # already balanced — recovery not needed
 
-    # Truncate to last clean endpoint, strip trailing comma/whitespace
-    recovered = text[:last_clean_end + 1].rstrip().rstrip(",")
-    # Close all open structures in reverse order
-    recovered += "".join(reversed(depth_stack))
+    recovered = text
+    # If we're inside a string value, close it first
+    if in_string:
+        recovered += '...'   # ellipsis signals truncation to callers
+        recovered += '"'     # close the string
+
+    # Strip trailing comma before closing (trailing commas are invalid JSON)
+    stripped = recovered.rstrip()
+    if stripped.endswith(','):
+        recovered = stripped[:-1]
+
+    # Close all open arrays / objects in reverse order
+    recovered += ''.join(reversed(depth_stack))
     return recovered
 
 
