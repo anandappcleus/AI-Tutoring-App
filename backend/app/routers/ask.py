@@ -316,6 +316,50 @@ def _fix_control_chars_in_strings(text: str) -> str:
     return "".join(result)
 
 
+def _dedup_repetition(text: str) -> str:
+    """
+    Detect and truncate infinite-loop artifacts from small (8B) LLMs.
+
+    When NIM throttles the 70B model and the 8B fallback handles a hard
+    algebraic question, the 8B can enter a token-spinning loop: it keeps
+    writing the same LaTeX fragment (e.g. '= \\frac{\\log 4}{\\log 3 - \\log 4}')
+    over and over until max_tokens is reached.  This function finds any
+    substring that appears 5+ times in the output and truncates after the
+    3rd occurrence, keeping only a clean prefix.
+
+    Algorithm: sample candidate patterns of 3 lengths (35 / 60 / 100 chars)
+    from the first half of the text; for each, count total occurrences.
+    O(n) per candidate, bounded number of candidates → fast in practice.
+    """
+    n = len(text)
+    if n < 400:
+        return text  # too short to have a meaningful loop
+
+    for pat_len in (100, 60, 35):
+        # Only probe starting positions in the first ~40% of the text so we
+        # don't accidentally pick up a pattern that only appears near the end.
+        probe_end = min(n // 2, 1200)
+        for start in range(0, probe_end - pat_len, pat_len // 3):
+            pattern = text[start:start + pat_len]
+            if text.count(pattern) < 5:
+                continue
+            # Found a repeated pattern — walk to the 3rd occurrence and cut
+            pos, hit = 0, 0
+            while hit < 3:
+                idx = text.find(pattern, pos)
+                if idx == -1:
+                    break
+                pos = idx + 1
+                hit += 1
+            cut = pos - 1  # start of 3rd occurrence
+            log.warning(
+                "ask.repetition_truncated  pat_len=%d  occurrences=%d  cut_at=%d  total=%d",
+                pat_len, text.count(pattern), cut, n,
+            )
+            return text[:cut] + "..."
+    return text
+
+
 def _recover_truncated_json(text: str) -> str | None:
     """
     Attempt to close a truncated JSON object.
@@ -869,7 +913,7 @@ async def _ask_direct(
         f'"topic":"...","subject":"...","question_type":"...","marks":4,"marking_scheme":"..."}}'
     )
 
-    async def _call_model(model_name: str, timeout_s: float) -> str:
+    async def _call_model(model_name: str, timeout_s: float, max_tok: int = 3500) -> str:
         resp = await asyncio.wait_for(
             acompletion(
                 model=f"openai/{model_name}",
@@ -879,15 +923,16 @@ async def _ask_direct(
                     {"role": "system", "content": get_tutor_prompt(language)},
                     {"role": "user",   "content": user_message},
                 ],
-                max_tokens=3500,
+                max_tokens=max_tok,
                 temperature=0.1,
             ),
             timeout=timeout_s,
         )
-        return resp.choices[0].message.content.strip()
+        raw = resp.choices[0].message.content.strip()
+        return _dedup_repetition(raw)  # truncate 8B infinite-loop artifacts
 
     try:
-        return await _call_model(primary_model, 40.0)
+        return await _call_model(primary_model, 40.0, max_tok=3500)
     except asyncio.TimeoutError:
         # Primary model is queue-throttled on NIM free tier — fall back to fast model
         fast_model = s.LLM_FAST_MODEL
@@ -895,4 +940,5 @@ async def _ask_direct(
             "ask.primary_timeout  student_id=%s  primary=%s  fallback=%s",
             student_id, primary_model, fast_model,
         )
-        return await _call_model(fast_model, 35.0)
+        # 8B gets 1500 tokens: enough for a clear answer, short enough to cap loops
+        return await _call_model(fast_model, 35.0, max_tok=1500)
