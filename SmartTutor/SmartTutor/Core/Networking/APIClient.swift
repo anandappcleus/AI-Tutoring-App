@@ -28,6 +28,7 @@ enum APIError: LocalizedError, Equatable {
     case serverError(statusCode: Int, body: String)  // 4xx/5xx with body
     case decodingError(String)                        // JSON decode failure
     case noNetwork                                    // URLError.notConnectedToInternet
+    case timedOut                                     // URLError.timedOut (-1001)
 
     var errorDescription: String? {
         switch self {
@@ -41,6 +42,8 @@ enum APIError: LocalizedError, Equatable {
             return "Response parsing failed: \(detail)"
         case .noNetwork:
             return "No internet connection."
+        case .timedOut:
+            return "The request timed out."
         }
     }
 
@@ -48,6 +51,7 @@ enum APIError: LocalizedError, Equatable {
     var userMessage: String {
         switch self {
         case .noNetwork:       return "Check your internet connection and try again."
+        case .timedOut:        return "The AI is taking too long. Please try again."
         case .unauthorized:    return "Please log in again to continue."
         case .serverError:     return "Something went wrong on our end. Please try again."
         case .decodingError:   return "Unexpected response from server."
@@ -58,6 +62,7 @@ enum APIError: LocalizedError, Equatable {
     static func == (lhs: APIError, rhs: APIError) -> Bool {
         switch (lhs, rhs) {
         case (.invalidURL, .invalidURL):       return true
+        case (.timedOut, .timedOut):           return true
         case (.unauthorized, .unauthorized):   return true
         case (.noNetwork, .noNetwork):         return true
         case (.serverError(let a, _), .serverError(let b, _)): return a == b
@@ -253,11 +258,13 @@ class APIClient {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await performDataTask(request)
+        } catch let urlError as URLError where urlError.code == .timedOut {
+            logger.warning("APIClient.execute  timed_out  path=\(endpoint.path)")
+            throw APIError.timedOut
         } catch let urlError as URLError where [.notConnectedToInternet,
                                                 .networkConnectionLost,
                                                 .cannotConnectToHost,   // -1004 connection refused
                                                 .cannotFindHost,        // -1003 DNS failure
-                                                .timedOut               // -1001
                                                ].contains(urlError.code) {
             logger.warning("APIClient.execute  no_network  code=\(urlError.code.rawValue)  path=\(endpoint.path)")
             throw APIError.noNetwork

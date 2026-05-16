@@ -189,6 +189,14 @@ struct StudyMessage: Identifiable, Equatable {
 
     private func handleAPIError(_ error: APIError, question: String) {
         switch error {
+        case .timedOut:
+            // Server took too long — do NOT queue to offline sync (image data not stored)
+            messages.append(StudyMessage(
+                role: .assistant,
+                text: error.userMessage
+            ))
+            viewState = .idle
+
         case .noNetwork:
             // Queue offline and show a friendly fallback message
             syncManager.enqueue(question: question, topic: nil, subject: nil)
