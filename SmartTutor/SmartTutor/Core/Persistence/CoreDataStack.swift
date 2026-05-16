@@ -25,14 +25,14 @@
 import CoreData
 import os.log
 
-private let logger = Logger(subsystem: "com.smarttutor.app", category: "CoreDataStack")
-
 // MARK: - Stack
 
 final class CoreDataStack {
 
     // MARK: Shared instance (use inMemory:true in tests)
     static let shared = CoreDataStack()
+
+    private let logger = Logger(subsystem: "com.smarttutor.app", category: "CoreDataStack")
 
     let container: NSPersistentContainer
 

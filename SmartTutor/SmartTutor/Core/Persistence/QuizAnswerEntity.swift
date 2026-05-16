@@ -59,7 +59,7 @@ extension NSManagedObjectModel {
 // MARK: - Managed Object Subclass
 
 @objc(QuizAnswerEntity)
-public final class QuizAnswerEntity: NSManagedObject {
+public final class QuizAnswerEntity: NSManagedObject, @unchecked Sendable {
     @NSManaged public var id:          UUID?
     @NSManaged public var question:    String
     @NSManaged public var topic:       String?
