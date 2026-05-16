@@ -10,8 +10,8 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Binding var isOnboardingComplete: Bool
-    @EnvironmentObject private var appState: AppState
-    @StateObject private var vm = OnboardingViewModel()
+    @Environment(AppState.self) private var appState
+    @State private var vm = OnboardingViewModel()
 
     // Phase 1 launch languages — Bengali + others added in Sprint 10
     let languages: [(code: String, name: String, flag: String)] = [
@@ -81,6 +81,9 @@ struct OnboardingView: View {
                 Spacer()
 
                 Button {
+                    AppLogger.userAction(AppLogger.auth,
+                                         action: vm.step == 3 ? "onboarding-submit" : "onboarding-continue",
+                                         context: "step-\(vm.step)")
                     withAnimation(.easeInOut(duration: 0.35)) {
                         if vm.step < 3 {
                             vm.advance()

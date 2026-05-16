@@ -9,20 +9,20 @@
 //  are flagged as unavailable so the View can show placeholder UI.
 //
 
-import Combine
 import Foundation
+import Observation
 import os.log
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "ParentDashboardViewModel")
 
 @MainActor
-final class ParentDashboardViewModel: ObservableObject {
+@Observable final class ParentDashboardViewModel {
 
     // MARK: - Published outputs
 
-    @Published private(set) var progressData: ProgressResponse? = nil
-    @Published private(set) var isLoading: Bool = false
-    @Published private(set) var errorMessage: String? = nil
+    private(set) var progressData: ProgressResponse? = nil
+    private(set) var isLoading: Bool = false
+    private(set) var errorMessage: String? = nil
 
     // MARK: - Convenience computed properties for the View
 

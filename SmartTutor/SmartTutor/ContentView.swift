@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
     @AppStorage("isOnboardingComplete") private var isOnboardingComplete = false
 
     var body: some View {
@@ -49,6 +49,11 @@ private struct MainTabView: View {
                 .tag(3)
         }
         .tint(.indigo)
+        .onChange(of: selectedTab) { _, tab in
+            let names = ["Home", "Study", "Progress", "Settings"]
+            let dest = tab < names.count ? names[tab] : "tab-\(tab)"
+            AppLogger.navigated(to: dest)
+        }
     }
 }
 

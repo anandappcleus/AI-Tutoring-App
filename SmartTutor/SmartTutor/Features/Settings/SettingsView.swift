@@ -10,7 +10,7 @@ import SwiftUI
 import UserNotifications
 
 struct SettingsView: View {
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled = true
     @State private var showLanguagePicker = false
@@ -53,7 +53,11 @@ struct SettingsView: View {
                 VStack(spacing: 16) {
                     // Profile card
                     VStack(spacing: 0) {
-                        Button { showEditProfile = true } label: {
+                        Button {
+                            AppLogger.userAction(AppLogger.auth, action: "edit-profile-opened",
+                                                 context: "profile-card")
+                            showEditProfile = true
+                        } label: {
                             HStack(spacing: 16) {
                                 ZStack {
                                     Circle()
@@ -105,7 +109,10 @@ struct SettingsView: View {
                         SettingsNavRow(
                             icon: "globe", iconBg: .blue,
                             title: "Language", subtitle: appState.currentProfile?.preferredLanguage.displayName ?? "—",
-                            action: { showLanguagePicker = true }
+                            action: {
+                                AppLogger.userAction(AppLogger.auth, action: "settings-language-opened")
+                                showLanguagePicker = true
+                            }
                         )
                         Divider().padding(.leading, 68)
                         SettingsToggleRow(
@@ -131,19 +138,29 @@ struct SettingsView: View {
                         SettingsNavRow(
                             icon: "person.fill", iconBg: .indigo,
                             title: "Edit Profile", subtitle: "Update your information",
-                            action: { showEditProfile = true }
+                            action: {
+                                AppLogger.userAction(AppLogger.auth, action: "edit-profile-opened",
+                                                     context: "account-row")
+                                showEditProfile = true
+                            }
                         )
                         Divider().padding(.leading, 68)
                         SettingsNavRow(
                             icon: "shield.fill", iconBg: .orange,
                             title: "Privacy & Security", subtitle: "Manage your data",
-                            action: { showPrivacy = true }
+                            action: {
+                                AppLogger.userAction(AppLogger.auth, action: "privacy-opened")
+                                showPrivacy = true
+                            }
                         )
                         Divider().padding(.leading, 68)
                         SettingsNavRow(
                             icon: "questionmark.circle.fill", iconBg: .teal,
                             title: "Help & Support", subtitle: "FAQs and contact us",
-                            action: { showHelp = true }
+                            action: {
+                                AppLogger.userAction(AppLogger.auth, action: "help-opened")
+                                showHelp = true
+                            }
                         )
                     }
 
@@ -167,6 +184,7 @@ struct SettingsView: View {
 
                     // Logout
                     Button {
+                        AppLogger.userAction(AppLogger.auth, action: "logout-tapped")
                         appState.logout()
                     } label: {
                         HStack(spacing: 8) {
@@ -189,11 +207,12 @@ struct SettingsView: View {
         .background(Color(UIColor.systemGroupedBackground))
         .ignoresSafeArea(edges: .top)
         .task {
+            AppLogger.navigated(to: "SettingsView")
             let settings = await UNUserNotificationCenter.current().notificationSettings()
             notificationStatus = settings.authorizationStatus
         }
-        .sheet(isPresented: $showLanguagePicker) { LanguagePickerSheet().environmentObject(appState) }
-        .sheet(isPresented: $showEditProfile)    { EditProfileSheet().environmentObject(appState)    }
+        .sheet(isPresented: $showLanguagePicker) { LanguagePickerSheet().environment(appState) }
+        .sheet(isPresented: $showEditProfile)    { EditProfileSheet().environment(appState)    }
         .sheet(isPresented: $showPrivacy)        { PrivacySheetView()                                }
         .sheet(isPresented: $showHelp)           { HelpSheetView()                                   }
     }
@@ -353,7 +372,7 @@ private struct SettingsDisabledRow: View {
 // MARK: - Sheet Views
 
 private struct LanguagePickerSheet: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
     @Environment(\.dismiss) private var dismiss
     @State private var isSaving = false
 
@@ -391,7 +410,7 @@ private struct LanguagePickerSheet: View {
 }
 
 private struct EditProfileSheet: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var isSaving = false

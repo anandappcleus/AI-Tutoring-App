@@ -11,8 +11,8 @@ import SwiftUI
 
 
 struct DashboardView: View {
-    @EnvironmentObject private var appState: AppState
-    @StateObject private var vm = DashboardViewModel()
+    @Environment(AppState.self) private var appState
+    @State private var vm = DashboardViewModel()
 
     // Tab navigation bridge
     @AppStorage("selectedMainTab")   private var selectedMainTab   = 0

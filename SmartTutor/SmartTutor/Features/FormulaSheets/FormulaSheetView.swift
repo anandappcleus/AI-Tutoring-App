@@ -230,10 +230,10 @@ private let formulaCategories: [FormulaCategory] = [
 // MARK: - ViewModel
 
 @MainActor
-final class FormulaSheetViewModel: ObservableObject {
+@Observable final class FormulaSheetViewModel {
 
-    @Published var searchText: String = ""
-    @Published private(set) var selectedSubject: String = "All"
+    var searchText: String = ""
+    private(set) var selectedSubject: String = "All"
 
     private let allCategories = formulaCategories
 
@@ -274,7 +274,7 @@ final class FormulaSheetViewModel: ObservableObject {
 // MARK: - Root View
 
 struct FormulaSheetView: View {
-    @StateObject private var vm = FormulaSheetViewModel()
+    @State private var vm = FormulaSheetViewModel()
     @State private var expandedCategory: String? = nil
     @State private var selectedFormula: Formula?
 

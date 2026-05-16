@@ -10,8 +10,8 @@ import SwiftUI
 
 struct OfflinePacksView: View {
 
-    @StateObject private var vm = OfflinePacksViewModel()
-    @EnvironmentObject private var appState: AppState
+    @State private var vm = OfflinePacksViewModel()
+    @Environment(AppState.self) private var appState
     @State private var practiceItem: PackListItem?
 
     private let totalKB = 500_000   // 500 MB storage cap for display
@@ -159,7 +159,10 @@ struct OfflinePacksView: View {
         .ignoresSafeArea(edges: .top)
         .navigationTitle("Offline Packs")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await vm.loadPacks() }
+        .task {
+            AppLogger.navigated(to: "OfflinePacksView")
+            await vm.loadPacks()
+        }
         .sheet(item: $practiceItem) { pack in
             OfflinePracticeView(pack: pack)
         }

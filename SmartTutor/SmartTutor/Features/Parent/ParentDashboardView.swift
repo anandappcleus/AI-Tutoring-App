@@ -10,8 +10,8 @@ import SwiftUI
 
 struct ParentDashboardView: View {
 
-    @EnvironmentObject private var appState: AppState
-    @StateObject private var vm = ParentDashboardViewModel()
+    @Environment(AppState.self) private var appState
+    @State private var vm = ParentDashboardViewModel()
 
     @State private var whatsappEnabled = true
 
@@ -209,6 +209,7 @@ struct ParentDashboardView: View {
         .navigationTitle("Parent Dashboard")
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            AppLogger.navigated(to: "ParentDashboardView")
             if let id = appState.currentProfile?.id {
                 await vm.load(studentId: id)
             }

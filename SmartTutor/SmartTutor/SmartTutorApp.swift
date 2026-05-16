@@ -9,12 +9,12 @@ import UserNotifications
 @main
 struct SmartTutorApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var appState = AppState()
+    @State private var appState = AppState()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(appState)
+                .environment(appState)
                 .onAppear { appDelegate.appState = appState }
         }
     }

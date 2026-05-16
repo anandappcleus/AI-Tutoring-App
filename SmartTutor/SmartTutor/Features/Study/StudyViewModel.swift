@@ -17,8 +17,8 @@
 //    View  ← observes vm.messages, vm.viewState, vm.questionsUsedToday
 //
 
-import Combine
 import Foundation
+import Observation
 import os.log
 import UIKit
 
@@ -70,13 +70,13 @@ struct StudyMessage: Identifiable, Equatable {
 // MARK: - ViewModel
 
 @MainActor
-final class StudyViewModel: ObservableObject {
+@Observable final class StudyViewModel {
 
     // MARK: Published outputs (View binds to these)
 
-    @Published private(set) var messages: [StudyMessage] = []
-    @Published private(set) var viewState: StudyViewState = .idle
-    @Published private(set) var questionsUsedToday: Int = 0
+    private(set) var messages: [StudyMessage] = []
+    private(set) var viewState: StudyViewState = .idle
+    private(set) var questionsUsedToday: Int = 0
 
     // MARK: Constants
 

@@ -12,20 +12,20 @@
 //      passing state through the view hierarchy.
 //    • Logs every state transition for traceability.
 //
-import Combine
 import Foundation
+import Observation
 import os.log
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "AppState")
 
 @MainActor
-final class AppState: ObservableObject {
+@Observable final class AppState {
 
     // MARK: Published
 
-    @Published private(set) var currentProfile: StudentProfile?
-    @Published private(set) var isLoggingIn: Bool = false
-    @Published private(set) var loginError: String? = nil
+    private(set) var currentProfile: StudentProfile?
+    private(set) var isLoggingIn: Bool = false
+    private(set) var loginError: String? = nil
 
     var isAuthenticated: Bool { currentProfile != nil }
 

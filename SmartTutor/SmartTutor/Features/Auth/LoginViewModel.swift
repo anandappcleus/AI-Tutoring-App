@@ -5,19 +5,19 @@
 //  Sprint 5 — Login form state. Delegates auth to AppState.
 //
 
-import Combine
 import Foundation
+import Observation
 import os.log
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "LoginViewModel")
 
 @MainActor
-final class LoginViewModel: ObservableObject {
+@Observable final class LoginViewModel {
 
     // MARK: - Form inputs
 
-    @Published var email: String = ""
-    @Published var password: String = ""
+    var email: String = ""
+    var password: String = ""
 
     // MARK: - Derived
 

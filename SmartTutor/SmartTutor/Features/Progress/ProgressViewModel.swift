@@ -15,10 +15,10 @@ private let logger = Logger(subsystem: "com.smarttutor.app", category: "Progress
 @MainActor
 final class ProgressViewModel: ObservableObject {
 
-    @Published private(set) var progressData: ProgressResponse? = nil
-    @Published private(set) var isLoading: Bool = false
-    @Published private(set) var errorMessage: String? = nil
-    @Published private(set) var isShowingCachedData: Bool = false
+    private(set) var progressData: ProgressResponse? = nil
+    private(set) var isLoading: Bool = false
+    private(set) var errorMessage: String? = nil
+    private(set) var isShowingCachedData: Bool = false
 
     private let apiClient: APIClient
     private let syncManager: OfflineSyncManager

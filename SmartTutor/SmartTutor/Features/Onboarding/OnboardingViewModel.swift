@@ -15,26 +15,26 @@
 //    View  ← observes vm.step, vm.canProceed, vm.isSubmitting, vm.isComplete
 //
 
-import Combine
 import Foundation
+import Observation
 import os.log
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "OnboardingViewModel")
 
 @MainActor
-final class OnboardingViewModel: ObservableObject {
+@Observable final class OnboardingViewModel {
 
     // MARK: - Form state (View binds to these)
 
-    @Published var step: Int = 1
-    @Published var selectedLanguage: String = ""
-    @Published var selectedExam: String = ""
-    @Published var name: String = ""
+    var step: Int = 1
+    var selectedLanguage: String = ""
+    var selectedExam: String = ""
+    var name: String = ""
 
     // MARK: - Submission state
 
-    @Published private(set) var isSubmitting: Bool = false
-    @Published private(set) var isComplete: Bool = false
+    private(set) var isSubmitting: Bool = false
+    private(set) var isComplete: Bool = false
 
     // MARK: - Validation
 

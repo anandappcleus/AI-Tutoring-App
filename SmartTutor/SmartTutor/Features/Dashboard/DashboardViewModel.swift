@@ -15,9 +15,9 @@ private let logger = Logger(subsystem: "com.smarttutor.app", category: "Dashboar
 @MainActor
 final class DashboardViewModel: ObservableObject {
 
-    @Published private(set) var studyPlan: StudyPlanResponse? = nil
-    @Published private(set) var isLoading: Bool = false
-    @Published private(set) var isShowingCachedPlan: Bool = false
+    private(set) var studyPlan: StudyPlanResponse? = nil
+    private(set) var isLoading: Bool = false
+    private(set) var isShowingCachedPlan: Bool = false
 
     private let apiClient: APIClient
     private let syncManager: OfflineSyncManager

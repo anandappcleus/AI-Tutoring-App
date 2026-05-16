@@ -14,10 +14,10 @@
 //    • Dependency-injected APIClient + CoreDataStack for testability.
 //
 
-import Combine
 import CoreData
 import Foundation
 import Network
+import Observation
 import os.log
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "OfflineSyncManager")
@@ -33,7 +33,7 @@ protocol OfflineSyncManaging {
 // MARK: - Implementation
 
 @MainActor
-final class OfflineSyncManager: ObservableObject, OfflineSyncManaging {
+@Observable final class OfflineSyncManager: OfflineSyncManaging {
 
     /// App-wide singleton. ViewModels that need reachability or sync status
     /// should reference this rather than creating their own instance.
@@ -41,11 +41,11 @@ final class OfflineSyncManager: ObservableObject, OfflineSyncManaging {
 
     // MARK: Published state
 
-    @Published private(set) var pendingCount: Int = 0
-    @Published private(set) var isSyncing: Bool   = false
-    @Published private(set) var lastSyncError: String? = nil
+    private(set) var pendingCount: Int = 0
+    private(set) var isSyncing: Bool   = false
+    private(set) var lastSyncError: String? = nil
     /// True when the device has a usable network path. KVO-observable by any View or ViewModel.
-    @Published private(set) var isNetworkReachable: Bool = false
+    private(set) var isNetworkReachable: Bool = false
 
     // MARK: Dependencies
 

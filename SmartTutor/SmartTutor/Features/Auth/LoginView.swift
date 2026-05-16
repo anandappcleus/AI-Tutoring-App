@@ -65,8 +65,8 @@ struct AuthFieldView: View {
 
 struct LoginView: View {
 
-    @StateObject private var vm = LoginViewModel()
-    @EnvironmentObject private var appState: AppState
+    @State private var vm = LoginViewModel()
+    @Environment(AppState.self) private var appState
     @State private var showRegister = false
 
     // Brand gradient — matches OnboardingView exactly
@@ -202,6 +202,7 @@ struct LoginView: View {
 
                         // MARK: Register link
                         Button {
+                            AppLogger.userAction(AppLogger.auth, action: "register-link-tapped")
                             showRegister = true
                         } label: {
                             HStack(spacing: 4) {

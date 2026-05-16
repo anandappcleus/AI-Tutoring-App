@@ -101,12 +101,12 @@ private let wbchseSyllabus: [SyllabusSubject] = [
 // MARK: - ViewModel
 
 @MainActor
-final class SyllabusMapViewModel: ObservableObject {
+@Observable final class SyllabusMapViewModel {
 
-    @Published private(set) var subjects: [SyllabusSubject] = []
-    @Published private(set) var isLoadingProgress: Bool = false
-    @Published private(set) var expandedSubjectId: String? = nil
-    @Published var searchText: String = ""
+    private(set) var subjects: [SyllabusSubject] = []
+    private(set) var isLoadingProgress: Bool = false
+    private(set) var expandedSubjectId: String? = nil
+    var searchText: String = ""
 
     private let apiClient: APIClient
 
@@ -182,8 +182,8 @@ final class SyllabusMapViewModel: ObservableObject {
 // MARK: - Root View
 
 struct SyllabusMapView: View {
-    @EnvironmentObject private var appState: AppState
-    @StateObject private var vm = SyllabusMapViewModel()
+    @Environment(AppState.self) private var appState
+    @State private var vm = SyllabusMapViewModel()
 
     var body: some View {
         NavigationStack {

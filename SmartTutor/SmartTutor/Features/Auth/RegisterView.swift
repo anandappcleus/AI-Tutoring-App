@@ -10,8 +10,8 @@ import SwiftUI
 
 struct RegisterView: View {
 
-    @StateObject private var vm = RegisterViewModel()
-    @EnvironmentObject private var appState: AppState
+    @State private var vm = RegisterViewModel()
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
     private let gradientColors: [Color] = [
@@ -201,6 +201,7 @@ struct RegisterView: View {
 
                     // MARK: Back to login
                     Button {
+                        AppLogger.userAction(AppLogger.auth, action: "back-to-login-tapped")
                         dismiss()
                     } label: {
                         HStack(spacing: 4) {

@@ -10,8 +10,8 @@ import SwiftUI
 import Charts
 
 struct LearnerProgressView: View {
-    @EnvironmentObject private var appState: AppState
-    @StateObject private var vm = ProgressViewModel()
+    @Environment(AppState.self) private var appState
+    @State private var vm = ProgressViewModel()
 
     var body: some View {
         ScrollView {
@@ -184,6 +184,7 @@ struct LearnerProgressView: View {
         .background(Color(UIColor.systemGroupedBackground))
         .ignoresSafeArea(edges: .top)
         .task {
+            AppLogger.navigated(to: "LearnerProgressView")
             if let id = appState.currentProfile?.id {
                 await vm.load(studentId: id)
             }

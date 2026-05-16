@@ -29,7 +29,7 @@ struct MockTest: Identifiable, Hashable {
 // MARK: - ViewModel
 
 @MainActor
-final class MockTestsViewModel: ObservableObject {
+@Observable final class MockTestsViewModel {
 
     enum LoadState {
         case loading
@@ -38,8 +38,8 @@ final class MockTestsViewModel: ObservableObject {
         case error(String)
     }
 
-    @Published private(set) var loadState: LoadState = .loading
-    @Published private(set) var selectedFilter: String = "All"  // All | JEE | NEET | WBCHSE
+    private(set) var loadState: LoadState = .loading
+    private(set) var selectedFilter: String = "All"  // All | JEE | NEET | WBCHSE
 
     private let apiClient: APIClient
 
@@ -111,8 +111,8 @@ private struct MockTestResponse: Decodable {
 // MARK: - Root View
 
 struct MockTestsView: View {
-    @EnvironmentObject private var appState: AppState
-    @StateObject private var vm = MockTestsViewModel()
+    @Environment(AppState.self) private var appState
+    @State private var vm = MockTestsViewModel()
     @State private var selectedTest: MockTest?
 
     private var examTarget: String? { appState.currentProfile?.examTarget.rawValue }

@@ -10,7 +10,7 @@ import os
 import SwiftUI
 
 struct StudyView: View {
-    @StateObject private var vm = StudyViewModel()
+    @State private var vm = StudyViewModel()
     @State private var inputText = ""
     @State private var isRecording = false
     @State private var showPaywall = false
@@ -103,11 +103,14 @@ struct StudyView: View {
     private func handleAsk() {
         let trimmed = inputText.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
+        AppLogger.userAction(AppLogger.study, action: "send-question",
+                             context: String(trimmed.prefix(80)))
         inputText = ""
         vm.ask(question: trimmed)
     }
 
     private func handleVoiceInput() {
+        AppLogger.userAction(AppLogger.voice, action: "voice-input-opened")
         isRecording = true
         showVoiceInput = true
     }
@@ -170,6 +173,9 @@ private struct StudyHeaderView: View {
                         Text("Running low on questions!")
                             .font(.system(size: 13, weight: .semibold))
                         Button {
+                            AppLogger.userAction(AppLogger.study,
+                                                 action: "upgrade-tapped",
+                                                 context: "daily-limit-banner")
                             showPaywall = true
                         } label: {
                             Text("Upgrade to Premium")

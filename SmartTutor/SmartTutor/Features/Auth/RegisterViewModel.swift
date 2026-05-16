@@ -6,27 +6,27 @@
 //  Calls POST /auth/register then auto-logs in via AppState.
 //
 
-import Combine
 import Foundation
+import Observation
 import os.log
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "RegisterViewModel")
 
 @MainActor
-final class RegisterViewModel: ObservableObject {
+@Observable final class RegisterViewModel {
 
     // MARK: - Form inputs
 
-    @Published var name: String = ""
-    @Published var email: String = ""
-    @Published var password: String = ""
-    @Published var confirmPassword: String = ""
-    @Published var selectedLanguage: String = "en"
+    var name: String = ""
+    var email: String = ""
+    var password: String = ""
+    var confirmPassword: String = ""
+    var selectedLanguage: String = "en"
 
     // MARK: - State
 
-    @Published private(set) var isLoading: Bool = false
-    @Published private(set) var errorMessage: String? = nil
+    private(set) var isLoading: Bool = false
+    private(set) var errorMessage: String? = nil
 
     // MARK: - Language options
 

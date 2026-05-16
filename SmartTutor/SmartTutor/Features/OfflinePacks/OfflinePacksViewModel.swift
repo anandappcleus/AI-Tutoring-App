@@ -74,13 +74,13 @@ struct PackListItem: Identifiable {
 // MARK: - ViewModel
 
 @MainActor
-final class OfflinePacksViewModel: ObservableObject {
+@Observable final class OfflinePacksViewModel {
 
-    @Published private(set) var packs: [PackListItem] = []
-    @Published private(set) var isLoading: Bool = false
-    @Published private(set) var errorMessage: String? = nil
-    @Published private(set) var downloadingPackId: String? = nil
-    @Published private(set) var downloadProgress: [String: Double] = [:]
+    private(set) var packs: [PackListItem] = []
+    private(set) var isLoading: Bool = false
+    private(set) var errorMessage: String? = nil
+    private(set) var downloadingPackId: String? = nil
+    private(set) var downloadProgress: [String: Double] = [:]
 
     var downloadedPacks: [PackListItem] { packs.filter(\.isDownloaded) }
     var availablePacks: [PackListItem]  { packs.filter { !$0.isDownloaded } }

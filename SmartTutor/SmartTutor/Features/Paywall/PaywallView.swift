@@ -44,7 +44,10 @@ struct PaywallView: View {
                     // Close button
                     HStack {
                         Spacer()
-                        Button { dismiss() } label: {
+                        Button {
+                            AppLogger.userAction(AppLogger.auth, action: "paywall-dismissed")
+                            dismiss()
+                        } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(.white)
@@ -122,7 +125,10 @@ struct PaywallView: View {
                                 period: "per year",
                                 badge: "30% off",
                                 isSelected: selectedPlan == .annual
-                            ) { withAnimation(.spring(response: 0.3)) { selectedPlan = .annual } }
+                            ) {
+                                AppLogger.userAction(AppLogger.auth, action: "plan-selected", context: "annual")
+                                withAnimation(.spring(response: 0.3)) { selectedPlan = .annual }
+                            }
 
                             PlanButton(
                                 title: "Monthly Plan",
@@ -131,11 +137,16 @@ struct PaywallView: View {
                                 period: "per month",
                                 badge: nil,
                                 isSelected: selectedPlan == .monthly
-                            ) { withAnimation(.spring(response: 0.3)) { selectedPlan = .monthly } }
+                            ) {
+                                AppLogger.userAction(AppLogger.auth, action: "plan-selected", context: "monthly")
+                                withAnimation(.spring(response: 0.3)) { selectedPlan = .monthly }
+                            }
                         }
 
                         // Subscribe CTA
                         Button {
+                            AppLogger.userAction(AppLogger.auth, action: "subscribe-tapped",
+                                                 context: selectedPlan == .monthly ? "monthly" : "annual")
                             isProcessing = true
                             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                                 isProcessing = false
@@ -220,6 +231,10 @@ struct PaywallView: View {
                     .padding(.bottom, 48)
                 }
             }
+        }
+        .onAppear {
+            AppLogger.navigated(to: "PaywallView",
+                                from: "plan=\(selectedPlan == .monthly ? "monthly" : "annual")")
         }
     }
 }

@@ -38,9 +38,9 @@ enum RecorderState: Equatable {
 // MARK: - Recorder Manager
 
 @MainActor
-final class VoiceRecorderManager: NSObject, ObservableObject {
+@Observable final class VoiceRecorderManager: NSObject {
 
-    @Published private(set) var state: RecorderState = .idle
+    private(set) var state: RecorderState = .idle
 
     private var recorder: AVAudioRecorder?
     private var audioFileURL: URL?
@@ -157,7 +157,7 @@ struct VoiceInputView: View {
     let onTranscribe: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var manager: VoiceRecorderManager
+    @State private var manager: VoiceRecorderManager
 
     /// Drives the pulse ring animation while recording.
     @State private var isPulsing = false
@@ -165,7 +165,7 @@ struct VoiceInputView: View {
     init(languageCode: String = "en-IN", onTranscribe: @escaping (String) -> Void) {
         self.languageCode = languageCode
         self.onTranscribe = onTranscribe
-        _manager = StateObject(wrappedValue: VoiceRecorderManager(languageCode: languageCode))
+        _manager = State(wrappedValue: VoiceRecorderManager(languageCode: languageCode))
     }
 
     var body: some View {
