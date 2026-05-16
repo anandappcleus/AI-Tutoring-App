@@ -108,44 +108,46 @@ async def _extract_image_content(image_b64: str) -> str:
     to the 70B reasoning crew.
     """
     s = get_settings()
-    response = await acompletion(
-        model=f"openai/{_VISION_MODEL}",
-        api_base=s.LLM_BASE_URL,
-        api_key=s.LLM_API_KEY,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"},
-                },
-                {
-                    "type": "text",
-                    "text": (
-                        "You are helping a JEE/NEET student with their studies.\n"
-                        "Examine this image carefully:\n"
-                        "1. If it shows a textbook/exam question, equation, formula, "
-                        "diagram, or graph: extract ALL text exactly with these rules:\n"
-                        "   - Fractions: write H/2 not 'H 2', use '/' for all fraction bars.\n"
-                        "   - Superscripts/exponents: write EXACTLY what is shown. "
-                        "If the exponent is 'ln 2' write '^(ln 2)', if it is '2' write '^2'. "
-                        "NEVER convert 'ln 2' to '1/2' or 'ln 3' to '1/3' — they are different.\n"
-                        "   - Subscripts: write log_2(x) for log base 2 of x.\n"
-                        "   - Nested radicals: preserve all sqrt() nesting explicitly.\n"
-                        "   - If multiple questions are present (e.g., 1. 2. 3.), "
-                        "extract all of them with their original numbering and all answer options.\n"
-                        "Output ONLY the extracted text — nothing else.\n"
-                        "2. If it is NOT educational content (selfie, food, landscape, "
-                        "random photo, meme, screenshot of a chat): "
-                        "output exactly: NOT_EDUCATIONAL\n"
-                        "No explanations, no preamble — only the extracted text or "
-                        "NOT_EDUCATIONAL."
-                    ),
-                },
-            ],
-        }],
-        max_tokens=350,
-        timeout=20,
+    response = await asyncio.wait_for(
+        acompletion(
+            model=f"openai/{_VISION_MODEL}",
+            api_base=s.LLM_BASE_URL,
+            api_key=s.LLM_API_KEY,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"},
+                    },
+                    {
+                        "type": "text",
+                        "text": (
+                            "You are helping a JEE/NEET student with their studies.\n"
+                            "Examine this image carefully:\n"
+                            "1. If it shows a textbook/exam question, equation, formula, "
+                            "diagram, or graph: extract ALL text exactly with these rules:\n"
+                            "   - Fractions: write H/2 not 'H 2', use '/' for all fraction bars.\n"
+                            "   - Superscripts/exponents: write EXACTLY what is shown. "
+                            "If the exponent is 'ln 2' write '^(ln 2)', if it is '2' write '^2'. "
+                            "NEVER convert 'ln 2' to '1/2' or 'ln 3' to '1/3' — they are different.\n"
+                            "   - Subscripts: write log_2(x) for log base 2 of x.\n"
+                            "   - Nested radicals: preserve all sqrt() nesting explicitly.\n"
+                            "   - If multiple questions are present (e.g., 1. 2. 3.), "
+                            "extract all of them with their original numbering and all answer options.\n"
+                            "Output ONLY the extracted text — nothing else.\n"
+                            "2. If it is NOT educational content (selfie, food, landscape, "
+                            "random photo, meme, screenshot of a chat): "
+                            "output exactly: NOT_EDUCATIONAL\n"
+                            "No explanations, no preamble — only the extracted text or "
+                            "NOT_EDUCATIONAL."
+                        ),
+                    },
+                ],
+            }],
+            max_tokens=350,
+        ),
+        timeout=25.0,   # hard wall-clock deadline — litellm's timeout= param is ignored by NIM
     )
     return response.choices[0].message.content.strip()
 
@@ -699,16 +701,18 @@ async def _ask_direct(
         f'"topic":"...","subject":"...","question_type":"...","marks":4,"marking_scheme":"..."}}'
     )
 
-    response = await acompletion(
-        model=f"openai/{model}",
-        api_base=s.LLM_BASE_URL,
-        api_key=s.LLM_API_KEY,
-        messages=[
-            {"role": "system", "content": get_tutor_prompt(language)},
-            {"role": "user",   "content": user_message},
-        ],
-        max_tokens=1500,
-        temperature=0.1,
-        timeout=55,
+    response = await asyncio.wait_for(
+        acompletion(
+            model=f"openai/{model}",
+            api_base=s.LLM_BASE_URL,
+            api_key=s.LLM_API_KEY,
+            messages=[
+                {"role": "system", "content": get_tutor_prompt(language)},
+                {"role": "user",   "content": user_message},
+            ],
+            max_tokens=1500,
+            temperature=0.1,
+        ),
+        timeout=60.0,   # hard wall-clock deadline — litellm's timeout= param is ignored by NIM
     )
     return response.choices[0].message.content.strip()
