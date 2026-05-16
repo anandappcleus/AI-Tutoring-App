@@ -113,7 +113,7 @@ extension NSManagedObjectContext {
 
     /// Insert a new pending quiz answer into this context.
     @discardableResult
-    func insertPendingAnswer(
+    nonisolated func insertPendingAnswer(
         question: String,
         topic: String? = nil,
         subject: String? = nil,
@@ -132,7 +132,7 @@ extension NSManagedObjectContext {
     }
 
     /// Fetch all unsynced answers ordered oldest-first.
-    func fetchPendingAnswers() throws -> [QuizAnswerEntity] {
+    nonisolated func fetchPendingAnswers() throws -> [QuizAnswerEntity] {
         let request: NSFetchRequest<QuizAnswerEntity> = QuizAnswerEntity.fetchRequest()
         request.predicate  = NSPredicate(format: "synced == NO")
         request.sortDescriptors = [NSSortDescriptor(key: "answeredAt", ascending: true)]
