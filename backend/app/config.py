@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     LLM_API_KEY: str
     LLM_CHAT_MODEL: str = "ai21labs/sarvam-m"
-    LLM_AGENT_MODEL: str = "meta/llama-3.1-8b-instruct"
+    LLM_AGENT_MODEL: str = "meta/llama-3.3-70b-instruct"
     EMBED_MODEL: str = "nvidia/nv-embedqa-e5-v5"
 
     # ── Vector DB ────────────────────────────────────────────────────

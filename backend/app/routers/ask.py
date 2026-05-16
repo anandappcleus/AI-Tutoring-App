@@ -48,6 +48,9 @@ from app.routers.auth import get_current_student
 log = logging.getLogger(__name__)
 router = APIRouter()
 
+# Fallback model used when the primary (large) model is queue-throttled on NIM
+_FAST_FALLBACK_MODEL = "meta/llama-3.1-8b-instruct"
+
 FREE_DAILY_LIMIT = 50           # free-tier questions per UTC day (raised for testing)
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="crewai")
 _VISION_MODEL = "meta/llama-3.2-11b-vision-instruct"
@@ -209,10 +212,32 @@ def _escape_latex_backslashes(text: str) -> str:
         else:
             if ch == '\\':
                 nxt = text[i + 1] if i + 1 < len(text) else ""
-                if nxt in ('"', '\\', '/', 'n', 'r', 't'):
+                if nxt in ('"', '\\', '/'):
                     out.append(ch)
                     out.append(nxt)
                     i += 2
+                elif nxt in ('t', 'n', 'r'):
+                    # \t / \n / \r are valid JSON escapes, BUT many LaTeX commands
+                    # start with these same letters (\theta, \tau, \tan, \times,
+                    # \nu, \nabla, \rho, \right …).  When the LLM omits the outer
+                    # double-backslash, json.loads would eat the control char and
+                    # corrupt the LaTeX.  Detect known LaTeX suffixes and double
+                    # the backslash so they survive json.loads intact.
+                    rest = text[i + 2:] if i + 2 < len(text) else ""
+                    _latex_suffixes: dict[str, tuple[str, ...]] = {
+                        't': ('heta', 'au', 'an', 'imes', 'ext', 'ilde'),
+                        'n': ('u', 'abla', 'eg', 'ot'),
+                        'r': ('ho', 'ight', 'angle'),
+                    }
+                    if any(rest.startswith(s) for s in _latex_suffixes.get(nxt, ())):
+                        # LaTeX command — double the backslash
+                        out.append('\\\\')
+                        i += 1
+                    else:
+                        # Real JSON control char — keep as-is
+                        out.append(ch)
+                        out.append(nxt)
+                        i += 2
                 elif nxt == 'u' and i + 5 < len(text) and all(
                     c in '0123456789abcdefABCDEF' for c in text[i + 2: i + 6]
                 ):
@@ -670,7 +695,7 @@ async def _ask_direct(
     lang_name = LANGUAGE_NAMES.get(language, "English")
 
     # 4. Model routing — mirror make_question_generator_agent()
-    model = s.LLM_AGENT_MODEL if language == "en" else s.LLM_CHAT_MODEL
+    primary_model = s.LLM_AGENT_MODEL if language == "en" else s.LLM_CHAT_MODEL
 
     user_message = (
         f"A student (ID: {student_id}) has asked: {question}\n"
@@ -704,18 +729,29 @@ async def _ask_direct(
         f'"topic":"...","subject":"...","question_type":"...","marks":4,"marking_scheme":"..."}}'
     )
 
-    response = await asyncio.wait_for(
-        acompletion(
-            model=f"openai/{model}",
-            api_base=s.LLM_BASE_URL,
-            api_key=s.LLM_API_KEY,
-            messages=[
-                {"role": "system", "content": get_tutor_prompt(language)},
-                {"role": "user",   "content": user_message},
-            ],
-            max_tokens=1500,
-            temperature=0.1,
-        ),
-        timeout=60.0,   # hard wall-clock deadline — litellm's timeout= param is ignored by NIM
-    )
-    return response.choices[0].message.content.strip()
+    async def _call_model(model_name: str, timeout_s: float) -> str:
+        resp = await asyncio.wait_for(
+            acompletion(
+                model=f"openai/{model_name}",
+                api_base=s.LLM_BASE_URL,
+                api_key=s.LLM_API_KEY,
+                messages=[
+                    {"role": "system", "content": get_tutor_prompt(language)},
+                    {"role": "user",   "content": user_message},
+                ],
+                max_tokens=1500,
+                temperature=0.1,
+            ),
+            timeout=timeout_s,
+        )
+        return resp.choices[0].message.content.strip()
+
+    try:
+        return await _call_model(primary_model, 30.0)
+    except asyncio.TimeoutError:
+        # Primary model is queue-throttled on NIM free tier — fall back to fast 8B
+        log.warning(
+            "ask.primary_timeout  student_id=%s  primary=%s  fallback=%s",
+            student_id, primary_model, _FAST_FALLBACK_MODEL,
+        )
+        return await _call_model(_FAST_FALLBACK_MODEL, 35.0)
