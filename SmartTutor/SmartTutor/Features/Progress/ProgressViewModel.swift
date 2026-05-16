@@ -6,14 +6,14 @@
 //  Sprint 9 — Offline cache + auto-refresh on reconnect.
 //
 
-import Combine
 import Foundation
+import Observation
 import os.log
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "ProgressViewModel")
 
-@MainActor
-final class ProgressViewModel: ObservableObject {
+@Observable @MainActor
+final class ProgressViewModel {
 
     private(set) var progressData: ProgressResponse? = nil
     private(set) var isLoading: Bool = false
@@ -22,7 +22,6 @@ final class ProgressViewModel: ObservableObject {
 
     private let apiClient: APIClient
     private let syncManager: OfflineSyncManager
-    private var cancellables = Set<AnyCancellable>()
     private var currentStudentId: String = ""
 
     init(apiClient: APIClient = .shared, syncManager: OfflineSyncManager = .shared) {
@@ -60,18 +59,29 @@ final class ProgressViewModel: ObservableObject {
     // MARK: - Reconnect auto-refresh
 
     private func observeReachability() {
-        syncManager.$isNetworkReachable
-            .dropFirst()
-            .filter { $0 }
-            .sink { [weak self] _ in
-                guard let self, !self.currentStudentId.isEmpty else { return }
-                logger.info("ProgressViewModel: network restored — refreshing progress")
-                Task {
-                    try? await Task.sleep(for: .seconds(2))
-                    await self.load(studentId: self.currentStudentId)
+        Task { [weak self] in
+            guard let self else { return }
+            var previous = syncManager.isNetworkReachable
+            while !Task.isCancelled {
+                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                    withObservationTracking {
+                        _ = self.syncManager.isNetworkReachable
+                    } onChange: {
+                        cont.resume()
+                    }
                 }
+                let current = syncManager.isNetworkReachable
+                if current && !previous && !currentStudentId.isEmpty {
+                    logger.info("ProgressViewModel: network restored — refreshing progress")
+                    Task { [weak self] in
+                        try? await Task.sleep(for: .seconds(2))
+                        guard let self else { return }
+                        await self.load(studentId: self.currentStudentId)
+                    }
+                }
+                previous = current
             }
-            .store(in: &cancellables)
+        }
     }
 
     // MARK: - UserDefaults cache

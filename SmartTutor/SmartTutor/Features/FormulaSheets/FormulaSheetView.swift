@@ -8,7 +8,6 @@
 //  Tapping any formula opens the AI tutor to explain it.
 //
 
-import Combine
 import Foundation
 import os.log
 import SwiftUI

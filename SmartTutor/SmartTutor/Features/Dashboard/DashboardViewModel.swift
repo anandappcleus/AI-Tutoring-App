@@ -6,14 +6,14 @@
 //  Sprint 9 — Offline cache + auto-refresh on reconnect.
 //
 
-import Combine
 import Foundation
+import Observation
 import os.log
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "DashboardViewModel")
 
-@MainActor
-final class DashboardViewModel: ObservableObject {
+@Observable @MainActor
+final class DashboardViewModel {
 
     private(set) var studyPlan: StudyPlanResponse? = nil
     private(set) var isLoading: Bool = false
@@ -21,7 +21,6 @@ final class DashboardViewModel: ObservableObject {
 
     private let apiClient: APIClient
     private let syncManager: OfflineSyncManager
-    private var cancellables = Set<AnyCancellable>()
     private var currentStudentId: String = ""
 
     init(apiClient: APIClient = .shared, syncManager: OfflineSyncManager = .shared) {
@@ -65,19 +64,29 @@ final class DashboardViewModel: ObservableObject {
     // MARK: - Reconnect auto-refresh
 
     private func observeReachability() {
-        syncManager.$isNetworkReachable
-            .dropFirst()                              // skip initial value
-            .filter { $0 }                            // only rising edges (offline → online)
-            .sink { [weak self] _ in
-                guard let self, !self.currentStudentId.isEmpty else { return }
-                logger.info("DashboardViewModel: network restored — refreshing plan")
-                Task {
-                    // Wait for the network stack to fully establish before hitting the API.
-                    try? await Task.sleep(for: .seconds(2))
-                    await self.loadPlan(studentId: self.currentStudentId)
+        Task { [weak self] in
+            guard let self else { return }
+            var previous = syncManager.isNetworkReachable
+            while !Task.isCancelled {
+                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                    withObservationTracking {
+                        _ = self.syncManager.isNetworkReachable
+                    } onChange: {
+                        cont.resume()
+                    }
                 }
+                let current = syncManager.isNetworkReachable
+                if current && !previous && !currentStudentId.isEmpty {
+                    logger.info("DashboardViewModel: network restored — refreshing plan")
+                    Task { [weak self] in
+                        try? await Task.sleep(for: .seconds(2))
+                        guard let self else { return }
+                        await self.loadPlan(studentId: self.currentStudentId)
+                    }
+                }
+                previous = current
             }
-            .store(in: &cancellables)
+        }
     }
 
     // MARK: - UserDefaults cache

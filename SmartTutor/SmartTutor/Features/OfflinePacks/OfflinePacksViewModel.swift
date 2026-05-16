@@ -12,7 +12,6 @@
 //    • Exposes download progress per pack (0.0 → 1.0) for animated progress bar.
 //
 
-import Combine
 import CoreData
 import Foundation
 import SwiftUI
