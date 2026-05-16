@@ -298,6 +298,59 @@ def _fix_control_chars_in_strings(text: str) -> str:
     return "".join(result)
 
 
+def _recover_truncated_json(text: str) -> str | None:
+    """
+    Attempt to close a truncated JSON object.
+
+    Walks the text tracking brace/bracket depth and string state.
+    Truncates to the last cleanly-ended value, removes any trailing comma,
+    then appends the missing closing brackets/braces.
+    Returns None if text doesn't look like a truncated JSON object.
+    """
+    text = text.strip()
+    if not text.startswith("{"):
+        return None
+
+    depth_stack: list[str] = []
+    in_string = False
+    escaped = False
+    last_clean_end = 0  # last index where a value cleanly closed
+
+    for i, c in enumerate(text):
+        if escaped:
+            escaped = False
+            continue
+        if c == "\\" and in_string:
+            escaped = True
+            continue
+        if c == '"':
+            if in_string:
+                in_string = False
+                last_clean_end = i
+            else:
+                in_string = True
+            continue
+        if in_string:
+            continue
+        if c == "{":
+            depth_stack.append("}")
+        elif c == "[":
+            depth_stack.append("]")
+        elif c in "}]":
+            if depth_stack and depth_stack[-1] == c:
+                depth_stack.pop()
+                last_clean_end = i
+
+    if not depth_stack:
+        return None  # already balanced — no recovery needed
+
+    # Truncate to last clean endpoint, strip trailing comma/whitespace
+    recovered = text[:last_clean_end + 1].rstrip().rstrip(",")
+    # Close all open structures in reverse order
+    recovered += "".join(reversed(depth_stack))
+    return recovered
+
+
 def _extract_last_json_object(text: str) -> str | None:
     """
     Walk *text* character-by-character tracking brace depth.
@@ -396,7 +449,29 @@ def _parse_crew_output(raw: str) -> dict:
     try:
         return json.loads(_escape_latex_backslashes(_fix_control_chars_in_strings(text)))
     except (json.JSONDecodeError, Exception):
-        return {}
+        pass
+
+    # Pass 5: truncation recovery — LLM hit max_tokens mid-JSON.
+    # _extract_last_json_object already returned None (no complete object).
+    # Try to close the truncated JSON and parse what we have.
+    # At minimum this rescues the explanation field which is always written first.
+    recovered = _recover_truncated_json(raw.strip())
+    if recovered:
+        for transform in (
+            lambda s: s,
+            _escape_latex_backslashes,
+            _fix_control_chars_in_strings,
+            lambda s: _escape_latex_backslashes(_fix_control_chars_in_strings(s)),
+        ):
+            try:
+                result = json.loads(transform(recovered))
+                if isinstance(result, dict) and result:
+                    log.warning("ask.parse_recovered_truncated  keys=%s", list(result.keys()))
+                    return result
+            except (json.JSONDecodeError, Exception):
+                pass
+
+    return {}
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────
@@ -779,7 +854,7 @@ async def _ask_direct(
                     {"role": "system", "content": get_tutor_prompt(language)},
                     {"role": "user",   "content": user_message},
                 ],
-                max_tokens=2500,
+                max_tokens=3500,
                 temperature=0.1,
             ),
             timeout=timeout_s,

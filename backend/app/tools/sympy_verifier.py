@@ -247,6 +247,11 @@ def _execute_sympy_sync(code: str) -> Optional[str]:
             )
         output = stdout_buf.getvalue().strip()
         if not output:
+            # Fallback: model may have assigned 'result' without calling print()
+            result_val = sandbox.get("result")
+            if result_val is not None:
+                output = str(result_val).strip()
+        if not output:
             return None
         # Last non-empty line = final answer
         lines = [ln.strip() for ln in output.splitlines() if ln.strip()]
