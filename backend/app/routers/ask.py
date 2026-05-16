@@ -144,7 +144,8 @@ async def _extract_image_content(image_b64: str) -> str:
                 },
             ],
         }],
-        max_tokens=600,
+        max_tokens=350,
+        timeout=20,
     )
     return response.choices[0].message.content.strip()
 
@@ -395,6 +396,11 @@ async def ask(
         student_id, weak_topics or "none",
     )
 
+    # ── RAG pre-fetch: start immediately, runs concurrently with vision ─
+    from app.tools.rag_search_tool import rag_search_tool as _rst
+    _loop = asyncio.get_running_loop()
+    _rag_future = _loop.run_in_executor(_executor, _rst._run, body.question, 3)
+
     # ── Vision pipeline: image extraction / validation ───────────────
     effective_question = body.question
     if body.image_b64:
@@ -426,6 +432,15 @@ async def ask(
             )
             effective_question = f"{body.question}\n\n[Image content: {extracted}]"
 
+    # ── Collect pre-fetched RAG chunks (should be ready by now) ──────
+    try:
+        pre_chunks: list[dict] = await asyncio.wait_for(
+            asyncio.shield(_rag_future), timeout=8.0
+        )
+    except Exception:
+        log.warning("ask.rag_prefetch_failed  student_id=%s", student_id, exc_info=True)
+        pre_chunks = []
+
     # ── Direct RAG + single LLM call (3-4× faster than CrewAI ReAct loop) ────
     t0 = time.perf_counter()
     try:
@@ -435,6 +450,7 @@ async def ask(
             lang,
             weak_topics,
             body.exam_type,
+            pre_chunks=pre_chunks,
         )
     except Exception:
         log.error(
@@ -607,6 +623,7 @@ async def _ask_direct(
     language: str,
     weak_topics: list[str] | None,
     exam_type: str | None,
+    pre_chunks: list[dict] | None = None,   # pre-fetched concurrently with vision
 ) -> str:
     """
     Fast path: RAG search + single LLM call, bypassing the CrewAI ReAct loop.
@@ -621,11 +638,15 @@ async def _ask_direct(
 
     s = get_settings()
 
-    # 1. RAG search — synchronous Chroma call; run in executor to stay non-blocking
+    # 1. RAG search — use pre-fetched chunks when available (saved ~1s for image
+    # queries by running concurrently with the vision model); otherwise fetch now.
     loop = asyncio.get_running_loop()
-    chunks: list[dict] = await loop.run_in_executor(
-        _executor, rag_search_tool._run, question, 5
-    )
+    if pre_chunks is not None:
+        chunks: list[dict] = pre_chunks
+    else:
+        chunks = await loop.run_in_executor(
+            _executor, rag_search_tool._run, question, 3
+        )
 
     # 2. Format RAG context block
     if chunks:
@@ -686,7 +707,8 @@ async def _ask_direct(
             {"role": "system", "content": get_tutor_prompt(language)},
             {"role": "user",   "content": user_message},
         ],
-        max_tokens=2500,
+        max_tokens=1500,
         temperature=0.1,
+        timeout=55,
     )
     return response.choices[0].message.content.strip()
