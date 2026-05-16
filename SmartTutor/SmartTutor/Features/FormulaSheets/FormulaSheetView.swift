@@ -515,7 +515,8 @@ struct FormulaDetailSheet: View {
                                          context: formula.id)
                     pendingStudyTopic = "Explain the formula \(formula.name): \(formula.expression). \(formula.variables)"
                     dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(350))
                         selectedMainTab = 1
                     }
                 } label: {

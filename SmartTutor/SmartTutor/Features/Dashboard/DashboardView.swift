@@ -124,7 +124,8 @@ struct DashboardView: View {
                 AppLogger.camera.info("DashboardView: onImage called  size=\(image.size.width)×\(image.size.height)")
                 // Wait for picker dismiss animation, then set the item.
                 // Use sheet(item:) so SwiftUI passes the image directly — no stale-closure nil race.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(450))
                     AppLogger.camera.info("DashboardView: setting pickedImageItem")
                     pickedImageItem = IdentifiableImage(image: image)
                 }
@@ -138,7 +139,8 @@ struct DashboardView: View {
                                      action: "image-query-submitted", context: query)
                 pendingStudyTopic = query
                 pickedImageItem = nil
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
                     selectedMainTab = 1
                     AppLogger.navigated(to: "StudyView[image-query]", from: "Dashboard")
                 }

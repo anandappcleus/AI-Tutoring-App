@@ -39,7 +39,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 logger.info("AppDelegate: user denied push notification permission")
                 return
             }
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 logger.info("AppDelegate: permission granted — registering for remote notifications")
                 UIApplication.shared.registerForRemoteNotifications()
             }

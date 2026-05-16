@@ -148,7 +148,8 @@ struct PaywallView: View {
                             AppLogger.userAction(AppLogger.auth, action: "subscribe-tapped",
                                                  context: selectedPlan == .monthly ? "monthly" : "annual")
                             isProcessing = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            Task {
+                                try? await Task.sleep(for: .seconds(2))
                                 isProcessing = false
                                 onSubscribe()
                             }

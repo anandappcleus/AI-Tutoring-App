@@ -242,6 +242,6 @@ struct RegisterView: View {
 #Preview {
     NavigationStack {
         RegisterView()
-            .environmentObject(AppState())
+            .environment(AppState())
     }
 }

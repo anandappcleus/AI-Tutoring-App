@@ -413,7 +413,8 @@ struct MockTestDetailView: View {
                                              context: test.id)
                         pendingStudyTopic = "Practice \(test.examType) mock test questions from \(test.title)"
                         dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(350))
                             selectedMainTab = 1
                         }
                     } label: {

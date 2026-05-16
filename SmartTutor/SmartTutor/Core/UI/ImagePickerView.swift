@@ -70,7 +70,7 @@ struct ImagePickerView: UIViewControllerRepresentable {
                     return
                 }
                 AppLogger.camera.info("ImagePickerView: loaded  size=\(image.size.width)×\(image.size.height)  scale=\(image.scale) — dispatching onImage to main")
-                DispatchQueue.main.async { self?.parent.onImage(image) }
+                Task { @MainActor [weak self] in self?.parent.onImage(image) }
             }
         }
     }

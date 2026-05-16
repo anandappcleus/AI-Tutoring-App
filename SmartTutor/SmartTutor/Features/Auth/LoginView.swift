@@ -231,5 +231,5 @@ struct LoginView: View {
 
 #Preview {
     LoginView()
-        .environmentObject(AppState())
+        .environment(AppState())
 }
