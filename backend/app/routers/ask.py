@@ -48,12 +48,13 @@ from app.routers.auth import get_current_student
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-# Fallback model used when the primary (large) model is queue-throttled on NIM
-_FAST_FALLBACK_MODEL = "meta/llama-3.1-8b-instruct"
+# Fallback model used when the primary (large) model is queue-throttled on NIM.
+# Override via LLM_FAST_MODEL env var — e.g. llama-3.1-8b-instant on Groq.
+_FAST_FALLBACK_MODEL = "meta/llama-3.1-8b-instruct"  # resolved at runtime from settings
 
 FREE_DAILY_LIMIT = 50           # free-tier questions per UTC day (raised for testing)
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="crewai")
-_VISION_MODEL = "meta/llama-3.2-11b-vision-instruct"
+_VISION_MODEL = "meta/llama-3.2-90b-vision-instruct"  # resolved at runtime from settings
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────
@@ -73,7 +74,7 @@ class AskRequest(BaseModel):
     image_b64: str | None = Field(
         None,
         max_length=4_000_000,   # ~3 MB raw image — generous limit
-        description="JPEG image as base64 string. When present, the 11B vision model extracts math text.",
+        description="JPEG image as base64 string. When present, the 90B vision model extracts math text.",
     )
 
 
@@ -100,7 +101,7 @@ class AskResponse(BaseModel):
 
 async def _extract_image_content(image_b64: str) -> str:
     """
-    Use llama-3.2-11b-vision-instruct (NIM) to analyse the attached image.
+    Use llama-3.2-90b-vision-instruct (NIM) to analyse the attached image.
 
     Returns:
       - "NOT_EDUCATIONAL" (exact string) if the image is not a textbook problem.
@@ -111,9 +112,10 @@ async def _extract_image_content(image_b64: str) -> str:
     to the 70B reasoning crew.
     """
     s = get_settings()
+    vision_model = s.LLM_VISION_MODEL
     response = await asyncio.wait_for(
         acompletion(
-            model=f"openai/{_VISION_MODEL}",
+            model=f"openai/{vision_model}",
             api_base=s.LLM_BASE_URL,
             api_key=s.LLM_API_KEY,
             messages=[{
@@ -148,9 +150,9 @@ async def _extract_image_content(image_b64: str) -> str:
                     },
                 ],
             }],
-            max_tokens=350,
+            max_tokens=700,
         ),
-        timeout=25.0,   # hard wall-clock deadline — litellm's timeout= param is ignored by NIM
+        timeout=30.0,   # 90B needs a bit more time; hard wall-clock deadline
     )
     return response.choices[0].message.content.strip()
 
@@ -749,9 +751,10 @@ async def _ask_direct(
     try:
         return await _call_model(primary_model, 40.0)
     except asyncio.TimeoutError:
-        # Primary model is queue-throttled on NIM free tier — fall back to fast 8B
+        # Primary model is queue-throttled on NIM free tier — fall back to fast model
+        fast_model = s.LLM_FAST_MODEL
         log.warning(
             "ask.primary_timeout  student_id=%s  primary=%s  fallback=%s",
-            student_id, primary_model, _FAST_FALLBACK_MODEL,
+            student_id, primary_model, fast_model,
         )
-        return await _call_model(_FAST_FALLBACK_MODEL, 35.0)
+        return await _call_model(fast_model, 35.0)

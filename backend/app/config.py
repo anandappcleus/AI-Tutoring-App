@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     LLM_API_KEY: str
     LLM_CHAT_MODEL: str = "ai21labs/sarvam-m"
     LLM_AGENT_MODEL: str = "meta/llama-3.3-70b-instruct"
+    LLM_FAST_MODEL: str = "meta/llama-3.1-8b-instruct"  # fallback when primary is throttled
+    LLM_VISION_MODEL: str = "meta/llama-3.2-90b-vision-instruct"  # 90B is far better at typeset math OCR
     EMBED_MODEL: str = "nvidia/nv-embedqa-e5-v5"
 
     # ── Vector DB ────────────────────────────────────────────────────
