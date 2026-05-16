@@ -35,7 +35,7 @@ struct MathTextView: View {
 
     private func _buildText() -> Text {
         _splitSegments(rawText).reduce(Text("")) { acc, seg in
-            acc + _renderSegment(seg)
+            Text("\(acc)\(_renderSegment(seg))")
         }
     }
 
@@ -109,7 +109,7 @@ private enum _LatexRenderer {
 
     static func render(_ latex: String, fontSize: CGFloat) -> Text {
         tokenize(latex).reduce(Text("")) { acc, tok in
-            acc + renderToken(tok, fontSize: fontSize)
+            Text("\(acc)\(renderToken(tok, fontSize: fontSize))")
         }
     }
 
@@ -203,29 +203,32 @@ private enum _LatexRenderer {
 
         case .frac(let num, let den):
             // Rendered as (num/den) inline — readable and correct
-            return Text("(").font(mono)
-                + render(num, fontSize: fontSize)
-                + Text("/").font(mono)
-                + render(den, fontSize: fontSize)
-                + Text(")").font(mono)
+            let _fOpen  = Text("(").font(mono)
+            let _fNum   = render(num, fontSize: fontSize)
+            let _fSlash = Text("/").font(mono)
+            let _fDen   = render(den, fontSize: fontSize)
+            let _fClose = Text(")").font(mono)
+            return Text("\(_fOpen)\(_fNum)\(_fSlash)\(_fDen)\(_fClose)")
 
         case .sqrt(let content, let idx):
             let radical: Text
             if let ix = idx, !ix.isEmpty {
-                radical = render(ix, fontSize: fontSize * 0.6).baselineOffset(fontSize * 0.5)
-                    + Text("√").font(.system(size: fontSize))
+                let _sIdx  = render(ix, fontSize: fontSize * 0.6).baselineOffset(fontSize * 0.5)
+                let _sSym  = Text("√").font(.system(size: fontSize))
+                radical = Text("\(_sIdx)\(_sSym)")
             } else {
                 radical = Text("√").font(.system(size: fontSize))
             }
-            return radical
-                + Text("(").font(mono)
-                + render(content, fontSize: fontSize)
-                + Text(")").font(mono)
+            let _sOpen    = Text("(").font(mono)
+            let _sContent = render(content, fontSize: fontSize)
+            let _sClose   = Text(")").font(mono)
+            return Text("\(radical)\(_sOpen)\(_sContent)\(_sClose)")
 
         case .paren(let s):
-            return Text("(").font(mono)
-                + render(s, fontSize: fontSize)
-                + Text(")").font(mono)
+            let _pOpen  = Text("(").font(mono)
+            let _pInner = render(s, fontSize: fontSize)
+            let _pClose = Text(")").font(mono)
+            return Text("\(_pOpen)\(_pInner)\(_pClose)")
         }
     }
 
