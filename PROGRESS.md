@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 15 May 2026 (Image OCR pipeline, chat thumbnail, irrelevant-image guard)*
+*Last updated: 16 May 2026 (SymPy verifier fully operational; vision + LLM accuracy hardening)*
 
 ---
 
@@ -229,6 +229,60 @@ No `ask.parse_failed` in any of the above. All 200s. ✅
 | 6 | **`StudyMessage.image: UIImage?`** — user messages now carry an optional image; custom `Equatable` (id-based, since `UIImage` isn't `Equatable`); `ask()` strips the `[Text from image:]` annotation from the display text so the chat bubble stays clean | `StudyViewModel.swift` | ✅ |
 | 7 | **Image thumbnail in chat** — `ChatMessage` and `ChatBubble` updated; user question bubbles show a 160 pt rounded thumbnail above the message text when an image was attached | `StudyView.swift` | ✅ |
 | 8 | **`ImagePickerView` logging** — added `didFinishPicking` count + dismiss log, asset-load size log, main-dispatch log | `ImagePickerView.swift` | ✅ |
+
+---
+
+## Post-Sprint 6 (cont.) — LLM Accuracy & SymPy Verifier ✅ Complete
+
+*16 May 2026 — end-to-end fix of SymPy sandbox, vision extraction, and LLM reliability.*
+
+### Root Cause: SymPy Sandbox Never Worked
+
+The `sympy_verifier.py` module was introduced to give the 70B a verified numerical answer before it writes its explanation. It was silently broken from day one: Python's `from X import Y` syntax compiles to `__import__('X', ...)` bytecode, and the sandbox had `__import__` stripped from `__builtins__`. Every `from sympy import …` line raised `ImportError` silently → caught by `except Exception` → `no_output` log for every single question.
+
+### Issues Fixed (all deployed)
+
+| # | Issue | Root Cause | Fix | Commit |
+|---|-------|-----------|-----|--------|
+| 1 | `sympy_verifier.no_output` — all questions | `__import__` stripped from sandbox `__builtins__`; `from sympy import …` always raised `ImportError` silently | Added `_restricted_import` to `safe_builtins['__import__']` — allows whitelisted modules, blocks all others | `867d368` |
+| 2 | `sympy_verifier.no_output` — exponential eqs (`3^x = 4^(x-1)`) | 8B generated `solve(3**x - 4**(x-1), x)` — SymPy cannot solve transcendental equations; returned empty list → `IndexError` swallowed | Added example showing algebraic rearrangement: take ln both sides → linear eq → `solve(x*log(3)-(x-1)*log(4), x)` | `94ead88` |
+| 3 | `sympy_verifier.cannot_evaluate` for image MCQ questions | `effective_question` starts with user meta-text ("Which one is correct?"); 8B saw this first and returned `CANNOT_EVALUATE` | When `body.image_b64` is set, pass only the extracted image content to SymPy — the math is in the image, not the user's framing | `c5fdf18` |
+| 4 | SymPy returns unrecognisable answer `−log(2^(2/log(3/4)))` | `nsimplify()` of `log(4)/(log(4)−log(3))` produced a valid but unreadable form the 70B could not match to MCQ options | Changed exponential eq example to `round(float(sol), 4)` → `4.8202`; updated rule 3 in translation prompt to guide decimal vs symbolic choice | `82f9003` |
+| 5 | Vision misread `log_{3/2}` as `log_3` | `3/2` subscript (fractional base) dropped its denominator | Added CRITICAL rule: "subscript of log is the BASE; 3/2 is base THREE-HALVES, never drop the denominator" | `e745821` |
+| 6 | Vision misread infinite nested radical as finite power | `√(4 − 1/(3√2)·√(4−…))` rewritten as `(1/(3√2))^{4−1/(3√2)}` | Added CRITICAL rule: repeating sqrt pattern = INFINITE nested radical; write with `…`, do NOT rewrite as base^exponent | `e745821` |
+| 7 | MCQ options (A/B/C/D) not extracted from images | Vision prompt only said "extract options" when multiple questions present | Added explicit CRITICAL rule: extract every labeled choice with full math content for ANY single MCQ question | `4df6b78` |
+| 8 | 8B token-spinning loop (repeated LaTeX 20+ times) | 8B fallback on hard algebra enters infinite repetition until `max_tokens` hit | `_dedup_repetition()`: finds any 35/60/100-char substring appearing ≥5 times, truncates after 3rd occurrence; 8B `max_tokens` 3500→1500 | `a1c4eb2` |
+| 9 | Generated SymPy code not visible when `no_output` fires | `log.debug(...)` not shown at INFO level in Railway | Changed to `log.info(...)` for generated code and exec exceptions | `94ead88` |
+| 10 | `StudentProfile.load()` (Keychain read) on every `StudyView` render | `isPremium` and `langCode` were computed properties calling `StudentProfile.load()` directly; `StudyView.body` evaluates 30+ times during image sheet animations | Added `@Environment(AppState.self)` to `StudyView`; read from `appState.currentProfile` (already in memory) | `64ce60a` |
+
+### SymPy Coverage After Fixes
+
+| Problem Type | Before | After |
+|---|---|---|
+| Log-exponent identity `((log₂9)²)^(1/log₂(log₂9))` | ❌ `ImportError` | ✅ Returns `4` |
+| Infinite nested radical `6 + log_{3/2}(…)` | ❌ `ImportError` | ✅ Returns `4` |
+| Exponential equation `3^x = 4^(x-1)` | ❌ `ImportError` then wrong code | ✅ Returns `4.8202` |
+| Conceptual questions | ❌ `ImportError` | ✅ `CANNOT_EVALUATE` (correct) |
+| Image MCQ with meta-question | ❌ `CANNOT_EVALUATE` (saw user text) | ✅ Evaluates image math |
+
+### Vision Extraction Accuracy After Fixes
+
+| Pattern | Before | After |
+|---|---|---|
+| `log_{3/2}` (fractional base) | Misread as `log_3` | Correctly `log_{3/2}` |
+| Infinite nested radical `√(4−…)` | Misread as `(base)^(exp)` | Correctly `sqrt(4 - … )` |
+| MCQ options A/B/C/D | Silently dropped | Fully extracted verbatim |
+| Multi-level exponents `(log₂9)²` | Outer `²` dropped | Correctly captured |
+
+### Production Log Sequence (healthy request, 16 May 2026)
+
+```
+ask.vision_extracted  chars=137
+sympy_verifier.code   chars=150  preview=from sympy import symbols, log, solve...
+ask.sympy_verified    answer=4.8202
+ask.direct_done       21s
+← POST /ask  status=200
+```
 
 ---
 
