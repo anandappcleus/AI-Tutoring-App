@@ -22,6 +22,11 @@ struct MathTextView: View {
     let rawText: String
     var fontSize: CGFloat = 15
 
+    init(_ rawText: String, fontSize: CGFloat = 15) {
+        self.rawText = rawText
+        self.fontSize = fontSize
+    }
+
     var body: some View {
         _buildText()
             .fixedSize(horizontal: false, vertical: true)
