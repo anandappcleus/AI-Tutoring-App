@@ -747,7 +747,7 @@ async def _ask_direct(
         return resp.choices[0].message.content.strip()
 
     try:
-        return await _call_model(primary_model, 30.0)
+        return await _call_model(primary_model, 40.0)
     except asyncio.TimeoutError:
         # Primary model is queue-throttled on NIM free tier — fall back to fast 8B
         log.warning(
