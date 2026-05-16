@@ -10,6 +10,7 @@ import os
 import SwiftUI
 
 struct StudyView: View {
+    @Environment(AppState.self) private var appState
     @State private var vm = StudyViewModel()
     @State private var inputText = ""
     @State private var isRecording = false
@@ -24,7 +25,7 @@ struct StudyView: View {
 
     // Derived from ViewModel state
     private var isLoading: Bool { vm.viewState == .loading }
-    private var isPremium: Bool { StudentProfile.load()?.isPremium ?? false }
+    private var isPremium: Bool { appState.currentProfile?.isPremium ?? false }
     private var questionsToday: Int { vm.questionsUsedToday }
 
     var body: some View {
@@ -73,7 +74,7 @@ struct StudyView: View {
             PaywallView(onSubscribe: { showPaywall = false })
         }
         .sheet(isPresented: $showVoiceInput, onDismiss: { isRecording = false }) {
-            let langCode = (StudentProfile.load()?.preferredLanguage.rawValue ?? "bn") + "-IN"
+            let langCode = (appState.currentProfile?.preferredLanguage.rawValue ?? "bn") + "-IN"
             VoiceInputView(languageCode: langCode) { transcription in
                 inputText = transcription
             }
