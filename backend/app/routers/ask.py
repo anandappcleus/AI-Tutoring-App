@@ -779,7 +779,7 @@ async def _ask_direct(
                     {"role": "system", "content": get_tutor_prompt(language)},
                     {"role": "user",   "content": user_message},
                 ],
-                max_tokens=1500,
+                max_tokens=2500,
                 temperature=0.1,
             ),
             timeout=timeout_s,

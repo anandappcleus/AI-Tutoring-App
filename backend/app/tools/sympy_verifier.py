@@ -121,6 +121,18 @@ v, theta, g = 30, pi/3, 10
 result = nsimplify(v**2 * sin(2*theta) / g)
 print(result)
 
+Problem: Find the value of 6 + log_{3/2}(1/(3*sqrt(2)) * sqrt(4 - 1/(3*sqrt(2)) * sqrt(4 - ...))) [infinite nested radical]
+Code:
+from sympy import symbols, sqrt, solve, log, Rational, nsimplify
+# Let y = (1/(3*sqrt(2))) * sqrt(4 - y)  [infinite self-similar structure]
+# Then: (3*sqrt(2)*y)^2 = 4 - y  =>  18*y^2 + y - 4 = 0
+y = symbols('y', positive=True)
+eq = 18*y**2 + y - 4
+y_val = solve(eq, y)[0]        # positive root = 4/9
+base = Rational(3, 2)
+result = nsimplify(6 + log(y_val) / log(base))
+print(result)
+
 Problem: Explain Newton's third law.
 Output: CANNOT_EVALUATE
 
