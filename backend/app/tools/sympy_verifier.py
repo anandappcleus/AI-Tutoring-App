@@ -218,11 +218,25 @@ def _execute_sympy_sync(code: str) -> Optional[str]:
     import decimal as _decimal
     import fractions as _fractions
     import math as _math
+    import builtins as _real_builtins
 
     import sympy
 
-    # Minimal safe builtins — no open, no eval, no exec, no __import__
+    # Restricted __import__: Python's `from X import Y` syntax compiles to
+    # __import__('X', ...).  We must provide it in __builtins__ or every
+    # `from sympy import ...` line raises ImportError at runtime.
+    # We allow only the whitelisted modules — the AST gate already validated
+    # the import statements, this is a defence-in-depth runtime check.
+    _real_import = _real_builtins.__import__
+    def _restricted_import(name, globals=None, locals=None, fromlist=(), level=0):
+        top = name.split(".")[0]
+        if top not in _ALLOWED_IMPORTS:
+            raise ImportError(f"import of '{top}' is blocked in sandbox")
+        return _real_import(name, globals, locals, fromlist, level)
+
+    # Minimal safe builtins
     safe_builtins: dict = {
+        "__import__": _restricted_import,   # needed for `from X import Y`
         "print": print,
         "abs": abs, "round": round, "min": min, "max": max,
         "len": len, "range": range, "enumerate": enumerate, "zip": zip,
