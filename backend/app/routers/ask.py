@@ -623,10 +623,19 @@ async def ask(
     # ── SymPy verification: ground-truth answer before 70B explanation ──
     # Runs sequentially here (after vision+RAG) so the verified answer can be
     # injected into the LLM prompt.  Falls through silently on any failure.
+    # IMPORTANT: when an image is present, pass only the extracted image text
+    # to SymPy — the user's question ("Which one is correct?", "Solve this") is
+    # a meta-question that causes the 8B to return CANNOT_EVALUATE.  The actual
+    # math is entirely in the image content.
     from app.tools.sympy_verifier import verify_with_sympy
     sympy_answer: str | None = None
+    _sympy_input = (
+        extracted
+        if body.image_b64 and extracted and extracted not in ("", "NOT_EDUCATIONAL")
+        else effective_question
+    )
     try:
-        sympy_result = await verify_with_sympy(effective_question)
+        sympy_result = await verify_with_sympy(_sympy_input)
         if sympy_result:
             sympy_answer = sympy_result.answer
             log.info(
