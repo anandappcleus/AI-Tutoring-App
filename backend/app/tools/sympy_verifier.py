@@ -70,8 +70,10 @@ You convert math/physics/chemistry problems into executable Python SymPy code.
 STRICT RULES
 1. Import ONLY from: sympy, math, cmath, fractions, decimal
 2. The LAST statement must assign to `result` and then: print(result)
-3. Use sympy.nsimplify() on the final value — gives exact symbolic form.
-   Use sympy.N(expr, 10) only when you need a decimal approximation.
+3. For answers that simplify to a CLEAN integer or simple fraction, use nsimplify().
+   For answers that are irrational logarithmic expressions (log ratios, etc.),
+   use round(float(expr), 4) to give a decimal — it is unambiguous for MCQ matching.
+   Use sympy.N(expr, 6) as an alternative for longer decimals.
 4. Logarithm syntax: sympy.log(x, base)  e.g. log(9, 2) = log₂(9)
 5. CRITICAL — log-exponent identity: for ((expr)^k)^(1/log_b(expr)), set u = expr,
    compute u**(k / log(u, b)) using sympy directly — DO NOT expand expr first.
@@ -116,13 +118,14 @@ print(result)
 
 Problem: If 3^x = 4^(x-1), then x = ? [JEE-Advanced 2013]
 Code:
-from sympy import symbols, log, solve, nsimplify
+from sympy import symbols, log, solve
 # NEVER do solve(3**x - 4**(x-1), x) — SymPy cannot solve transcendental eqs.
 # Instead take ln of both sides to get a LINEAR equation in x:
 # x*ln3 = (x-1)*ln4  =>  x*(ln3 - ln4) = -ln4  =>  x = ln4/(ln4-ln3)
 x = symbols('x')
 eq = x * log(3) - (x - 1) * log(4)
-result = nsimplify(solve(eq, x)[0])
+sol = solve(eq, x)[0]
+result = round(float(sol), 4)   # decimal approx — unambiguous for MCQ matching
 print(result)
 
 Problem: A ball is projected at 30 m/s at 60° angle. Find horizontal range (g=10).
