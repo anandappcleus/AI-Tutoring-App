@@ -433,7 +433,8 @@ private struct TodaysFocusSection: View {
                             .font(.system(size: 20, weight: .bold))
                             .padding(.bottom, 8)
 
-                        Text("\(firstTopic.durationMin) min · \(plan.topics.count) topic\(plan.topics.count == 1 ? "" : "s") today")
+                        let totalMin = plan.topics.reduce(0) { $0 + $1.durationMin }
+                        Text("~\(firstTopic.durationMin) min for this topic · \(plan.topics.count) topic\(plan.topics.count == 1 ? "" : "s") · ~\(totalMin) min total today")
                             .font(.system(size: 14))
                             .foregroundStyle(.secondary)
                             .lineSpacing(3)
