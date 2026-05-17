@@ -13,6 +13,7 @@ struct LearnerProgressView: View {
     @Environment(AppState.self) private var appState
     @State private var vm = ProgressViewModel()
     @State private var selectedSubjectName: String? = nil
+    @State private var selectedDayName: String? = nil
     @AppStorage("selectedMainTab")   private var selectedMainTab   = 0
     @AppStorage("pendingStudyTopic") private var pendingStudyTopic = ""
 
@@ -63,6 +64,11 @@ struct LearnerProgressView: View {
                         if !data.dailyActivity.isEmpty {
                             ChartCard(title: "Weekly Study Time", trailingIcon: "arrow.up.right", trailingColor: .green) {
                                 Chart(data.dailyActivity, id: \.dayName) { item in
+                                    AreaMark(
+                                        x: .value("Day", item.dayName),
+                                        y: .value("Minutes", item.estimatedMin)
+                                    )
+                                    .foregroundStyle(Color.purple.opacity(0.12).gradient)
                                     LineMark(
                                         x: .value("Day", item.dayName),
                                         y: .value("Minutes", item.estimatedMin)
@@ -71,11 +77,14 @@ struct LearnerProgressView: View {
                                     .lineStyle(StrokeStyle(lineWidth: 2.5))
                                     .symbol(.circle)
                                     .symbolSize(36)
-                                    AreaMark(
-                                        x: .value("Day", item.dayName),
-                                        y: .value("Minutes", item.estimatedMin)
-                                    )
-                                    .foregroundStyle(Color.purple.opacity(0.12).gradient)
+                                    .annotation(position: .top, alignment: .center, spacing: 4) {
+                                        if item.dayName == selectedDayName {
+                                            ChartTooltipCard(
+                                                title: item.dayName,
+                                                subtitle: "minutes : \(item.estimatedMin)"
+                                            )
+                                        }
+                                    }
                                 }
                                 .chartYAxis {
                                     AxisMarks(values: .automatic(desiredCount: 4)) {
@@ -86,74 +95,71 @@ struct LearnerProgressView: View {
                                 .chartXAxis {
                                     AxisMarks { AxisValueLabel().font(.system(size: 11)) }
                                 }
+                                .chartXSelection(value: $selectedDayName)
                                 .frame(height: 160)
                             }
                         }
 
                         // ── Subject Performance — bar chart ──────────
-                        // Use subject_accuracy if populated; fall back to top topics
-                        let subjectItems: [ProgressResponse.SubjectAccuracy] = data.subjectAccuracy.isEmpty
+                        // Use subject_accuracy if populated; fall back to top topics.
+                        // Sort in canonical exam order: Physics → Chemistry → Maths → Biology
+                        let subjectOrder = ["Physics", "Chemistry", "Maths", "Biology"]
+                        let rawSubjects: [ProgressResponse.SubjectAccuracy] = data.subjectAccuracy.isEmpty
                             ? Array(data.topics.prefix(6).map {
                                 ProgressResponse.SubjectAccuracy(
                                     subject: $0.topic, total: $0.total,
                                     correct: $0.correct, accuracyPct: $0.accuracyPct)
                               })
                             : data.subjectAccuracy
+                        let subjectItems = rawSubjects.sorted {
+                            let i0 = subjectOrder.firstIndex(of: $0.subject) ?? Int.max
+                            let i1 = subjectOrder.firstIndex(of: $1.subject) ?? Int.max
+                            return i0 < i1
+                        }
 
                         if !subjectItems.isEmpty {
                             ChartCard(title: "Subject Performance", trailingIcon: "rosette", trailingColor: .yellow) {
-                                VStack(spacing: 8) {
-                                    Chart(subjectItems, id: \.subject) { item in
-                                        BarMark(
-                                            x: .value("Subject", item.subject),
-                                            y: .value("Accuracy %", item.accuracyPct)
-                                        )
-                                        .foregroundStyle(
-                                            item.subject == selectedSubjectName
-                                                ? Color.indigo.gradient
-                                                : Color.purple.gradient
-                                        )
-                                        .cornerRadius(8)
-                                    }
-                                    .chartYScale(domain: 0...110)
-                                    .chartYAxis {
-                                        AxisMarks(values: [0, 25, 50, 75, 100]) {
-                                            AxisValueLabel().font(.system(size: 11))
-                                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                                Chart(subjectItems, id: \.subject) { item in
+                                    BarMark(
+                                        x: .value("Subject", item.subject),
+                                        y: .value("Accuracy %", item.accuracyPct)
+                                    )
+                                    .foregroundStyle(Color.purple.gradient)
+                                    .cornerRadius(8)
+                                    .annotation(position: .top, alignment: .center, spacing: 4) {
+                                        if item.subject == selectedSubjectName {
+                                            ChartTooltipCard(
+                                                title: item.subject,
+                                                subtitle: "accuracy : \(Int(item.accuracyPct))"
+                                            )
                                         }
-                                    }
-                                    .chartOverlay { proxy in
-                                        GeometryReader { _ in
-                                            Rectangle()
-                                                .fill(.clear)
-                                                .contentShape(Rectangle())
-                                                .onTapGesture { location in
-                                                    guard let subject = proxy.value(atX: location.x, as: String.self) else { return }
-                                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                                        selectedSubjectName = selectedSubjectName == subject ? nil : subject
-                                                    }
-                                                }
-                                        }
-                                    }
-                                    .frame(height: 200)
-
-                                    if let name = selectedSubjectName,
-                                       let sel = subjectItems.first(where: { $0.subject == name }) {
-                                        Text("\(sel.subject) accuracy: \(Int(sel.accuracyPct))%")
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundStyle(.purple)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(Color.purple.opacity(0.08))
-                                            .clipShape(Capsule())
-                                            .transition(.scale.combined(with: .opacity))
                                     }
                                 }
+                                .chartYScale(domain: 0...110)
+                                .chartYAxis {
+                                    AxisMarks(values: [0, 25, 50, 75, 100]) {
+                                        AxisValueLabel().font(.system(size: 11))
+                                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                                    }
+                                }
+                                .chartXSelection(value: $selectedSubjectName)
+                                .frame(height: 200)
                             }
                         }
 
                         // ── Topics Needing Attention ──────────────────
-                        if !data.weakTopics.isEmpty {
+                        // Show weak topics (< 50%) or, if none, the 3 lowest-accuracy topics
+                        let attentionTopics: [ProgressResponse.TopicProgress] = {
+                            let weak = data.topics.filter { data.weakTopics.contains($0.topic) }
+                            if !weak.isEmpty { return weak }
+                            return Array(
+                                data.topics
+                                    .filter { $0.topic != "Uncategorised" }
+                                    .sorted { $0.accuracyPct < $1.accuracyPct }
+                                    .prefix(3)
+                            )
+                        }()
+                        if !attentionTopics.isEmpty {
                             VStack(alignment: .leading, spacing: 16) {
                                 HStack(spacing: 10) {
                                     ZStack {
@@ -166,7 +172,7 @@ struct LearnerProgressView: View {
                                         .font(.system(size: 16, weight: .bold))
                                 }
 
-                                ForEach(data.topics.filter { data.weakTopics.contains($0.topic) }, id: \.topic) { topic in
+                                ForEach(attentionTopics, id: \.topic) { topic in
                                     WeakTopicRow(
                                         name: topic.topic,
                                         accuracy: Int(topic.accuracyPct),
@@ -355,6 +361,28 @@ private struct WeakTopicRow: View {
         .padding(16)
         .background(Color(UIColor.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+private struct ChartTooltipCard: View {
+    let title: String
+    let subtitle: String
+    var subtitleColor: Color = .purple
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
+            Text(subtitle)
+                .font(.system(size: 12))
+                .foregroundStyle(subtitleColor)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Color(UIColor.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
     }
 }
 
