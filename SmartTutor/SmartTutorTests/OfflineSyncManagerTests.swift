@@ -55,7 +55,7 @@ final class OfflineSyncManagerTests: XCTestCase {
         try await Task.sleep(nanoseconds: 50_000_000)
 
         mockAPI.stub = .success(AskResponse(
-            explanation: "", workedExample: "", practiceProblems: [], language: "en",
+            answer: "", explanation: "", workedExample: "", practiceProblems: [], language: "en",
             questionType: nil, marks: nil, markingScheme: nil, rawOutput: nil
         ))
         // Override sync stub with SyncResponse (APIClient.request is generic)

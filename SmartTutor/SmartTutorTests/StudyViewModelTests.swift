@@ -72,6 +72,7 @@ final class MockSyncManager: OfflineSyncManaging {
 
 private func makeAskResponse(explanation: String = "Test explanation") -> AskResponse {
     AskResponse(
+        answer: "",
         explanation: explanation,
         workedExample: "F = ma",
         practiceProblems: [
@@ -294,6 +295,7 @@ final class StudyViewModelTests: XCTestCase {
             profile: { jeeProfile }
         )
         let jeeResponse = AskResponse(
+            answer: "A",
             explanation: "Newton's second law states F = ma.",
             workedExample: "If F=10N and m=2kg then a=5 m/s².",
             practiceProblems: [

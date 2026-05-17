@@ -149,6 +149,7 @@ struct SyncAnswerPayload: Codable {
 // MARK: - Response Types
 
 struct AskResponse: Decodable, Equatable {
+    let answer: String             // MCQ option letter / numerical value / one-line answer
     let explanation: String
     let workedExample: String
     let practiceProblems: [PracticeProblem]
@@ -174,7 +175,7 @@ struct AskResponse: Decodable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case explanation, language, marks
+        case answer, explanation, language, marks
         case workedExample    = "worked_example"
         case practiceProblems = "practice_problems"
         case questionType     = "question_type"

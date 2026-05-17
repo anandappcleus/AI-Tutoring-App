@@ -243,6 +243,11 @@ struct StudyMessage: Identifiable, Equatable {
             parts.append("🎯 \(badge)")
         }
 
+        // Answer callout — shown before explanation so it's immediately visible
+        if !response.answer.isEmpty {
+            parts.append("✅ Answer: \(response.answer)")
+        }
+
         parts.append(response.explanation)
 
         if !response.workedExample.isEmpty {

@@ -87,6 +87,7 @@ class PracticeProblem(BaseModel):
 
 
 class AskResponse(BaseModel):
+    answer: str = ""               # MCQ option letter / numerical value / one-line answer
     explanation: str
     worked_example: str
     practice_problems: list[PracticeProblem]
@@ -610,6 +611,7 @@ async def ask(
         if extracted == "NOT_EDUCATIONAL":
             log.info("ask.vision_irrelevant  student_id=%s", student_id)
             return AskResponse(
+                answer="",
                 explanation=(
                     "I can see your image, but it doesn't look like a textbook question, "
                     "equation, or diagram. Please send a photo of a maths or science problem "
@@ -750,6 +752,7 @@ async def ask(
         fallback_explanation = ""
 
     return AskResponse(
+        answer=parsed.get("answer", ""),
         explanation=parsed.get("explanation") or fallback_explanation,
         worked_example=parsed.get("worked_example", ""),
         practice_problems=[
@@ -931,7 +934,7 @@ async def _ask_direct(
         f"   For META QUERY: concise exam overview + 1 practice problem.\n"
         f"3. Respond in {lang_name} at Class 11-12 level.\n"
         f"4. Format practice problems per the exam context above.\n"
-        f'Return ONLY valid JSON: {{"explanation":"...","worked_example":"...",'
+        f'Return ONLY valid JSON: {{"answer":"<option letter or value>","explanation":"...","worked_example":"...",'
         f'"practice_problems":[{{"question":"...","answer":"...","question_type":"...",'
         f'"marks":4,"marking_scheme":"..."}}],'
         f'"topic":"...","subject":"...","question_type":"...","marks":4,"marking_scheme":"..."}}'

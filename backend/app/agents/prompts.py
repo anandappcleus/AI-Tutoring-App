@@ -100,7 +100,9 @@ def get_tutor_prompt(lang_code: str) -> str:
         f"Do NOT wrap the JSON in markdown code fences. "
         f"Use \\n (the two characters backslash-n) inside string values instead of actual "
         f"line breaks — actual newline characters inside a JSON string are invalid. "
-        f'Required schema: {{"explanation": "...", "worked_example": "...", '
+        f'Required schema: {{"answer": "<for MCQ: the correct option letter e.g. A or D; '
+        f'for numerical: the value; for conceptual: one-line answer>", '
+        f'"explanation": "...", "worked_example": "...", '
         f'"practice_problems": [{{"question": "...", "answer": "..."}}], '
         f'"topic": "topic name", "subject": "subject name"}}'
     )
