@@ -77,7 +77,10 @@ STRICT RULES
 4. Logarithm syntax: sympy.log(x, base)  e.g. log(9, 2) = log₂(9)
 5. CRITICAL — log-exponent identity: for ((expr)^k)^(1/log_b(expr)), set u = expr,
    compute u**(k / log(u, b)) using sympy directly — DO NOT expand expr first.
-6. For MCQ: compute only the numerical value. Do NOT pick an option letter.
+6. For MCQ: COMPUTE the numerical/symbolic answer value. NEVER output an option
+   letter (A/B/C/D) or option number (1/2/3/4). The tutor model picks the option
+   — your job is to produce the computable value that the option represents.
+   If you cannot compute a value (conceptual/identify question), output CANNOT_EVALUATE.
 7. For physics word problems: set up equations symbolically, substitute, solve.
 8. For stoichiometry: use sympy.Matrix row-reduction to balance equations.
 9. Strip any markdown code fences from your output.
@@ -382,12 +385,15 @@ async def verify_with_sympy(question_text: str) -> Optional[SympyResult]:
 
     answer = raw.strip()
 
-    # Reject plain-English phrase answers — these are guesses, not SymPy computations.
-    # Real SymPy results are numbers (4, 4.82), symbolic exprs (2*pi/sqrt(k)), or
-    # single tokens (pi, oo, sqrt(2)).  A multi-word phrase containing only letters,
-    # spaces, and hyphens (no digits, no math operators) is the 8B guessing a
-    # conceptual MCQ answer that should have been CANNOT_EVALUATE.
+    # Reject answers that are guesses, not SymPy computations.
     import re as _re
+    # (a) Single MCQ option letter: A / B / C / D / (A) / a. etc.
+    if _re.match(r'^\(?[A-Da-d][.):]?\)?$', answer):
+        log.info("sympy_verifier.option_letter_rejected  answer=%s", answer)
+        return None
+    # (b) Multi-word plain-English phrase: no digits, no math operators.
+    #     e.g. "Van der Waals forces", "H-bond", "ionic bond".
+    #     Real SymPy results: numbers, symbolic exprs, or single tokens (pi, oo).
     if ' ' in answer and _re.match(r'^[A-Za-z][\w\s\-\']*$', answer):
         log.info("sympy_verifier.string_guess_rejected  answer=%.80s", answer)
         return None
