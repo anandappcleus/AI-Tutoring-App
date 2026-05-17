@@ -324,37 +324,52 @@ def _dedup_repetition(text: str) -> str:
     algebraic question, the 8B can enter a token-spinning loop: it keeps
     writing the same LaTeX fragment (e.g. '= \\frac{\\log 4}{\\log 3 - \\log 4}')
     over and over until max_tokens is reached.  This function finds any
-    substring that appears 5+ times in the output and truncates after the
-    3rd occurrence, keeping only a clean prefix.
+    substring whose *repeated content* accounts for ≥ MIN_DENSITY fraction
+    of the total text (genuine loops are 60–90% density) and truncates after
+    the Nth occurrence, keeping only a clean prefix.
 
-    Algorithm: sample candidate patterns of 3 lengths (35 / 60 / 100 chars)
-    from the first half of the text; for each, count total occurrences.
-    O(n) per candidate, bounded number of candidates → fast in practice.
+    Key insight: natural prose repeats short key terms (e.g. "hydrogen bond"
+    in a bio explanation) but density stays ≪ 30%.  A real LLM loop has the
+    same 35–100-char fragment filling 50–90% of the output.
+
+    Per-length config: (min_occurrences, cut_after_hit, min_density)
     """
     n = len(text)
     if n < 400:
         return text  # too short to have a meaningful loop
 
+    _THRESHOLDS = {
+        100: (5, 3, 0.35),   # 8B LaTeX loops: ~16–26 occ, density ~70–80%
+        60:  (6, 3, 0.35),
+        35:  (10, 4, 0.40),  # raised: natural prose hits 5–8 occ at <15% density
+    }
+
     for pat_len in (100, 60, 35):
-        # Only probe starting positions in the first ~40% of the text so we
-        # don't accidentally pick up a pattern that only appears near the end.
+        min_occ, cut_after, min_density = _THRESHOLDS[pat_len]
         probe_end = min(n // 2, 1200)
         for start in range(0, probe_end - pat_len, pat_len // 3):
             pattern = text[start:start + pat_len]
-            if text.count(pattern) < 5:
+            occ = text.count(pattern)
+            if occ < min_occ:
                 continue
-            # Found a repeated pattern — walk to the 3rd occurrence and cut
+            # Density check: repeated content must dominate the text.
+            # e.g. 6×35/2044 = 10% → natural prose, skip.
+            #      20×35/1200 = 58% → genuine loop, truncate.
+            density = (occ * pat_len) / n
+            if density < min_density:
+                continue
+            # Found a genuine repetition loop — walk to cut_after-th occurrence
             pos, hit = 0, 0
-            while hit < 3:
+            while hit < cut_after:
                 idx = text.find(pattern, pos)
                 if idx == -1:
                     break
                 pos = idx + 1
                 hit += 1
-            cut = pos - 1  # start of 3rd occurrence
+            cut = pos - 1
             log.warning(
-                "ask.repetition_truncated  pat_len=%d  occurrences=%d  cut_at=%d  total=%d",
-                pat_len, text.count(pattern), cut, n,
+                "ask.repetition_truncated  pat_len=%d  occurrences=%d  density=%.2f  cut_at=%d  total=%d",
+                pat_len, occ, density, cut, n,
             )
             return text[:cut] + "..."
     return text
