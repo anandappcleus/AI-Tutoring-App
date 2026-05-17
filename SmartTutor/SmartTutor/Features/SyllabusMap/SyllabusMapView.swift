@@ -201,7 +201,6 @@ struct SyllabusMapView: View {
         )
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .searchable(text: $vm.searchText, prompt: "Search topics or chapters")
         .toolbar {
             if vm.isLoadingProgress {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -218,18 +217,41 @@ struct SyllabusMapView: View {
 
     private var syllabusContent: some View {
         ScrollView {
-            LazyVStack(spacing: 14) {
-                ForEach(vm.filteredSubjects) { subject in
-                    SubjectAccordion(
-                        subject: subject,
-                        isExpanded: vm.expandedSubjectId == subject.id,
-                        onHeaderTap: { vm.toggleExpand(subject.id) }
-                    )
-                    .padding(.horizontal, 20)
+            VStack(spacing: 0) {
+                // Inline search bar
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search topics or chapters", text: $vm.searchText)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    if !vm.searchText.isEmpty {
+                        Button { vm.searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(Color(UIColor.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
+
+                LazyVStack(spacing: 14) {
+                    ForEach(vm.filteredSubjects) { subject in
+                        SubjectAccordion(
+                            subject: subject,
+                            isExpanded: vm.expandedSubjectId == subject.id,
+                            onHeaderTap: { vm.toggleExpand(subject.id) }
+                        )
+                        .padding(.horizontal, 20)
+                    }
+                }
+                .padding(.bottom, 32)
             }
-            .padding(.top, 8)
-            .padding(.bottom, 32)
         }
     }
 }

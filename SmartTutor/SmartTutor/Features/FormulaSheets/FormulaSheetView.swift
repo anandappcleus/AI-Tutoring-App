@@ -280,10 +280,32 @@ struct FormulaSheetView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
+                // Inline search bar
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search formulas\u{2026}", text: $vm.searchText)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    if !vm.searchText.isEmpty {
+                        Button { vm.searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(Color(UIColor.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 4)
+
                 // Subject filter pills
                 subjectFilterRow
                     .padding(.horizontal, 20)
-                    .padding(.top, 8)
+                    .padding(.top, 4)
                     .padding(.bottom, 4)
 
                 if vm.filteredCategories.isEmpty {
@@ -325,7 +347,7 @@ struct FormulaSheetView: View {
         )
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .searchable(text: $vm.searchText, prompt: "Search formulas…")
+
         .sheet(item: $selectedFormula) { formula in
             FormulaDetailSheet(formula: formula)
         }
