@@ -156,6 +156,20 @@ base = Rational(3, 2)
 result = nsimplify(6 + log(y_val) / log(base))
 print(result)
 
+Problem: Forces on a body: 5N (+x), 6N (-x), 7N (+y), 8N (-y). Find the additional force (magnitude and angle) for equilibrium.
+Code:
+from sympy import sqrt, atan2, pi, nsimplify
+# Net of given forces
+Fx_net = 5 - 6   # -1 N
+Fy_net = 7 - 8   # -1 N
+# Balancing force = exact negative of net
+Fx_bal = -Fx_net  # +1
+Fy_bal = -Fy_net  # +1
+mag = nsimplify(sqrt(Fx_bal**2 + Fy_bal**2))   # sqrt(2)
+angle_deg = nsimplify(atan2(Fy_bal, Fx_bal) * 180 / pi)  # 45
+result = f"{mag} N at {angle_deg} degrees"
+print(result)
+
 Problem: Explain Newton's third law.
 Output: CANNOT_EVALUATE
 
