@@ -338,7 +338,7 @@ private struct ChapterRow: View {
             AppLogger.userAction(AppLogger.syllabus,
                                  action: "chapter-tapped",
                                  context: chapter.title)
-            pendingStudyTopic = chapter.title
+            pendingStudyTopic = "Explain \(chapter.title) with key concepts, a worked example, and 2 practice problems"
             selectedMainTab = 1
         } label: {
             HStack(spacing: 14) {

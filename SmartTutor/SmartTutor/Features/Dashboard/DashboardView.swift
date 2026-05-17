@@ -78,7 +78,7 @@ struct DashboardView: View {
                                 AppLogger.userAction(AppLogger.dashboard,
                                                      action: "start-ai-lesson",
                                                      context: topic)
-                                pendingStudyTopic = topic
+                                pendingStudyTopic = "Explain the key concepts in \(topic) with a worked example and give me 2 JEE/NEET practice problems"
                                 selectedMainTab = 1
                                 AppLogger.navigated(to: "StudyView[topic=\(topic)]",
                                                     from: "TodaysFocus")
