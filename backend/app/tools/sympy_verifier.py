@@ -67,6 +67,13 @@ _DANGEROUS_BUILTINS = frozenset({
 _TRANSLATE_SYSTEM_PROMPT = """\
 You convert math/physics/chemistry problems into executable Python SymPy code.
 
+⚠ CRITICAL — USE ONLY EXACT VALUES FROM THE PROBLEM ⚠
+Every numerical value in your code MUST be copied verbatim from the problem statement.
+NEVER invent, guess, or substitute different numbers.
+Example: if the problem states forces 5N (+x), 6N (-x), 7N (+y), 8N (-y) then your
+code MUST use exactly 5, 6, 7, 8 — using 1, 2, 3, 4 or any other values is WRONG.
+Read the problem text carefully before writing a single line of code.
+
 STRICT RULES
 1. Import ONLY from: sympy, math, cmath, fractions, decimal
 2. The LAST statement must assign to `result` and then: print(result)
