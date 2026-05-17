@@ -22,6 +22,11 @@ final class DashboardViewModel {
     private let apiClient: APIClient
     private let syncManager: OfflineSyncManager
     private var currentStudentId: String = ""
+    /// Timestamp of the last successful network fetch — prevents re-fetching when
+    /// DashboardView re-appears (sheet dismiss, tab switch, app foreground) within
+    /// a short window.
+    private var lastLoadedAt: Date? = nil
+    private static let refreshInterval: TimeInterval = 300  // 5 minutes
 
     init(apiClient: APIClient = .shared, syncManager: OfflineSyncManager = .shared) {
         self.apiClient   = apiClient
@@ -33,6 +38,15 @@ final class DashboardViewModel {
 
     func loadPlan(studentId: String) async {
         guard !isLoading else { return }
+        // Skip network fetch if data is already loaded and fresh (within 5 min).
+        // The view re-appears on every sheet dismiss / tab switch / foreground;
+        // we don't want a new /plan request on each of those.
+        if studyPlan != nil,
+           let last = lastLoadedAt,
+           Date().timeIntervalSince(last) < Self.refreshInterval {
+            logger.debug("DashboardViewModel.loadPlan: data fresh — skipping fetch")
+            return
+        }
         currentStudentId = studentId
         isLoading = true
         defer { isLoading = false }
@@ -41,6 +55,7 @@ final class DashboardViewModel {
             let plan: StudyPlanResponse = try await apiClient.request(.plan(studentId: studentId))
             studyPlan = plan
             isShowingCachedPlan = false
+            lastLoadedAt = Date()
             cachePlan(plan, for: studentId)
             logger.info("DashboardViewModel.loadPlan: ok  topics=\(plan.topics.count)")
         } catch let error as APIError {
