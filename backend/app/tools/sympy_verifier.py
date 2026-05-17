@@ -86,6 +86,12 @@ STRICT RULES
       • organic chemistry mechanisms or named reactions
       • asking to draw / label a diagram
       • subjective / essay style
+      • MCQ asking to IDENTIFY a named entity — a type of bond, force, interaction,
+        structure, compound, element, reaction, functional group, or biological concept
+        where the answer is a NAME not a number
+        (e.g. "which force stabilises α-helix?", "which bond is present in H₂O?",
+         "which hybridisation does carbon have in ethene?", "which cell organelle...")
+      • biology questions: protein/DNA/RNA/cell/genetics/ecology/physiology
     → output exactly (nothing else): CANNOT_EVALUATE
 11. If you are not confident you can compute it correctly → output: CANNOT_EVALUATE
 
@@ -375,6 +381,16 @@ async def verify_with_sympy(question_text: str) -> Optional[SympyResult]:
         return None
 
     answer = raw.strip()
+
+    # Reject plain-English phrase answers — these are guesses, not SymPy computations.
+    # Real SymPy results are numbers (4, 4.82), symbolic exprs (2*pi/sqrt(k)), or
+    # single tokens (pi, oo, sqrt(2)).  A multi-word phrase containing only letters,
+    # spaces, and hyphens (no digits, no math operators) is the 8B guessing a
+    # conceptual MCQ answer that should have been CANNOT_EVALUATE.
+    import re as _re
+    if ' ' in answer and _re.match(r'^[A-Za-z][\w\s\-\']*$', answer):
+        log.info("sympy_verifier.string_guess_rejected  answer=%.80s", answer)
+        return None
 
     # Normalise floats that are actually integers (8.0 → 8, -3.0 → -3)
     is_integer = False
