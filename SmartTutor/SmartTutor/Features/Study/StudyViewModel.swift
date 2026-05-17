@@ -231,12 +231,16 @@ struct StudyMessage: Identifiable, Equatable {
         var parts: [String] = []
 
         // Exam badge — e.g. "JEE Mains • MCQ • 4 marks (+4/-1)"
-        if let qt = response.questionType, let m = response.marks {
+        // Only shown for real exam question types; internal labels (ACADEMIC TOPIC,
+        // META QUERY, PRACTICE REQUEST) are suppressed.
+        if let qt = response.questionType,
+           let displayQt = examQuestionTypeLabel(qt),
+           let m = response.marks {
             var badge = ""
             if let examTarget = profile()?.examTarget {
                 badge += examTarget.displayName + " • "
             }
-            badge += qt + " • \(m) mark" + (m == 1 ? "" : "s")
+            badge += displayQt + " • \(m) mark" + (m == 1 ? "" : "s")
             if let scheme = response.markingScheme, !scheme.isEmpty {
                 badge += " (\(scheme))"
             }
@@ -257,8 +261,10 @@ struct StudyMessage: Identifiable, Equatable {
         if !response.practiceProblems.isEmpty {
             let problems = response.practiceProblems.enumerated().map { i, p in
                 var line = "Q\(i + 1): \(p.question)\nA: \(p.answer)"
-                if let qt = p.questionType, let m = p.marks {
-                    line = "[\(qt), \(m) marks] " + line
+                if let qt = p.questionType,
+                   let displayQt = examQuestionTypeLabel(qt),
+                   let m = p.marks {
+                    line = "[\(displayQt), \(m) marks] " + line
                 }
                 return line
             }.joined(separator: "\n\n")
@@ -266,6 +272,26 @@ struct StudyMessage: Identifiable, Equatable {
         }
 
         return parts.joined(separator: "\n")
+    }
+
+    /// Maps backend question_type strings to user-facing labels.
+    /// Returns nil for internal classification labels that should not be shown.
+    private func examQuestionTypeLabel(_ raw: String) -> String? {
+        switch raw.uppercased().trimmingCharacters(in: .whitespaces) {
+        case "MCQ":                          return "MCQ"
+        case "INTEGER":                      return "Integer"
+        case "SUBJECTIVE", "SHORT ANSWER":   return "Subjective"
+        case "ASSERTION-REASON":             return "Assertion-Reason"
+        case "MATRIX MATCH":                 return "Matrix Match"
+        default:
+            // Suppress internal backend classification labels
+            let upper = raw.uppercased()
+            if upper.contains("TOPIC") || upper.contains("QUERY") ||
+               upper.contains("REQUEST") || upper.contains("PRACTICE") {
+                return nil
+            }
+            return raw   // pass through other values (future types)
+        }
     }
 
     private func appendWelcomeMessage() {
