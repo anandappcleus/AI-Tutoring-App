@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 17 May 2026 (FBD/force-value accuracy, LaTeX fix, Progress screen design aligned)*
+*Last updated: 17 May 2026 (nav bar consistency across all 6 views; chart tooltips; Progress screen design aligned)*
 
 ---
 
@@ -310,6 +310,8 @@ ask.direct_done       21s
 | 1 | **Dashboard/SyllabusMap sent bare topic name ("Algebra")** | `pendingStudyTopic` was set to just `topic` string; 70B classified it as a meta-query and gave a generic response | Enriched to full descriptive prompt: "Explain the key concepts in Algebra with a worked example and give me 2 JEE/NEET practice problems" | `3564142` |
 | 2 | **"ACADEMIC TOPIC" leaking into exam badge header** | Raw `questionType` from LLM was displayed verbatim; internal classification labels appeared in UI | Added `examQuestionTypeLabel()` mapper: suppresses any label containing "TOPIC", "QUERY", "REQUEST", "PRACTICE"; normalises MCQ/Integer/Subjective | `1537a1b` |
 | 3 | **"45 min · 3 topics today" duration ambiguous** | Duration label showed only first topic's duration with no context | Compute total minutes across all topics; label format changed to `"~15 min for this topic · 3 topics · ~45 min total today"` | `4cb3775` |
+| 4 | **`examTarget.rawValue` compile error** | `examTarget` was `StudentProfile.ExamTarget` enum; direct string interpolation failed | Accessed via `.rawValue` throughout `LearnerProgressView` | `29bdf6f` |
+| 5 | **Chart tooltips not rendering; Topics section hidden when no weak topics; subject bar chart unsorted** | Tooltips never shown (wrong state binding); `weakTopics` empty = section hidden; bar chart in API order | Added `.chartXSelection` binding; Topics always shown (fallback to 3 lowest-accuracy topics excl. "Uncategorised"); subject sort Physics→Chemistry→Maths→Biology | `46e1e3f` |
 
 ### Progress Screen — Design Alignment (commit `e4ffd89`, deployed)
 
@@ -341,6 +343,25 @@ The Progress screen was rebuilt to match the provided design mockup.
 | "Practice Weak Topics" | Empty action | Navigates to Study tab with weak-topic practice prompt |
 | Exam Readiness title | "Exam Readiness" (fixed) | "JEE Exam Readiness" / "NEET Exam Readiness" (from profile) |
 | Exam Readiness background | Green→teal gradient | Solid green |
+
+---
+
+## Post-Sprint 6 (cont.) — iOS Navigation Bar Consistency ✅ Complete
+
+*17 May 2026 — removed nested NavigationStack bugs; gradient nav bar for all feature screens.*
+
+**Root Cause:** `MockTestsView`, `SyllabusMapView`, and `FormulaSheetView` each wrapped their content in an internal `NavigationStack`. Since all three are pushed via `.navigationDestination(isPresented:)` from `DashboardView`'s `NavigationStack`, this created a **nested NavigationStack** — deprecated in iOS 16 and broken in iOS 17+, producing a double navigation bar and undefined back-swipe behaviour.
+
+`OfflinePacksView` had no inner `NavigationStack` (correct) but showed a plain white navigation bar above its gradient header.
+
+| # | Change | File(s) | Commit |
+|---|--------|---------|--------|
+| 1 | **MockTestsView** — removed inner `NavigationStack`; added `toolbarBackground(indigo→purple gradient)` + `.toolbarColorScheme(.dark)` so nav bar matches the rest of the app | `MockTestsView.swift` | pending |
+| 2 | **SyllabusMapView** — same fix; `.searchable` and `.toolbar { ProgressView }` now propagate to Dashboard's NavigationStack correctly; `ProgressView().tint(.white)` for visibility on dark bar | `SyllabusMapView.swift` | pending |
+| 3 | **FormulaSheetView** — same fix; `FormulaDetailSheet` retains its own `NavigationStack` (sheet = new stack root, which is correct) | `FormulaSheetView.swift` | pending |
+| 4 | **OfflinePacksView** — changed `.navigationTitle("Offline Packs")` → `""` and added `.toolbarBackground(.hidden)` + `.toolbarColorScheme(.dark)` so the back button floats transparently over the gradient header; no duplicate title | `OfflinePacksView.swift` | pending |
+
+**Result:** All 6 feature screens (Progress, Settings, MockTests, SyllabusMap, FormulaSheets, OfflinePacks) now share a consistent indigo→purple visual identity. Tab views (Progress, Settings) retain their custom gradient scroll headers; pushed views (the other four) use the native gradient navigation bar.
 
 ---
 

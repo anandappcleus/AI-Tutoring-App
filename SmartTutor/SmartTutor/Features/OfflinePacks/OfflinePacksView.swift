@@ -157,8 +157,10 @@ struct OfflinePacksView: View {
         }
         .background(Color(UIColor.systemGroupedBackground))
         .ignoresSafeArea(edges: .top)
-        .navigationTitle("Offline Packs")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .task {
             AppLogger.navigated(to: "OfflinePacksView")
             await vm.loadPacks()

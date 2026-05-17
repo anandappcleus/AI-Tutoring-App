@@ -117,29 +117,33 @@ struct MockTestsView: View {
     private var examTarget: String? { appState.currentProfile?.examTarget.rawValue }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                switch vm.loadState {
-                case .loading:
-                    loadingView
-                case .loaded:
-                    loadedView
-                case .empty:
-                    emptyView
-                case .error(let msg):
-                    errorView(message: msg)
-                }
+        Group {
+            switch vm.loadState {
+            case .loading:
+                loadingView
+            case .loaded:
+                loadedView
+            case .empty:
+                emptyView
+            case .error(let msg):
+                errorView(message: msg)
             }
-            .navigationTitle("Mock Tests")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    filterMenu
-                }
+        }
+        .navigationTitle("Mock Tests")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(
+            LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
+            for: .navigationBar
+        )
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                filterMenu
             }
-            .sheet(item: $selectedTest) { test in
-                MockTestDetailView(test: test)
-            }
+        }
+        .sheet(item: $selectedTest) { test in
+            MockTestDetailView(test: test)
         }
         .task {
             AppLogger.navigated(to: "MockTestsView", from: "Dashboard")

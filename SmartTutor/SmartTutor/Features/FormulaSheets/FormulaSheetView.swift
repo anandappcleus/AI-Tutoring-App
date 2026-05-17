@@ -278,52 +278,56 @@ struct FormulaSheetView: View {
     @State private var selectedFormula: Formula?
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Subject filter pills
-                    subjectFilterRow
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
+        ScrollView {
+            VStack(spacing: 0) {
+                // Subject filter pills
+                subjectFilterRow
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
 
-                    if vm.filteredCategories.isEmpty {
-                        emptySearchView
-                    } else {
-                        LazyVStack(spacing: 12) {
-                            ForEach(vm.filteredCategories) { category in
-                                FormulaCategoryCard(
-                                    category: category,
-                                    isExpanded: expandedCategory == category.id,
-                                    onHeaderTap: {
-                                        AppLogger.userAction(AppLogger.formula,
-                                                             action: "category-expand",
-                                                             context: category.id)
-                                        withAnimation(.spring(response: 0.3)) {
-                                            expandedCategory = expandedCategory == category.id ? nil : category.id
-                                        }
-                                    },
-                                    onFormulaTap: { formula in
-                                        AppLogger.userAction(AppLogger.formula,
-                                                             action: "formula-tapped",
-                                                             context: formula.id)
-                                        selectedFormula = formula
+                if vm.filteredCategories.isEmpty {
+                    emptySearchView
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(vm.filteredCategories) { category in
+                            FormulaCategoryCard(
+                                category: category,
+                                isExpanded: expandedCategory == category.id,
+                                onHeaderTap: {
+                                    AppLogger.userAction(AppLogger.formula,
+                                                         action: "category-expand",
+                                                         context: category.id)
+                                    withAnimation(.spring(response: 0.3)) {
+                                        expandedCategory = expandedCategory == category.id ? nil : category.id
                                     }
-                                )
-                                .padding(.horizontal, 20)
-                            }
+                                },
+                                onFormulaTap: { formula in
+                                    AppLogger.userAction(AppLogger.formula,
+                                                         action: "formula-tapped",
+                                                         context: formula.id)
+                                    selectedFormula = formula
+                                }
+                            )
+                            .padding(.horizontal, 20)
                         }
-                        .padding(.top, 8)
-                        .padding(.bottom, 32)
                     }
+                    .padding(.top, 8)
+                    .padding(.bottom, 32)
                 }
             }
-            .navigationTitle("Formula Sheets")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $vm.searchText, prompt: "Search formulas…")
-            .sheet(item: $selectedFormula) { formula in
-                FormulaDetailSheet(formula: formula)
-            }
+        }
+        .navigationTitle("Formula Sheets")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(
+            LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
+            for: .navigationBar
+        )
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .searchable(text: $vm.searchText, prompt: "Search formulas…")
+        .sheet(item: $selectedFormula) { formula in
+            FormulaDetailSheet(formula: formula)
         }
         .onAppear {
             AppLogger.navigated(to: "FormulaSheetView", from: "Dashboard")

@@ -185,23 +185,27 @@ struct SyllabusMapView: View {
     @State private var vm = SyllabusMapViewModel()
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if vm.subjects.isEmpty {
-                    ProgressView("Loading syllabus…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    syllabusContent
-                }
+        Group {
+            if vm.subjects.isEmpty {
+                ProgressView("Loading syllabus…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                syllabusContent
             }
-            .navigationTitle("Syllabus Map")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $vm.searchText, prompt: "Search topics or chapters")
-            .toolbar {
-                if vm.isLoadingProgress {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        ProgressView()
-                    }
+        }
+        .navigationTitle("Syllabus Map")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(
+            LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
+            for: .navigationBar
+        )
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .searchable(text: $vm.searchText, prompt: "Search topics or chapters")
+        .toolbar {
+            if vm.isLoadingProgress {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ProgressView().tint(.white)
                 }
             }
         }
