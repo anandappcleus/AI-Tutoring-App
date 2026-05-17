@@ -12,15 +12,18 @@ import Charts
 struct LearnerProgressView: View {
     @Environment(AppState.self) private var appState
     @State private var vm = ProgressViewModel()
+    @State private var selectedSubjectName: String? = nil
+    @AppStorage("selectedMainTab")   private var selectedMainTab   = 0
+    @AppStorage("pendingStudyTopic") private var pendingStudyTopic = ""
 
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Gradient header
+                // ── Gradient header ─────────────────────────────────
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Your Progress")
                         .font(.system(size: 24, weight: .bold))
-                    Text(vm.progressData != nil ? "Week: \(vm.progressData!.weekStart) – \(vm.progressData!.weekEnd)" : "Keep up the great work!")
+                    Text("Keep up the great work!")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.85))
                 }
@@ -38,46 +41,118 @@ struct LearnerProgressView: View {
                 )
 
                 VStack(spacing: 16) {
-                    // Stats grid — real data from API
                     if vm.isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity, minHeight: 100)
                     } else if let data = vm.progressData {
+
+                        // ── Stats grid ──────────────────────────────
+                        let studyHours = Double(data.estimatedStudyMinWeek) / 60.0
+                        let studyHoursText = studyHours < 10
+                            ? String(format: "%.1fh", studyHours)
+                            : String(format: "%.0fh", studyHours)
+
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                            ProgressStatCard(icon: "target",    iconColor: .green,  bgColor: .green.opacity(0.12),  value: "\(Int(data.overallAccuracyPct))%", label: "Avg Accuracy")
-                            ProgressStatCard(icon: "book.fill", iconColor: .blue,   bgColor: .blue.opacity(0.12),   value: "\(data.totalQuestions)", label: "Questions")
-                            ProgressStatCard(icon: "exclamationmark.triangle.fill", iconColor: .red, bgColor: .red.opacity(0.12), value: "\(data.weakTopics.count)", label: "Weak Topics")
-                            ProgressStatCard(icon: "checkmark.circle.fill", iconColor: .purple, bgColor: .purple.opacity(0.12), value: "\(data.correctQuestions)", label: "Correct")
+                            ProgressStatCard(icon: "flame.fill",  iconColor: .orange, bgColor: .orange.opacity(0.12), value: "\(data.dayStreak)",               label: "Day Streak")
+                            ProgressStatCard(icon: "target",      iconColor: .green,  bgColor: .green.opacity(0.12),  value: "\(Int(data.overallAccuracyPct))%", label: "Avg Accuracy")
+                            ProgressStatCard(icon: "book.fill",   iconColor: .blue,   bgColor: .blue.opacity(0.12),   value: "\(data.totalQuestions)",           label: "Questions")
+                            ProgressStatCard(icon: "clock.fill",  iconColor: .purple, bgColor: .purple.opacity(0.12), value: studyHoursText,                     label: "This Week")
                         }
 
-                    // Subject performance — bar chart (real topics from API)
-                        if !data.topics.isEmpty {
-                            ChartCard(title: "Topic Accuracy", trailingIcon: "rosette", trailingColor: .yellow) {
-                                Chart(data.topics, id: \.topic) { item in
-                                    BarMark(
-                                        x: .value("Topic", item.topic),
-                                        y: .value("Accuracy %", item.accuracyPct)
+                        // ── Weekly Study Time — line chart ───────────
+                        if !data.dailyActivity.isEmpty {
+                            ChartCard(title: "Weekly Study Time", trailingIcon: "arrow.up.right", trailingColor: .green) {
+                                Chart(data.dailyActivity, id: \.dayName) { item in
+                                    LineMark(
+                                        x: .value("Day", item.dayName),
+                                        y: .value("Minutes", item.estimatedMin)
                                     )
                                     .foregroundStyle(Color.purple.gradient)
-                                    .cornerRadius(8)
-                                    .annotation(position: .top) {
-                                        Text("\(Int(item.accuracyPct))%")
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundStyle(.secondary)
-                                    }
+                                    .lineStyle(StrokeStyle(lineWidth: 2.5))
+                                    .symbol(.circle)
+                                    .symbolSize(36)
+                                    AreaMark(
+                                        x: .value("Day", item.dayName),
+                                        y: .value("Minutes", item.estimatedMin)
+                                    )
+                                    .foregroundStyle(Color.purple.opacity(0.12).gradient)
                                 }
-                                .chartYScale(domain: 0...110)
                                 .chartYAxis {
-                                    AxisMarks(values: [0, 25, 50, 75, 100]) {
+                                    AxisMarks(values: .automatic(desiredCount: 4)) {
                                         AxisValueLabel().font(.system(size: 11))
                                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                                     }
                                 }
-                                .frame(height: 200)
+                                .chartXAxis {
+                                    AxisMarks { AxisValueLabel().font(.system(size: 11)) }
+                                }
+                                .frame(height: 160)
                             }
                         }
 
-                        // Weak topics — real data
+                        // ── Subject Performance — bar chart ──────────
+                        // Use subject_accuracy if populated; fall back to top topics
+                        let subjectItems: [ProgressResponse.SubjectAccuracy] = data.subjectAccuracy.isEmpty
+                            ? Array(data.topics.prefix(6).map {
+                                ProgressResponse.SubjectAccuracy(
+                                    subject: $0.topic, total: $0.total,
+                                    correct: $0.correct, accuracyPct: $0.accuracyPct)
+                              })
+                            : data.subjectAccuracy
+
+                        if !subjectItems.isEmpty {
+                            ChartCard(title: "Subject Performance", trailingIcon: "rosette", trailingColor: .yellow) {
+                                VStack(spacing: 8) {
+                                    Chart(subjectItems, id: \.subject) { item in
+                                        BarMark(
+                                            x: .value("Subject", item.subject),
+                                            y: .value("Accuracy %", item.accuracyPct)
+                                        )
+                                        .foregroundStyle(
+                                            item.subject == selectedSubjectName
+                                                ? Color.indigo.gradient
+                                                : Color.purple.gradient
+                                        )
+                                        .cornerRadius(8)
+                                    }
+                                    .chartYScale(domain: 0...110)
+                                    .chartYAxis {
+                                        AxisMarks(values: [0, 25, 50, 75, 100]) {
+                                            AxisValueLabel().font(.system(size: 11))
+                                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                                        }
+                                    }
+                                    .chartOverlay { proxy in
+                                        GeometryReader { _ in
+                                            Rectangle()
+                                                .fill(.clear)
+                                                .contentShape(Rectangle())
+                                                .onTapGesture { location in
+                                                    guard let subject = proxy.value(atX: location.x, as: String.self) else { return }
+                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                        selectedSubjectName = selectedSubjectName == subject ? nil : subject
+                                                    }
+                                                }
+                                        }
+                                    }
+                                    .frame(height: 200)
+
+                                    if let name = selectedSubjectName,
+                                       let sel = subjectItems.first(where: { $0.subject == name }) {
+                                        Text("\(sel.subject) accuracy: \(Int(sel.accuracyPct))%")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(.purple)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(Color.purple.opacity(0.08))
+                                            .clipShape(Capsule())
+                                            .transition(.scale.combined(with: .opacity))
+                                    }
+                                }
+                            }
+                        }
+
+                        // ── Topics Needing Attention ──────────────────
                         if !data.weakTopics.isEmpty {
                             VStack(alignment: .leading, spacing: 16) {
                                 HStack(spacing: 10) {
@@ -99,7 +174,11 @@ struct LearnerProgressView: View {
                                     )
                                 }
 
-                                Button { } label: {
+                                Button {
+                                    let topicList = data.weakTopics.prefix(3).joined(separator: ", ")
+                                    pendingStudyTopic = "Give me 3 JEE/NEET practice questions on: \(topicList)"
+                                    selectedMainTab = 1
+                                } label: {
                                     Text("Practice Weak Topics")
                                         .font(.system(size: 15, weight: .semibold))
                                         .foregroundStyle(.white)
@@ -117,12 +196,16 @@ struct LearnerProgressView: View {
                             .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.red.opacity(0.15), lineWidth: 1))
                         }
 
-                        // Exam readiness card
+                        // ── Exam Readiness card ───────────────────────
+                        let examLabel: String = {
+                            let target = appState.currentProfile?.examTarget ?? ""
+                            return target.isEmpty ? "Exam Readiness" : "\(target) Exam Readiness"
+                        }()
                         let readinessPct = data.totalQuestions > 0 ? data.overallAccuracyPct / 100.0 : 0.0
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 8) {
                                 Image(systemName: "rosette")
-                                Text("Exam Readiness")
+                                Text(examLabel)
                                     .font(.system(size: 17, weight: .bold))
                             }
                             HStack {
@@ -133,16 +216,14 @@ struct LearnerProgressView: View {
                             LinearProgressBar(value: readinessPct, foreground: .white.opacity(0.9), background: .white.opacity(0.2))
                             Text(data.weakTopics.isEmpty
                                  ? "Great work! Keep practising to maintain your accuracy."
-                                 : "Focus on \(data.weakTopics.prefix(2).joined(separator: " and ")) to improve your score.")
+                                 : "Great progress! Focus on \(data.weakTopics.prefix(2).joined(separator: " and ")) to reach \(min(Int(data.overallAccuracyPct) + 12, 100))% readiness.")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.white.opacity(0.85))
                                 .lineSpacing(3)
                         }
                         .foregroundStyle(.white)
                         .padding(20)
-                        .background(
-                            LinearGradient(colors: [.green, .teal], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        )
+                        .background(Color.green)
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                     } else if vm.errorMessage == nil {
                         // Empty state — no quiz answers yet

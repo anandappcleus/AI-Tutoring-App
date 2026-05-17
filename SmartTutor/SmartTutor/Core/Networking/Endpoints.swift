@@ -218,6 +218,27 @@ struct ProgressResponse: Codable {
     let overallAccuracyPct: Double
     let topics: [TopicProgress]
     let weakTopics: [String]
+    let dayStreak: Int
+    let estimatedStudyMinWeek: Int
+    let dailyActivity: [DailyActivity]
+    let subjectAccuracy: [SubjectAccuracy]
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        studentId           = try c.decode(String.self,          forKey: .studentId)
+        weekStart           = try c.decode(String.self,          forKey: .weekStart)
+        weekEnd             = try c.decode(String.self,          forKey: .weekEnd)
+        totalQuestions      = try c.decode(Int.self,             forKey: .totalQuestions)
+        correctQuestions    = try c.decode(Int.self,             forKey: .correctQuestions)
+        overallAccuracyPct  = try c.decode(Double.self,          forKey: .overallAccuracyPct)
+        topics              = try c.decode([TopicProgress].self, forKey: .topics)
+        weakTopics          = try c.decode([String].self,        forKey: .weakTopics)
+        // New fields — safe defaults for old cached responses
+        dayStreak              = try c.decodeIfPresent(Int.self,              forKey: .dayStreak)              ?? 0
+        estimatedStudyMinWeek  = try c.decodeIfPresent(Int.self,              forKey: .estimatedStudyMinWeek)  ?? 0
+        dailyActivity          = try c.decodeIfPresent([DailyActivity].self,  forKey: .dailyActivity)          ?? []
+        subjectAccuracy        = try c.decodeIfPresent([SubjectAccuracy].self, forKey: .subjectAccuracy)       ?? []
+    }
 
     struct TopicProgress: Codable {
         let topic: String
@@ -232,6 +253,30 @@ struct ProgressResponse: Codable {
         }
     }
 
+    struct DailyActivity: Codable {
+        let dayName: String
+        let questions: Int
+        let estimatedMin: Int
+
+        enum CodingKeys: String, CodingKey {
+            case dayName = "day_name"
+            case questions
+            case estimatedMin = "estimated_min"
+        }
+    }
+
+    struct SubjectAccuracy: Codable {
+        let subject: String
+        let total: Int
+        let correct: Int
+        let accuracyPct: Double
+
+        enum CodingKeys: String, CodingKey {
+            case subject, total, correct
+            case accuracyPct = "accuracy_pct"
+        }
+    }
+
     enum CodingKeys: String, CodingKey {
         case topics
         case studentId        = "student_id"
@@ -241,6 +286,10 @@ struct ProgressResponse: Codable {
         case correctQuestions = "correct_questions"
         case overallAccuracyPct = "overall_accuracy_pct"
         case weakTopics       = "weak_topics"
+        case dayStreak        = "day_streak"
+        case estimatedStudyMinWeek = "estimated_study_min_week"
+        case dailyActivity    = "daily_activity"
+        case subjectAccuracy  = "subject_accuracy"
     }
 }
 

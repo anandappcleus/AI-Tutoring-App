@@ -71,6 +71,19 @@ class TopicAccuracy(BaseModel):
     accuracy_pct: float
 
 
+class DailyActivity(BaseModel):
+    day_name: str        # "Mon", "Tue", …
+    questions: int
+    estimated_min: int   # questions × 3 minutes
+
+
+class SubjectAccuracy(BaseModel):
+    subject: str
+    total: int
+    correct: int
+    accuracy_pct: float
+
+
 class ProgressResponse(BaseModel):
     student_id: str
     week_start: date
@@ -79,7 +92,11 @@ class ProgressResponse(BaseModel):
     correct_questions: int
     overall_accuracy_pct: float
     topics: list[TopicAccuracy]
-    weak_topics: list[str]   # topics with accuracy < 50%
+    weak_topics: list[str]           # topics with accuracy < 50 %
+    day_streak: int = 0              # consecutive days with ≥1 answer up to today
+    estimated_study_min_week: int = 0  # total_questions × 3 min
+    daily_activity: list[DailyActivity] = []   # Mon-Sun activity for line chart
+    subject_accuracy: list[SubjectAccuracy] = []  # aggregated by subject
 
 
 # ── POST /sync-answers ────────────────────────────────────────────────
@@ -205,6 +222,8 @@ async def get_progress(
     topic_stats: dict[str, dict[str, Any]] = defaultdict(
         lambda: {"total": 0, "correct": 0, "subject": None}
     )
+    # daily_map: date → question count (for daily activity chart)
+    daily_map: dict[date, int] = defaultdict(int)
     total_q = 0
     total_correct = 0
 
@@ -218,6 +237,9 @@ async def get_progress(
             topic_stats[key]["correct"] += 1
         if a.subject:
             topic_stats[key]["subject"] = a.subject
+        # track per-day count
+        ans_date = a.answered_at.date() if a.answered_at.tzinfo else a.answered_at.replace(tzinfo=timezone.utc).date()
+        daily_map[ans_date] += 1
 
     topic_list: list[TopicAccuracy] = []
     weak_topics: list[str] = []
@@ -235,9 +257,45 @@ async def get_progress(
 
     overall_acc = (total_correct / total_q * 100) if total_q else 0.0
 
+    # ── Day streak ────────────────────────────────────────────────────
+    streak = 0
+    check = date.today()
+    while check in daily_map:
+        streak += 1
+        check -= timedelta(days=1)
+
+    # ── Daily activity (last 7 days, Mon-Sun labels) ─────────────────
+    day_abbr = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    daily_activity: list[DailyActivity] = []
+    for i in range(6, -1, -1):
+        d = date.today() - timedelta(days=i)
+        q_count = daily_map.get(d, 0)
+        daily_activity.append(DailyActivity(
+            day_name=day_abbr[d.weekday()],
+            questions=q_count,
+            estimated_min=q_count * 3,
+        ))
+
+    # ── Subject accuracy ──────────────────────────────────────────────
+    subj_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "correct": 0})
+    for t in topic_list:
+        if t.subject:
+            subj_stats[t.subject]["total"] += t.total
+            subj_stats[t.subject]["correct"] += t.correct
+
+    subject_accuracy: list[SubjectAccuracy] = []
+    for subj, stats in sorted(subj_stats.items(), key=lambda x: x[1]["total"], reverse=True):
+        acc = (stats["correct"] / stats["total"] * 100) if stats["total"] else 0.0
+        subject_accuracy.append(SubjectAccuracy(
+            subject=subj,
+            total=stats["total"],
+            correct=stats["correct"],
+            accuracy_pct=round(acc, 1),
+        ))
+
     log.info(
-        "progress.get.ok  student_id=%s  total=%d  topics=%d  weak=%d",
-        student_id, total_q, len(topic_list), len(weak_topics),
+        "progress.get.ok  student_id=%s  total=%d  topics=%d  weak=%d  streak=%d",
+        student_id, total_q, len(topic_list), len(weak_topics), streak,
     )
     return ProgressResponse(
         student_id=student_id,
@@ -248,4 +306,8 @@ async def get_progress(
         overall_accuracy_pct=round(overall_acc, 1),
         topics=topic_list,
         weak_topics=weak_topics,
+        day_streak=streak,
+        estimated_study_min_week=total_q * 3,
+        daily_activity=daily_activity,
+        subject_accuracy=subject_accuracy,
     )
