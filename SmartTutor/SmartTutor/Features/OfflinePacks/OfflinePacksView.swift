@@ -20,46 +20,29 @@ struct OfflinePacksView: View {
         ScrollView {
             VStack(spacing: 0) {
 
-                // ── Header ────────────────────────────────────────────
-                VStack(alignment: .leading, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Offline Packs")
-                            .font(.system(size: 24, weight: .bold))
-                        Text("Study without internet")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.85))
-                    }
-
-                    // Storage bar
-                    HStack(spacing: 12) {
-                        Image(systemName: "internaldrive.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(.white)
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text("Storage Used")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                Spacer()
-                                Text(storageLabel)
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.white.opacity(0.8))
-                            }
-                            LinearProgressBar(
-                                value: Double(vm.usedKB) / Double(totalKB),
-                                foreground: .white.opacity(0.9),
-                                background: .white.opacity(0.2)
-                            )
+                // ── Storage summary card ──────────────────────────────
+                HStack(spacing: 12) {
+                    Image(systemName: "internaldrive.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Storage Used")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white)
+                            Spacer()
+                            Text(storageLabel)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.8))
                         }
+                        LinearProgressBar(
+                            value: Double(vm.usedKB) / Double(totalKB),
+                            foreground: .white.opacity(0.9),
+                            background: .white.opacity(0.2)
+                        )
                     }
-                    .padding(14)
-                    .background(Color.white.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                .padding(.bottom, 36)
+                .padding(14)
                 .background(
                     LinearGradient(
                         colors: [.indigo, .purple],
@@ -67,6 +50,11 @@ struct OfflinePacksView: View {
                         endPoint: .trailing
                     )
                 )
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
 
                 // ── Content ───────────────────────────────────────────
                 VStack(spacing: 24) {
@@ -141,15 +129,18 @@ struct OfflinePacksView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, -16)
+                .padding(.top, 8)
                 .padding(.bottom, 32)
             }
         }
         .background(Color(UIColor.systemGroupedBackground))
-        .ignoresSafeArea(edges: .top)
-        .navigationTitle("")
+        .navigationTitle("Offline Packs")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarBackground(
+            LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
+            for: .navigationBar
+        )
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .task {
             AppLogger.navigated(to: "OfflinePacksView")
