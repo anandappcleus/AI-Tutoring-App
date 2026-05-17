@@ -103,7 +103,7 @@ struct LearnerProgressView: View {
                         // ── Subject Performance — bar chart ──────────
                         // Use subject_accuracy if populated; fall back to top topics.
                         // Sort in canonical exam order: Physics → Chemistry → Maths → Biology
-                        let subjectOrder = ["Physics", "Chemistry", "Maths", "Biology"]
+                        let subjectOrder = ["Physics", "Chemistry", "Maths", "Mathematics", "Biology"]
                         let rawSubjects: [ProgressResponse.SubjectAccuracy] = data.subjectAccuracy.isEmpty
                             ? Array(data.topics.prefix(6).map {
                                 ProgressResponse.SubjectAccuracy(
@@ -111,11 +111,12 @@ struct LearnerProgressView: View {
                                     correct: $0.correct, accuracyPct: $0.accuracyPct)
                               })
                             : data.subjectAccuracy
-                        let subjectItems = rawSubjects.sorted {
+                        let subjectItems = Array(rawSubjects.sorted {
                             let i0 = subjectOrder.firstIndex(of: $0.subject) ?? Int.max
                             let i1 = subjectOrder.firstIndex(of: $1.subject) ?? Int.max
-                            return i0 < i1
-                        }
+                            if i0 != i1 { return i0 < i1 }
+                            return $0.total > $1.total
+                        }.prefix(6))
 
                         if !subjectItems.isEmpty {
                             ChartCard(title: "Subject Performance", trailingIcon: "rosette", trailingColor: .yellow) {

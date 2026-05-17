@@ -130,7 +130,7 @@ struct MockTestsView: View {
             }
         }
         .navigationTitle("Mock Tests")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(
             LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
             for: .navigationBar

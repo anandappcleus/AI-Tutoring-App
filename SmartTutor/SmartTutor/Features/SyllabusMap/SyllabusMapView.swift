@@ -194,7 +194,7 @@ struct SyllabusMapView: View {
             }
         }
         .navigationTitle("Syllabus Map")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(
             LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
             for: .navigationBar

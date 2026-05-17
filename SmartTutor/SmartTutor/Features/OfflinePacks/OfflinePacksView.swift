@@ -22,22 +22,12 @@ struct OfflinePacksView: View {
 
                 // ── Header ────────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Offline Packs")
-                                .font(.system(size: 24, weight: .bold))
-                            Text("Study without internet")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.85))
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("\(vm.downloadedPacks.count)")
-                                .font(.system(size: 26, weight: .bold))
-                            Text("Downloaded")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Offline Packs")
+                            .font(.system(size: 24, weight: .bold))
+                        Text("Study without internet")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.85))
                     }
 
                     // Storage bar
