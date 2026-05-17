@@ -159,6 +159,26 @@ print(result)
 Problem: Explain Newton's third law.
 Output: CANNOT_EVALUATE
 
+Problem: A body falls from H, hits inclined plane at height h, velocity becomes horizontal. Find h for maximum total time to reach ground.
+Code:
+from sympy import symbols, sqrt, diff, solve, nsimplify
+# Total time T ∝ sqrt(H-h) + sqrt(h)  (g cancels in the ratio)
+# Maximise by differentiating w.r.t. h and setting = 0
+H, h = symbols('H h', positive=True)
+T = sqrt(H - h) + sqrt(h)
+h_opt = solve(diff(T, h), h)[0]   # dT/dh = 0
+result = nsimplify(h_opt)          # gives H/2
+print(result)
+
+Problem: Find the value of x that maximises f(x) = sqrt(a-x) + sqrt(x) for x in [0,a].
+Code:
+from sympy import symbols, sqrt, diff, solve, nsimplify
+a, x = symbols('a x', positive=True)
+f = sqrt(a - x) + sqrt(x)
+x_opt = solve(diff(f, x), x)[0]
+result = nsimplify(x_opt)   # a/2
+print(result)
+
 Problem: What is the electronic configuration of Iron?
 Output: CANNOT_EVALUATE
 """
