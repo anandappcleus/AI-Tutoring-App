@@ -511,16 +511,18 @@ def _parse_crew_output(raw: str) -> dict:
     if extracted:
         text = extracted
 
-    # Pass 1: standard JSON parse
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    # Pass 2: fix LaTeX backslash escapes inside string values
+    # Pass 1: always fix LaTeX backslash escapes first, THEN parse.
+    # json.loads silently accepts \f as form-feed (U+000C), which corrupts
+    # \frac → <FF>rac, \beta → <BS>eta, etc. — preprocessing catches this.
     try:
         return json.loads(_escape_latex_backslashes(text))
     except (json.JSONDecodeError, Exception):
+        pass
+
+    # Pass 2: try raw parse (edge-case fallback for already-clean JSON)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
         pass
 
     # Pass 3: fix literal control characters (newlines, tabs) inside string values.
@@ -899,12 +901,12 @@ async def _ask_direct(
     if sympy_answer is not None:
         _sympy_block = (
             f"\n⚠️  NUMERICALLY VERIFIED ANSWER (SymPy symbolic computation): "
-            f"The exact correct answer is **{sympy_answer}**.\n"
-            f"Your step-by-step explanation MUST arrive at {sympy_answer}.\n"
-            f"For MCQ: match {sympy_answer} to the option whose value equals it, "
-            f"then explain why.\n"
-            f"If your working produces a different intermediate value, "
-            f"you have an algebra error — re-check before outputting.\n"
+            f"{sympy_answer}\n"
+            f"If this matches one of the given MCQ options, pick that option and explain "
+            f"the step-by-step working that arrives at {sympy_answer}.\n"
+            f"If it does NOT match any option (SymPy may have used wrong values), "
+            f"ignore it and solve the question using ONLY the values stated in the question.\n"
+            f"NEVER invent a different question to fit the SymPy value.\n"
         )
 
     user_message = (
