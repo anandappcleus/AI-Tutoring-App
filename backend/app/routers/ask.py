@@ -483,6 +483,91 @@ def _extract_last_json_object(text: str) -> str | None:
     return best
 
 
+# ── Keyword-based topic/subject fallback ─────────────────────────────────────
+# Used when the LLM omits topic/subject from its JSON response.
+# Each entry: (keywords_tuple, canonical_topic, subject)
+# Entries are checked in order against the lowercased question — first match wins.
+_TOPIC_KEYWORD_MAP: list[tuple[tuple[str, ...], str, str]] = [
+    # Physics
+    (("newton", "f=ma", "law of motion", "laws of motion", "friction", "normal force", "tension"), "Laws of Motion", "Physics"),
+    (("kinematics", "displacement", "projectile", "uniform motion", "distance vs displacement", "equations of motion"), "Kinematics", "Physics"),
+    (("velocity", "speed", "retardation", "deceleration"), "Kinematics", "Physics"),
+    (("acceleration", "mass and acceleration"), "Kinematics", "Physics"),
+    (("work done", "kinetic energy", "potential energy", "conservation of energy", "mechanical energy", "power output"), "Work, Energy and Power", "Physics"),
+    (("gravitation", "gravitational", "satellite", "orbital velocity", "escape velocity", "kepler"), "Gravitation", "Physics"),
+    (("carnot", "isothermal", "adiabatic", "heat engine", "efficiency of engine"), "Thermodynamics", "Physics"),
+    (("frequency", "wavelength", "amplitude", "sound wave", "resonance", "standing wave", "doppler"), "Waves", "Physics"),
+    (("refraction", "reflection", "lens", "mirror", "snell", "critical angle", "total internal reflection", "ray optics", "prism"), "Ray Optics", "Physics"),
+    (("electric field", "electric potential", "capacitor", "coulomb", "gauss", "electrostatics"), "Electrostatics", "Physics"),
+    (("current", "voltage", "resistance", "ohm", "circuit", "kirchhoff", "potentiometer", "wheatstone"), "Current Electricity", "Physics"),
+    (("magnetic field", "solenoid", "faraday", "electromagnetic induction", "magnetic flux", "lenz", "ampere law"), "Magnetism", "Physics"),
+    (("photoelectric", "nuclear", "radioactive", "photon", "x-ray", "de broglie", "bohr model", "atomic spectrum"), "Modern Physics", "Physics"),
+    (("torque", "angular velocity", "angular momentum", "moment of inertia", "rolling"), "Rotational Motion", "Physics"),
+    (("simple harmonic", "shm", "oscillation", "pendulum", "time period of spring"), "Oscillations", "Physics"),
+    (("fluid", "viscosity", "buoyancy", "archimedes", "bernoulli", "surface tension", "capillary"), "Fluid Mechanics", "Physics"),
+    (("momentum", "impulse", "elastic collision", "inelastic collision", "centre of mass"), "Centre of Mass and Momentum", "Physics"),
+    (("semiconductor", "diode", "transistor", "logic gate", "rectifier"), "Semiconductors", "Physics"),
+    # Chemistry
+    (("atomic structure", "orbital", "quantum number", "aufbau", "heisenberg", "pauli", "hund"), "Atomic Structure", "Chemistry"),
+    (("ionic bond", "covalent bond", "hybridization", "vsepr", "polarity of bond", "molecular orbital"), "Chemical Bonding", "Chemistry"),
+    (("enthalpy", "gibbs free energy", "hess", "endothermic", "exothermic", "born-haber"), "Chemical Thermodynamics", "Chemistry"),
+    (("chemical equilibrium", "le chatelier", "ksp", "equilibrium constant"), "Chemical Equilibrium", "Chemistry"),
+    (("acid", "base", "ph", "neutralization", "buffer solution", "titration"), "Acids, Bases and Salts", "Chemistry"),
+    (("oxidation", "reduction", "redox", "electrochemical cell", "electrolysis", "galvanic", "nernst", "electrolytic"), "Electrochemistry", "Chemistry"),
+    (("alkane", "alkene", "alkyne", "benzene", "aromatic", "organic chemistry", "iupac", "isomerism", "carbonyl", "alcohol", "ester", "polymer", "functional group"), "Organic Chemistry", "Chemistry"),
+    (("periodic table", "periodicity", "transition metal", "lanthanide", "halogen", "noble gas"), "Periodic Table", "Chemistry"),
+    (("solution", "molality", "molarity", "colligative", "osmosis", "vapour pressure lowering"), "Solutions", "Chemistry"),
+    (("rate of reaction", "rate law", "activation energy", "catalyst", "order of reaction", "half life", "arrhenius"), "Chemical Kinetics", "Chemistry"),
+    (("coordination compound", "ligand", "crystal field", "cfse", "chelate"), "Coordination Compounds", "Chemistry"),
+    (("solid state", "unit cell", "crystal lattice", "packing efficiency"), "Solid State", "Chemistry"),
+    (("mole concept", "stoichiometry", "limiting reagent", "avogadro"), "Mole Concept", "Chemistry"),
+    # Mathematics
+    (("differentiation", "chain rule", "implicit differentiation", "first principle", "maxima", "minima"), "Differential Calculus", "Mathematics"),
+    (("integration", "definite integral", "area under curve", "volume of revolution"), "Integral Calculus", "Mathematics"),
+    (("limit", "continuity", "l'hopital", "left hand limit"), "Limits and Continuity", "Mathematics"),
+    (("differential equation", "order of differential"), "Differential Equations", "Mathematics"),
+    (("matrix", "determinant", "inverse matrix", "system of linear equations", "cramer"), "Matrices and Determinants", "Mathematics"),
+    (("binomial theorem", "binomial expansion", "binomial coefficient"), "Binomial Theorem", "Mathematics"),
+    (("permutation", "combination", "counting principle"), "Permutations and Combinations", "Mathematics"),
+    (("probability", "random variable", "expected value", "bayes theorem"), "Probability", "Mathematics"),
+    (("arithmetic progression", "geometric progression", " ap ", " gp ", "sum of series", "harmonic progression"), "Sequences and Series", "Mathematics"),
+    (("trigonometric", "sin ", "cos ", "tan ", "cotangent", "secant", "cosecant", "sine rule", "cosine rule", "inverse trig"), "Trigonometry", "Mathematics"),
+    (("complex number", "imaginary unit", "argand", "modulus of complex"), "Complex Numbers", "Mathematics"),
+    (("quadratic equation", "discriminant", "roots of equation", "sum of roots"), "Quadratic Equations", "Mathematics"),
+    (("straight line", "slope intercept", "pair of lines", "angle bisector"), "Straight Lines", "Mathematics"),
+    (("conic section", "parabola", "ellipse", "hyperbola", "focus of"), "Conic Sections", "Mathematics"),
+    (("direction cosines", "direction ratios", "distance in 3d", "three dimensional geometry"), "3D Geometry", "Mathematics"),
+    (("dot product", "cross product", "unit vector", "vector addition"), "Vectors", "Mathematics"),
+    (("set theory", "venn diagram", "bijection", "domain and range"), "Sets, Relations and Functions", "Mathematics"),
+    # Biology
+    (("mitosis", "meiosis", "cell division", "chromosome", "cell cycle"), "Cell Biology", "Biology"),
+    (("dna replication", "transcription", "translation", "protein synthesis", "rna"), "Molecular Biology", "Biology"),
+    (("genetics", "mendelian", "allele", "heredity", "punnett square", "dominant recessive"), "Genetics", "Biology"),
+    (("evolution", "natural selection", "mutation", "speciation", "darwin"), "Evolution", "Biology"),
+    (("heart", "blood pressure", "cardiac", "circulation", "artery", "vein"), "Circulatory System", "Biology"),
+    (("breathing", "lung", "alveoli", "respiratory", "oxygen transport"), "Respiratory System", "Biology"),
+    (("kidney", "nephron", "excretion", "urine formation", "dialysis"), "Excretory System", "Biology"),
+    (("digestion", "stomach", "intestine", "liver", "pancreas", "enzyme in digestion"), "Digestive System", "Biology"),
+    (("neuron", "synapse", "reflex arc", "spinal cord", "nervous system"), "Nervous System", "Biology"),
+    (("hormone", "endocrine", "insulin", "thyroid", "pituitary", "adrenaline"), "Endocrine System", "Biology"),
+    (("photosynthesis", "chlorophyll", "light reaction", "dark reaction", "calvin cycle"), "Plant Physiology", "Biology"),
+    (("transpiration", "stomata", "xylem", "phloem", "root pressure"), "Transport in Plants", "Biology"),
+    (("ecosystem", "food chain", "food web", "biodiversity", "biome", "trophic level"), "Ecology", "Biology"),
+]
+
+
+def _infer_topic_subject(question: str) -> tuple[str | None, str | None]:
+    """
+    Keyword fallback: infer (topic, subject) from the question text when the
+    LLM omits them. Returns (None, None) if no match is found.
+    """
+    q = question.lower()
+    for keywords, topic, subject in _TOPIC_KEYWORD_MAP:
+        if any(kw in q for kw in keywords):
+            return topic, subject
+    return None, None
+
+
 def _parse_crew_output(raw: str) -> dict:
     """
     Best-effort parse of the crew's raw string output into a dict.
@@ -722,11 +807,18 @@ async def ask(
         )
 
     # ── Persist to quiz_answers for rate-limiting + progress tracking ─
+    llm_topic = parsed.get("topic") if parsed else None
+    llm_subject = parsed.get("subject") if parsed else None
+    # Keyword fallback: fill topic/subject when the LLM omits them so that
+    # progress tracking (which filters WHERE topic IS NOT NULL) counts every
+    # academically-relevant question the student asks.
+    if not llm_topic:
+        llm_topic, llm_subject = _infer_topic_subject(body.question)
     answer_record = QuizAnswer(
         student_id=current_student.id,
         question=body.question[:1000],  # cap at column limit; store original question
-        topic=parsed.get("topic"),
-        subject=parsed.get("subject"),
+        topic=llm_topic,
+        subject=llm_subject,
         is_correct=True,  # open-ended questions are not graded; treated as "attempted"
         synced=True,
     )
