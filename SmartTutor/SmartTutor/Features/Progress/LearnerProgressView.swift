@@ -198,7 +198,7 @@ struct LearnerProgressView: View {
 
                         // ── Exam Readiness card ───────────────────────
                         let examLabel: String = {
-                            let target = appState.currentProfile?.examTarget ?? ""
+                            let target = appState.currentProfile?.examTarget.rawValue ?? ""
                             return target.isEmpty ? "Exam Readiness" : "\(target) Exam Readiness"
                         }()
                         let readinessPct = data.totalQuestions > 0 ? data.overallAccuracyPct / 100.0 : 0.0
