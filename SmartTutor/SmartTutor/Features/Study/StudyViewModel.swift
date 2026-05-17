@@ -271,8 +271,15 @@ struct StudyMessage: Identifiable, Equatable {
             parts.append("🎯 \(badge)")
         }
 
-        // Answer callout — shown before explanation so it's immediately visible
-        if !response.answer.isEmpty {
+        // Answer callout — shown before explanation so it's immediately visible.
+        // Suppress internal classification labels that the LLM (especially the 8B
+        // fallback) sometimes puts in the answer field instead of leaving it empty.
+        let answerUpper = response.answer.uppercased()
+        let isClassificationLabel = answerUpper.contains("ACADEMIC TOPIC") ||
+                                    answerUpper.contains("META QUERY") ||
+                                    answerUpper.contains("PRACTICE REQUEST") ||
+                                    answerUpper.contains("MCQ PROBLEM")
+        if !response.answer.isEmpty && !isClassificationLabel {
             parts.append("✅ Answer: \(response.answer)")
         }
 
