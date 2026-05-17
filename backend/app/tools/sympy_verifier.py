@@ -102,6 +102,11 @@ STRICT RULES
         (e.g. "which force stabilises α-helix?", "which bond is present in H₂O?",
          "which hybridisation does carbon have in ethene?", "which cell organelle...")
       • biology questions: protein/DNA/RNA/cell/genetics/ecology/physiology
+      • requests to GENERATE or PRACTICE questions ("practice X", "give me questions",
+        "mock test", "quiz me", "JEE mock", "NEET practice", "solve problems on X")
+      • single-word or short topic/subject names with no mathematical content
+        ("Algebra", "Trigonometry", "Physics", "Chemistry", "Mechanics", "Optics")
+      • exam/course overview requests ("JEE syllabus", "NEET course", "what is JEE")
     → output exactly (nothing else): CANNOT_EVALUATE
 11. If you are not confident you can compute it correctly → output: CANNOT_EVALUATE
 
