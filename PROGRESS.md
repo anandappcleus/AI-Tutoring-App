@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 16 May 2026 (SymPy verifier fully operational; vision + LLM accuracy hardening)*
+*Last updated: 17 May 2026 (FBD/force-value accuracy, LaTeX fix, Progress screen design aligned)*
 
 ---
 
@@ -283,6 +283,64 @@ ask.sympy_verified    answer=4.8202
 ask.direct_done       21s
 ← POST /ask  status=200
 ```
+
+---
+
+## Post-Sprint 6 (cont.) — FBD / Force-Value Accuracy + iOS UX Fixes ✅ Complete
+
+*17 May 2026 — physics accuracy, LaTeX rendering, meta-query handling, iOS UX polish, Progress screen redesign.*
+
+### Backend Fixes (all deployed to Railway)
+
+| # | Issue | Root Cause | Fix | Commit |
+|---|-------|-----------|-----|--------|
+| 1 | **FBD SymPy — `TypeError` on symbolic variables** | 8B translator emitted `symbols('F1 F2 F3')` instead of concrete floats; `sqrt(F1²+F2²)` raised `TypeError: cannot determine truth value` | Added vector-equilibrium worked example to `_TRANSLATE_SYSTEM_PROMPT` showing `Fx_net = 5 - 6; Fy_net = 7 - 8` with `nsimplify(sqrt(...))` | `d1d27b1` |
+| 2 | **SymPy hallucinating force values (3N/4N instead of 5N/6N/7N/8N)** | No rule in translator prompt requiring exact values from problem; 8B invented generic test values | Added `⚠ CRITICAL — USE ONLY EXACT VALUES FROM THE PROBLEM ⚠` block at top of `_TRANSLATE_SYSTEM_PROMPT` | `a3b5f99` |
+| 3 | **`\frac` rendering as "rac" in iOS** | `json.loads` ran before LaTeX backslash-escape fix; `\f` is a valid JSON form-feed (U+000C), silently corrupting `\frac` | Swapped parse order: Pass 1 always runs `_escape_latex_backslashes()` first, then parses; raw `json.loads` demoted to Pass 2 fallback | `eb77ca7` |
+| 4 | **AI answering complex numbers instead of FBD (wrong topic)** | SymPy hint was `"MUST arrive at sqrt(17) at atan(4)"`; 70B invented a complex-number question to fit the hint | Changed hint to conditional: "if this matches an MCQ option use it; otherwise ignore it and solve from the question only" | `eb77ca7` |
+| 5 | **Vision not capturing force arrow labels (5N/6N/7N/8N)** | Vision prompt had no rule for diagram numerical labels; values on arrows were silently dropped | Added CRITICAL rule: "for force/FBD diagrams list ALL numerical values on arrows with direction, e.g. '5N in +x direction'" | `f03e32c` |
+| 6 | **"Practice JEE Jan 2024" → SymPy returned "6"; 70B answered "6"** | SymPy invoked on meta/practice request; CANNOT_EVALUATE list didn't cover practice/mock requests | Extended CANNOT_EVALUATE rule to cover `GENERATE`, `PRACTICE`, `MOCK TEST`, `QUIZ ME` requests and single bare topic/subject names | `01202bb` |
+| 7 | **RAG content treated as the student's question** | `"RELEVANT KNOWLEDGE BASE CONTEXT"` label was ambiguous; LLM sometimes answered the RAG extract rather than the student's question | Renamed label to `"REFERENCE MATERIAL (textbook/past-paper extracts for background — this is NOT the student's question)"` | `01202bb` |
+| 8 | **Force-value hallucination guard for 70B reasoning prompt** | Even with SymPy fixed, 70B could still invent force values in its own solution if not warned | Added CRITICAL exact-values rule to `prompts.py` system prompt: "Every numerical value MUST come directly from the question; NEVER invent or substitute" | `d1d27b1` |
+
+### iOS Fixes (committed — require new Xcode build for device)
+
+| # | Issue | Root Cause | Fix | Commit |
+|---|-------|-----------|-----|--------|
+| 1 | **Dashboard/SyllabusMap sent bare topic name ("Algebra")** | `pendingStudyTopic` was set to just `topic` string; 70B classified it as a meta-query and gave a generic response | Enriched to full descriptive prompt: "Explain the key concepts in Algebra with a worked example and give me 2 JEE/NEET practice problems" | `3564142` |
+| 2 | **"ACADEMIC TOPIC" leaking into exam badge header** | Raw `questionType` from LLM was displayed verbatim; internal classification labels appeared in UI | Added `examQuestionTypeLabel()` mapper: suppresses any label containing "TOPIC", "QUERY", "REQUEST", "PRACTICE"; normalises MCQ/Integer/Subjective | `1537a1b` |
+| 3 | **"45 min · 3 topics today" duration ambiguous** | Duration label showed only first topic's duration with no context | Compute total minutes across all topics; label format changed to `"~15 min for this topic · 3 topics · ~45 min total today"` | `4cb3775` |
+
+### Progress Screen — Design Alignment (commit `e4ffd89`, deployed)
+
+The Progress screen was rebuilt to match the provided design mockup.
+
+**Backend additions (`progress.py`):**
+
+| Field | Description |
+|-------|-------------|
+| `day_streak` | Consecutive days with ≥1 quiz answer, walking backwards from today |
+| `estimated_study_min_week` | `total_questions × 3 min` — practical study-time proxy |
+| `daily_activity[7]` | Per-day question count + estimated minutes (Mon→Sun) for line chart |
+| `subject_accuracy` | Topics aggregated by `subject` field (Physics/Chemistry/Maths/Biology) |
+
+**iOS additions (`Endpoints.swift`):** `ProgressResponse` extended with all 4 fields; custom `init(from decoder:)` uses `decodeIfPresent` with safe defaults so old cached JSON still decodes.
+
+**UI changes (`LearnerProgressView.swift`):**
+
+| Component | Before | After |
+|-----------|--------|-------|
+| Header subtitle | "Week: Jan 1 – Jan 7" (dynamic) | "Keep up the great work!" (static) |
+| Stat 1 | Weak Topics count ⚠️ | 🔥 Day Streak |
+| Stat 2 | Correct count ✅ | ⏱ This Week (hours) |
+| Stat 3 | Avg Accuracy ✓ | 🎯 Avg Accuracy ✓ |
+| Stat 4 | Questions ✓ | 📚 Questions ✓ |
+| Weekly line chart | Absent | Mon-Sun area+line chart (estimated study minutes) |
+| Bar chart data | Individual topic names | Subject-level (Physics/Chemistry/Maths/Biology) |
+| Bar chart tooltip | None | Tap bar → "Physics accuracy: 85%" capsule |
+| "Practice Weak Topics" | Empty action | Navigates to Study tab with weak-topic practice prompt |
+| Exam Readiness title | "Exam Readiness" (fixed) | "JEE Exam Readiness" / "NEET Exam Readiness" (from profile) |
+| Exam Readiness background | Green→teal gradient | Solid green |
 
 ---
 
