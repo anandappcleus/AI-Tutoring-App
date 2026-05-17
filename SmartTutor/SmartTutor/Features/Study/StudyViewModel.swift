@@ -78,6 +78,13 @@ struct StudyMessage: Identifiable, Equatable {
     private(set) var viewState: StudyViewState = .idle
     private(set) var questionsUsedToday: Int = 0
 
+    // MARK: Conversation history (sent to backend for multi-turn context)
+
+    /// Prior Q&A turns kept in memory; sent with every /ask request so the
+    /// LLM can handle follow-up questions like "explain step 2 again".
+    /// Capped at 10 turns (5 Q&A pairs). Loaded from the server on init.
+    private var conversationHistory: [ConversationTurn] = []
+
     // MARK: Constants
 
     static let freeDailyLimit = 10
@@ -101,6 +108,9 @@ struct StudyMessage: Identifiable, Equatable {
 
         appendWelcomeMessage()
         logger.info("StudyViewModel: initialised")
+
+        // Restore last session from Redis (non-blocking, non-fatal)
+        Task { [weak self] in await self?.loadPreviousSession() }
     }
 
     // MARK: - Public API
@@ -152,6 +162,7 @@ struct StudyMessage: Identifiable, Equatable {
     /// Reset conversation (e.g. user taps "New Chat").
     func reset() {
         messages.removeAll()
+        conversationHistory.removeAll()
         viewState = .idle
         appendWelcomeMessage()
         logger.info("StudyViewModel.reset")
@@ -161,13 +172,26 @@ struct StudyMessage: Identifiable, Equatable {
 
     private func performAsk(trimmed: String, language: String?, imageBase64: String?) async {
         let examType = profile()?.examTarget.rawValue  // "JEE" | "NEET" | "WBCHSE"
+        // Snapshot current history (last 10 turns) to send with this request
+        let historySnapshot = Array(conversationHistory.suffix(10))
         do {
             let response: AskResponse = try await apiClient.request(
-                .ask(question: trimmed, language: language, examType: examType, imageBase64: imageBase64)
+                .ask(question: trimmed, language: language, examType: examType,
+                     imageBase64: imageBase64, history: historySnapshot)
             )
 
             let answerText = buildAnswerText(from: response)
             messages.append(StudyMessage(role: .assistant, text: answerText, response: response))
+
+            // Append this Q&A pair to history for next turn
+            conversationHistory.append(ConversationTurn(role: "user", content: trimmed))
+            conversationHistory.append(ConversationTurn(role: "assistant",
+                                                         content: response.explanation))
+            // Cap at 10 turns (5 Q&A pairs)
+            if conversationHistory.count > 10 {
+                conversationHistory = Array(conversationHistory.suffix(10))
+            }
+
             viewState = .idle
             questionsUsedToday += 1
             // NOTE: do NOT enqueue here — /ask already persisted to quiz_answers on
@@ -306,5 +330,41 @@ struct StudyMessage: Identifiable, Equatable {
             greeting = "Hello! I'm your AI tutor. Ask me any question about JEE, NEET, or your board exams. 🎓"
         }
         messages.append(StudyMessage(role: .assistant, text: greeting))
+    }
+
+    // MARK: - Previous session restore
+
+    /// Fetch the last session's conversation turns from Redis via GET /ask/history.
+    /// If history exists, rebuilds conversationHistory (for context sending) and
+    /// prepends the last 3 Q&A pairs as visible messages above the welcome message.
+    private func loadPreviousSession() async {
+        struct HistoryResponse: Decodable {
+            struct Turn: Decodable { let role: String; let content: String }
+            let history: [Turn]
+        }
+        do {
+            let resp: HistoryResponse = try await apiClient.request(.chatHistory)
+            guard !resp.history.isEmpty else { return }
+
+            // Rebuild in-memory history for future sends
+            conversationHistory = resp.history.map {
+                ConversationTurn(role: $0.role, content: $0.content)
+            }
+
+            // Show last 3 Q&A pairs (6 turns) as chat bubbles above the welcome message
+            let displayTurns = resp.history.suffix(6)
+            var restored: [StudyMessage] = []
+            for turn in displayTurns {
+                let role: StudyMessage.Role = turn.role == "user" ? .user : .assistant
+                restored.append(StudyMessage(role: role, text: turn.content))
+            }
+
+            // Insert restored history before the welcome message
+            messages = restored + messages
+            logger.info("StudyViewModel.loadPreviousSession: restored \(restored.count) messages")
+        } catch {
+            // Non-fatal: silently skip if Redis unavailable or not configured
+            logger.debug("StudyViewModel.loadPreviousSession: \(error.localizedDescription)")
+        }
     }
 }

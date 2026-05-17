@@ -12,6 +12,12 @@ import Foundation
 
 // MARK: - Endpoint Definitions
 
+/// A single prior conversation turn sent to the backend for multi-turn context.
+struct ConversationTurn: Encodable {
+    let role: String      // "user" or "assistant"
+    let content: String
+}
+
 enum Endpoint {
     // Auth
     case login(email: String, password: String)   // POST /auth/token (form-encoded)
@@ -21,7 +27,11 @@ enum Endpoint {
     case me                                        // GET /auth/me
 
     // Study — triggers Question Generator agent
-    case ask(question: String, language: String?, examType: String?, imageBase64: String?)
+    case ask(question: String, language: String?, examType: String?, imageBase64: String?,
+             history: [ConversationTurn])
+
+    // Chat history — returns last session turns from Redis
+    case chatHistory                               // GET /ask/history
 
     // Study Plan — returns today's Curriculum Planner output
     case plan(studentId: String)
@@ -52,6 +62,7 @@ enum Endpoint {
         case .refresh:              return "/auth/refresh"
         case .me:                   return "/auth/me"
         case .ask:                  return "/ask"
+        case .chatHistory:          return "/ask/history"
         case .plan(let id):         return "/plan/\(id)"
         case .progress(let id):     return "/progress/\(id)"
         case .syncAnswers:          return "/sync-answers"
@@ -69,7 +80,8 @@ enum Endpoint {
         switch self {
         case .login, .register, .refresh, .ask, .syncAnswers,
              .registerDeviceToken:                             return "POST"
-        case .me, .plan, .progress, .packs, .downloadPack, .mockTests:  return "GET"
+        case .me, .plan, .progress, .packs, .downloadPack, .mockTests,
+             .chatHistory:                                     return "GET"
         case .updateProfile:                                   return "PATCH"
         }
     }
@@ -98,11 +110,14 @@ enum Endpoint {
         case .refresh(let token):
             return try? JSONSerialization.data(withJSONObject: ["refresh_token": token])
 
-        case .ask(let question, let language, let examType, let imageBase64):
-            var body: [String: String] = ["question": question]
+        case .ask(let question, let language, let examType, let imageBase64, let history):
+            var body: [String: Any] = ["question": question]
             if let lang = language      { body["language"] = lang }
             if let exam = examType      { body["exam_type"] = exam }
             if let b64 = imageBase64    { body["image_b64"] = b64 }
+            if !history.isEmpty {
+                body["history"] = history.map { ["role": $0.role, "content": $0.content] }
+            }
             return try? JSONSerialization.data(withJSONObject: body)
 
         case .syncAnswers(let answers):

@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_NUMBER_ID: str = ""      # Sender phone number ID from Meta dashboard
     WHATSAPP_API_VERSION: str = "v20.0"
 
+    # ── Upstash Redis (conversation history + rate limiting) ─────────
+    UPSTASH_REDIS_REST_URL: str = ""    # e.g. https://xxx.upstash.io
+    UPSTASH_REDIS_REST_TOKEN: str = ""  # Upstash REST token
+
     # ── Admin ─────────────────────────────────────────────────────────
     ADMIN_SECRET: str = ""          # set in .env / Railway to protect /admin routes
 

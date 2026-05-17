@@ -44,6 +44,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.models.student import QuizAnswer, Student, StudyPlan
 from app.routers.auth import get_current_student
+from app.services.redis_client import get_redis
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -58,6 +59,12 @@ _VISION_MODEL = "meta/llama-3.2-90b-vision-instruct"  # resolved at runtime from
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────
+
+class ConversationTurnIn(BaseModel):
+    """A single prior turn sent by the iOS client for multi-turn context."""
+    role: str = Field(..., pattern=r"^(user|assistant)$")
+    content: str = Field(..., max_length=2000)
+
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=3, max_length=2000)
@@ -75,6 +82,14 @@ class AskRequest(BaseModel):
         None,
         max_length=4_000_000,   # ~3 MB raw image — generous limit
         description="JPEG image as base64 string. When present, the 90B vision model extracts math text.",
+    )
+    history: list[ConversationTurnIn] = Field(
+        default_factory=list,
+        max_length=10,
+        description=(
+            "Previous conversation turns (oldest first, newest last). "
+            "Max 10 turns = 5 Q&A pairs. Used to give the LLM multi-turn context."
+        ),
     )
 
 
@@ -191,10 +206,42 @@ async def _extract_image_content(image_b64: str) -> str:
 
 
 async def _check_daily_limit(student: Student, db: AsyncSession) -> None:
-    """Raise 429 if a free-tier student has hit their daily question cap."""
+    """Raise 429 if a free-tier student has hit their daily question cap.
+
+    Redis-first: O(1) INCR counter keyed by (student_id, UTC date).
+    Falls back to a Postgres COUNT query when Redis is unavailable.
+    """
     if student.is_premium:
         return
 
+    redis = get_redis()
+    if redis is not None:
+        today = date.today().isoformat()
+        rate_key = f"rate:{student.id}:{today}"
+        try:
+            count = await redis.get(rate_key)
+            count = int(count) if count is not None else 0
+            if count >= FREE_DAILY_LIMIT:
+                log.info(
+                    "ask.rate_limit(redis)  student_id=%s  daily_count=%d  limit=%d",
+                    student.id, count, FREE_DAILY_LIMIT,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail={
+                        "error": "daily_limit_reached",
+                        "message": f"Free plan allows {FREE_DAILY_LIMIT} questions per day. Upgrade to continue.",
+                        "limit": FREE_DAILY_LIMIT,
+                        "used": count,
+                    },
+                )
+            return  # Redis check passed — skip Postgres
+        except HTTPException:
+            raise
+        except Exception:
+            log.warning("ask.rate_limit: Redis error — falling back to Postgres", exc_info=True)
+
+    # Postgres fallback
     today_start = datetime.combine(date.today(), datetime.min.time()).replace(
         tzinfo=timezone.utc
     )
@@ -768,6 +815,7 @@ async def ask(
             body.exam_type,
             pre_chunks=pre_chunks,
             sympy_answer=sympy_answer,
+            history=body.history or None,
         )
     except Exception:
         log.error(
@@ -832,6 +880,36 @@ async def ask(
         )
         await db.rollback()
 
+    # ── Redis: increment rate-limit counter + persist conversation history ─
+    redis = get_redis()
+    if redis is not None:
+        try:
+            # Rate-limit counter: INCR with TTL to end of UTC day
+            today = date.today().isoformat()
+            rate_key = f"rate:{student_id}:{today}"
+            now_utc = datetime.now(timezone.utc)
+            midnight_utc = datetime.combine(
+                date.today() + timedelta(days=1), datetime.min.time()
+            ).replace(tzinfo=timezone.utc)
+            ttl_secs = max(1, int((midnight_utc - now_utc).total_seconds()))
+            await redis.incr(rate_key)
+            await redis.expire(rate_key, ttl_secs)
+
+            # Conversation history: append this Q&A pair, keep last 10 turns
+            hist_key = f"chat:history:{student_id}"
+            stored_raw = await redis.get(hist_key)
+            stored: list = json.loads(stored_raw) if stored_raw else []
+            # Append user question
+            stored.append({"role": "user", "content": body.question[:600]})
+            # Append assistant answer (core explanation, capped for storage)
+            asst_content = (parsed.get("explanation") or "")[:800]
+            stored.append({"role": "assistant", "content": asst_content})
+            # Keep last 10 turns (= 5 Q&A pairs)
+            stored = stored[-10:]
+            await redis.set(hist_key, json.dumps(stored), ex=86400)  # 24 h TTL
+        except Exception:
+            log.warning("ask.redis_post_save_failed  student_id=%s", student_id, exc_info=True)
+
     # ── Build response ───────────────────────────────────────────────
     # Fallback explanation when JSON parsing failed completely:
     # prefer text after "Final Answer:" over the raw thinking dump.
@@ -874,6 +952,30 @@ async def ask(
         marking_scheme=parsed.get("marking_scheme"),
         raw_output=raw_output if not parsed else None,
     )
+
+
+@router.get("/ask/history", tags=["ask"])
+async def get_chat_history(
+    current_student: Student = Depends(get_current_student),
+):
+    """
+    Return the last 10 conversation turns (5 Q&A pairs) for the current student.
+
+    Used by the iOS app on StudyView appear to restore the previous session.
+    Returns an empty list when Redis is not configured or the student has no history.
+    """
+    redis = get_redis()
+    if redis is None:
+        return {"history": []}
+    hist_key = f"chat:history:{current_student.id}"
+    try:
+        raw = await redis.get(hist_key)
+        if raw is None:
+            return {"history": []}
+        return {"history": json.loads(raw)}
+    except Exception:
+        log.warning("get_chat_history: Redis error  student_id=%s", current_student.id, exc_info=True)
+        return {"history": []}
 
 
 async def _get_weak_topics(student_id, db: AsyncSession) -> list[str]:
@@ -950,6 +1052,7 @@ async def _ask_direct(
     exam_type: str | None,
     pre_chunks: list[dict] | None = None,   # pre-fetched concurrently with vision
     sympy_answer: str | None = None,        # SymPy-verified answer (None = not available)
+    history: list | None = None,            # list of ConversationTurnIn (prior Q&A turns)
 ) -> str:
     """
     Fast path: RAG search + single LLM call, bypassing the CrewAI ReAct loop.
@@ -1009,10 +1112,27 @@ async def _ask_direct(
             f"NEVER invent a different question to fit the SymPy value.\n"
         )
 
+    # Build optional conversation history block injected before the question
+    _history_block = ""
+    if history:
+        turns_text = "\n".join(
+            f"[{'Student' if t.role == 'user' else 'Tutor'}]: {t.content[:600]}"
+            for t in history[-10:]
+        )
+        _history_block = (
+            f"\n\n--- CONVERSATION HISTORY (most recent last) ---\n"
+            f"{turns_text}\n"
+            f"--- END CONVERSATION HISTORY ---\n"
+            f"The student's NEW question is below. Use the history for context "
+            f"(e.g. 'that formula', 'another example', 'step 2 from before') "
+            f"but answer only the NEW question.\n"
+        )
+
     user_message = (
         f"A student (ID: {student_id}) has asked: {question}\n"
         f"Exam context: {exam_context_str}\n"
         f"Student's weak topics (supplementary context only): {weak_topics_str}\n"
+        f"{_history_block}"
         f"\n"
         f"CRITICAL RULE: Your response MUST address the student's EXACT question. "
         f"Do NOT pivot to a different topic because it appears in the weak topics list.\n"
