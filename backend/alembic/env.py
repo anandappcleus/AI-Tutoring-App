@@ -1,10 +1,9 @@
 import asyncio
-import ssl
 import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import pool, create_engine
+from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -45,21 +44,27 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-# ── Online migrations (sync via psycopg2) ────────────────────────────
-# Using synchronous psycopg2 avoids the asyncpg SSL-upgrade handshake
-# issue with Neon's serverless proxy on macOS.
+# ── Online migrations (async via asyncpg) ────────────────────────────
+def do_run_migrations(connection: Connection) -> None:
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_async_migrations() -> None:
+    db_url, connect_args = _prepare_engine_args(settings.DATABASE_URL)
+    engine = create_async_engine(
+        db_url,
+        poolclass=pool.NullPool,
+        connect_args=connect_args,
+    )
+    async with engine.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+    await engine.dispose()
+
+
 def run_migrations_online() -> None:
-    db_url = settings.DATABASE_URL
-    # Convert +asyncpg dialect to plain psycopg2 for the migration engine.
-    # Also translate ?ssl=require → ?sslmode=require (psycopg2 syntax).
-    import re
-    sync_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
-    sync_url = re.sub(r'[?&]ssl=require', '?sslmode=require', sync_url, flags=re.IGNORECASE)
-    connectable = create_engine(sync_url, poolclass=pool.NullPool)
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-        with context.begin_transaction():
-            context.run_migrations()
+    asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():
