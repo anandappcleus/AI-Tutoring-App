@@ -18,12 +18,12 @@ An iOS tutoring app targeting Tier-2/3 city students (Asansol, Durgapur, Bardham
 | iOS App | Swift / SwiftUI / StoreKit 2 / Core Data |
 | Backend | Python 3.11 / FastAPI / SQLAlchemy 2 / Alembic |
 | AI Agents | CrewAI 4-agent crew |
-| Dev LLM | NVIDIA NIM — Sarvam-M (Indian languages) + Qwen3-235B (reasoning) |
-| Prod LLM | GPT-4o mini / Claude Haiku (swap via `.env` only) |
-| RAG | Chroma (dev) / Pinecone (prod) + `nv-embedqa-e5-v5` embeddings |
-| Speech | Bhashini API (STT + TTS, 22 Indian languages) |
-| Database | PostgreSQL |
-| Deployment | Railway / Render |
+| LLM | NVIDIA NIM — Sarvam-M (Indian languages) + Llama-3.3-70B (reasoning) |
+| RAG | ChromaDB (local) + `nv-embedqa-e5-v5` embeddings |
+| Speech | Sarvam Saaras v2 STT + Bulbul v2 TTS (22 Indian languages) |
+| Database | PostgreSQL — Neon (cloud, serverless) |
+| Cache | Upstash Redis (chat history, 24h TTL) |
+| Deployment | Railway (API server, auto-deploy on push) · Neon (DB) |
 
 ---
 
@@ -36,22 +36,22 @@ AI-Tutoring-App/
 │   │   ├── main.py           # FastAPI entrypoint + APScheduler
 │   │   ├── config.py         # Pydantic Settings (reads .env)
 │   │   ├── models/           # SQLAlchemy models
-│   │   ├── routers/          # API routes (auth, ask, plan, progress)
+│   │   ├── routers/          # API routes (auth, ask, plan, progress, mock_tests)
 │   │   ├── agents/           # CrewAI crew, agents, tasks, prompts
-│   │   ├── tools/            # CrewAI tools (RAG, DB, WhatsApp)
+│   │   ├── tools/            # CrewAI tools (RAG, DB, SymPy, WhatsApp)
 │   │   ├── rag/              # Ingest, embedder, retriever
+│   │   ├── services/         # Redis client (Upstash)
 │   │   └── scheduler.py      # Nightly crew at 02:00 IST
-│   ├── alembic/              # DB migrations
+│   ├── alembic/              # DB migrations (asyncpg — no psycopg2 needed)
 │   ├── tests/
-│   ├── .env.development      # NIM keys, Chroma, local DB (gitignored)
-│   ├── .env.production       # OpenAI keys, Pinecone, Railway DB (gitignored)
+│   ├── .env                  # NIM keys, Neon DB URL, Upstash Redis (gitignored)
 │   ├── requirements.txt
 │   └── Dockerfile
-└── ios/                      # Xcode / SwiftUI app
-    └── TutorApp/
-        ├── Features/         # Onboarding, Study, Progress, Subscription
-        ├── Core/             # Networking, Persistence, Models
-        └── Resources/        # Localizable.strings (en / bn / hi)
+└── SmartTutor/               # Xcode / SwiftUI app
+    └── SmartTutor/
+        ├── Features/         # Onboarding, Study, Progress, MockTests, Dashboard…
+        ├── Core/             # Networking, Persistence, Models, Logging, UI
+        └── App/              # AppState, AppDelegate, AppConfig
 ```
 
 ---
@@ -108,15 +108,16 @@ python -c 'from app.scheduler import run_nightly_crew; import asyncio; asyncio.r
 
 Copy `.env.example` to `.env.development` (local) or `.env.production` (Railway).
 
-| Variable | Dev (NIM) | Prod (OpenAI) |
-|----------|-----------|---------------|
-| `LLM_BASE_URL` | `https://integrate.api.nvidia.com/v1` | `https://api.openai.com/v1` |
-| `LLM_API_KEY` | `nvapi-xxxx` | `sk-xxxx` |
-| `LLM_CHAT_MODEL` | `ai21labs/sarvam-m` | `gpt-4o-mini` |
-| `LLM_AGENT_MODEL` | `qwen/qwen3-235b-a22b` | `gpt-4o-mini` |
-| `EMBED_MODEL` | `nvidia/nv-embedqa-e5-v5` | `text-embedding-3-small` |
-| `VECTOR_DB` | `chroma` | `pinecone` |
-| `DATABASE_URL` | `postgresql://localhost/tutordb` | `postgresql://railway.app/tutordb` |
+| Variable | Description |
+|----------|-------------|
+| `NVIDIA_API_KEY` | NIM API key from [build.nvidia.com](https://build.nvidia.com) |
+| `LLM_CHAT_MODEL` | `sarvamai/sarvam-m` (Indic) or `meta/llama-3.3-70b-instruct` (EN) |
+| `DATABASE_URL` | `postgresql+asyncpg://user:pass@host/db?ssl=require` (Neon) |
+| `UPSTASH_REDIS_URL` | Upstash Redis REST URL |
+| `UPSTASH_REDIS_TOKEN` | Upstash Redis token |
+| `SARVAM_API_KEY` | Sarvam AI key for STT + TTS |
+| `ADMIN_SECRET` | Header value for `POST /admin/run-nightly-crew` |
+| `JWT_SECRET` | HS256 signing secret for auth tokens |
 
 ---
 
@@ -143,14 +144,14 @@ Supported: Bengali · Hindi · Tamil · Telugu · Marathi · English (more via B
 24-week plan (12 × 2-week sprints) targeting App Store launch.  
 Full details: [AI_Tutoring_App_Architecture_DevPlan.md](AI_Tutoring_App_Architecture_DevPlan.md)
 
-| Sprints | Focus |
-|---------|-------|
-| 1-2 | Foundation, NIM integration, RAG pipeline |
-| 3-4 | CrewAI agents, FastAPI routes + auth |
-| 5-6 | iOS study screen, voice input, progress charts |
-| 7-8 | Subscriptions (StoreKit 2), offline packs, content QA |
-| 9 | Production LLM switch, Railway deploy, TestFlight |
-| 10-12 | Hindi support, App Store launch, analytics |
+| Sprints | Focus | Status |
+|---------|-------|--------|
+| 1–4 | Foundation, NIM, RAG, CrewAI agents, FastAPI + auth | ✅ Complete |
+| 5–6 | iOS study screen, voice, progress charts, onboarding | ✅ Complete |
+| Post-6 | SymPy verifier, vision OCR, LLM accuracy, chat history, Full Paper Mock Tests, Neon DB migration | ✅ Complete |
+| 7 | Subscriptions (StoreKit 2), freemium gate | 🔲 Not Started |
+| 8 | Offline packs download, content QA | 🔲 Not Started |
+| 9–12 | Prod LLM switch, TestFlight, App Store launch, analytics | 🔲 Not Started |
 
 ---
 

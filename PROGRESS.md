@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 18 May 2026 (multi-turn Redis chat history; LLM reasoning preamble fix; classification label suppression; inline search UX; plan dedup)*
+*Last updated: 18 May 2026 (Neon DB migration; Full Paper Mock Tests; scheduler new-student fix; chroma_db untracked)*
 
 ---
 
@@ -396,6 +396,48 @@ The Progress screen was rebuilt to match the provided design mockup.
 | Sent per request | Last 10 turns | ✅ Matches model context window |
 | iOS warm-start | Last 3 Q&A pairs on launch | ✅ Good mobile UX |
 | Long-term persistence | ❌ Wiped after 24h idle | Add `chat_messages` Postgres table |
+
+## Post-Sprint 6 (cont.) — Neon DB Migration + Full Paper Mock Tests ✅ Complete
+
+*18 May 2026 — database migrated from Railway Postgres to Neon; Full Paper Mode shipped; scheduler fixed for new students.*
+
+### Database Migration: Railway Postgres → Neon
+
+| # | Task | Detail | Commit | Status |
+|---|------|--------|--------|--------|
+| 1 | **`database.py` — Neon SSL fix** | `_prepare_engine_args()` strips `?ssl=require` from URL and injects `ssl.create_default_context()` into `connect_args`; required because asyncpg does not accept the `?ssl=require` query param form | `81df938` | ✅ |
+| 2 | **`alembic/env.py` — asyncpg online migrations** | Rewrote from psycopg2-sync to asyncpg-async (`create_async_engine` + `conn.run_sync()`); removes psycopg2 dependency that was absent from Docker image | `ab13a37` | ✅ |
+| 3 | **Railway `DATABASE_URL`** | Set via `railway variables set DATABASE_URL=postgresql+asyncpg://…neon.tech/…?ssl=require` | — | ✅ |
+| 4 | **All 3 Alembic migrations ran on Neon** | `c0fc4ea40392` (initial schema) → `b3c7f0a91d2e` (apns_token) → `a1f3e9d02b7c` (mock test tables) | Railway deploy | ✅ |
+| 5 | **Student row migrated to Neon** | Railway Postgres and local port 5432 blocked by network firewall; used Neon HTTP API (`POST /sql`) to INSERT student `a5dcb395` directly | — | ✅ |
+
+> **Note:** Local macOS network blocks PostgreSQL SSL handshake on ports 5432 and 26388. All direct DB operations use the Neon HTTP API over port 443 as a workaround.
+
+### Full Paper Mock Tests — DB + API + iOS
+
+| # | Task | File(s) | Commit | Status |
+|---|------|---------|--------|--------|
+| 1 | **DB schema** — `mock_test_questions`, `mock_test_attempts`, `mock_test_attempt_questions` tables; Alembic migration `a1f3e9d02b7c` | `models/student.py`, `alembic/versions/` | `d8df808` | ✅ |
+| 2 | **Question extraction pipeline** — `extract_questions.py` with `--dir` (multi-dir via `action="append"`) and `--sql-file` flag; `ON CONFLICT DO NOTHING` batch inserts; 930 rows across 20 papers (15 JEE + 5 NEET) | `app/rag/extract_questions.py` | `81df938` | ✅ |
+| 3 | **API endpoints** — `GET /mock-tests`, `GET /mock-tests/{id}/questions`, `POST /mock-tests/{id}/attempt`, `PATCH /mock-tests/attempt/{id}`, `POST /mock-tests/attempt/{id}/submit`, `GET /mock-tests/attempt/{id}/result` | `app/routers/mock_tests.py` | `d8df808` | ✅ |
+| 4 | **iOS — `MockTestSessionView`** — full-screen timed exam; question display, MCQ options, integer input, nav bar, palette (6-column grid, colour-coded status) | `Features/MockTests/MockTestSessionView.swift` | `325b5d0` | ✅ |
+| 5 | **iOS — `MockTestResultView`** — score ring, subject breakdown, marks/accuracy per section | `Features/MockTests/MockTestSessionView.swift` | `325b5d0` | ✅ |
+| 6 | **iOS — `MockTestSessionViewModel`** — states (loading/active/submitting/submitted/error), auto-save on question change, submit on timer expiry; JEE +4/-1 MCQ, +4/0 Integer; NEET +4/-1 | `Features/MockTests/MockTestSessionView.swift` | `325b5d0` | ✅ |
+
+### Scheduler Fix — New Students
+
+| # | Fix | Detail | Commit | Status |
+|---|-----|--------|--------|--------|
+| 1 | **`_fetch_active_students` UNION query** | Old: only students with `QuizAnswer` last 7 days (new students always skipped). New: UNION with active students who have no `study_plans` row for today — ensures first-time plan generation on join day | `app/scheduler.py` | `8dbb464` | ✅ |
+
+### Housekeeping
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | `backend/chroma_db/` untracked from git | Was committed despite being in `.gitignore`; `git rm -r --cached` removes tracking without deleting files on disk | `0402378` | ✅ |
+| 2 | `GET /ask/history` polling guard | Once-per-session flag prevents repeated polling on `StudyView` appear | `app/routers/ask.py` | `21e30a5` | ✅ |
+
+---
 
 ## Sprint 7 — Subscription + Freemium 🔲 Not Started
 
