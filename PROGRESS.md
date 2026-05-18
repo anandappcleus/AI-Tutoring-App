@@ -365,6 +365,38 @@ The Progress screen was rebuilt to match the provided design mockup.
 
 ---
 
+## Post-Sprint 6 (cont.) — Chat History, LLM Quality & iOS UX Fixes ✅ Complete
+
+*18 May 2026 — multi-turn conversation context, Upstash Redis, LLM reasoning leak fix, iOS UX polish.*
+
+### Backend Fixes (all deployed to Railway)
+
+| # | Issue | Fix | File(s) | Commit |
+|---|-------|-----|---------|--------|
+| 1 | **NULL `topic`/`subject` in `quiz_answers`** — LLM omitting fields left DB rows with NULL; plateau detection broke | `_infer_topic_subject(question)` keyword fallback (70+ JEE/NEET keyword tuples) fills topic+subject when LLM returns null | `app/routers/ask.py` | `e2e0aa6` |
+| 2 | **Multi-turn conversation context** — each `/ask` was stateless; LLM had no memory of previous Q&A | `AskRequest` gets `history: list[ConversationTurnIn]` (max 10 turns); `_ask_direct` injects `--- CONVERSATION HISTORY ---` block; saves last 10 turns to Redis `chat:history:{student_id}` with 24h TTL | `app/routers/ask.py`, `app/config.py`, `app/services/redis_client.py`, `requirements.txt` | `8aac581` |
+| 3 | **Upstash Redis client** — lazy-init singleton, returns `None` if env vars absent (graceful degradation); `GET /ask/history` endpoint added | `app/services/redis_client.py` | `8aac581` |
+| 4 | **LLM reasoning text leaking into `explanation` field** — 8B fallback wrote chain-of-thought into the JSON field, appearing verbatim in chat UI | Added 3 CRITICAL RULEs to prompt: (1) `explanation` starts directly with educational content, (2) no classification reasoning / meta-commentary, (3) for vague questions silently pick a topic and explain without narrating the choice | `app/routers/ask.py` | `c440d29` |
+
+### iOS Fixes (committed + pushed to `origin/main`)
+
+| # | Issue | Fix | File(s) | Commit |
+|---|-------|-----|---------|--------|
+| 1 | **Search bar overlapping first card** in SyllabusMap + FormulaSheets | Replaced `.searchable()` with inline `TextField` (magnifyingglass + xmark) inside `ScrollView` | `SyllabusMapView.swift`, `FormulaSheetView.swift` | `e48b6d2` |
+| 2 | **Classification labels in answer callout** — "ACADEMIC TOPIC" rendered as displayed answer | `isClassificationLabel` filter in `buildAnswerText()` | `StudyViewModel.swift` | `468052f` |
+| 3 | **Duplicate `/plan` fetches (3× in 20s)** — SwiftUI `.task` re-fired on every appearance | `lastLoadedAt: Date?` + 5-min `refreshInterval` guard in `loadPlan()` | `DashboardViewModel.swift` | `c42b645` |
+| 4 | **Multi-turn history in iOS** — stateless requests | `conversationHistory: [ConversationTurn]`; `loadPreviousSession()` restores last 3 Q&A pairs; sends last 10 turns per request | `StudyViewModel.swift`, `Endpoints.swift` | `8aac581` |
+
+### Chat History Design Notes
+
+| Aspect | Current | Future Work |
+|--------|---------|-------------|
+| Storage | Upstash Redis, 24h TTL | ✅ Good for active sessions |
+| Turn limit | Last 10 turns (hard count) | Switch to token budget (~2k tokens) |
+| Sent per request | Last 10 turns | ✅ Matches model context window |
+| iOS warm-start | Last 3 Q&A pairs on launch | ✅ Good mobile UX |
+| Long-term persistence | ❌ Wiped after 24h idle | Add `chat_messages` Postgres table |
+
 ## Sprint 7 — Subscription + Freemium 🔲 Not Started
 
 **Goal:** StoreKit 2 subscriptions working, freemium gate at 10 questions/day
