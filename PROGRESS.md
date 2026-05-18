@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 17 May 2026 (nav bar consistency across all 6 views; chart tooltips; Progress screen design aligned)*
+*Last updated: 18 May 2026 (multi-turn Redis chat history; LLM reasoning preamble fix; classification label suppression; inline search UX; plan dedup)*
 
 ---
 
