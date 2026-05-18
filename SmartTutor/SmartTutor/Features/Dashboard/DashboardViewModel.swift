@@ -36,6 +36,13 @@ final class DashboardViewModel {
 
     // MARK: - Load
 
+    /// Force a fresh network fetch, bypassing the 5-minute freshness guard.
+    /// Called by pull-to-refresh.
+    func forceRefresh(studentId: String) async {
+        lastLoadedAt = nil
+        await loadPlan(studentId: studentId)
+    }
+
     func loadPlan(studentId: String) async {
         guard !isLoading else { return }
         // Skip network fetch if data is already loaded and fresh (within 5 min).

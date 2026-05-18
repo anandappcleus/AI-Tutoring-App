@@ -99,6 +99,11 @@ struct DashboardView: View {
                     .padding(.bottom, 32)
                 }
             }
+            .refreshable {
+                if let id = appState.currentProfile?.id {
+                    await vm.forceRefresh(studentId: id)
+                }
+            }
             .background(Color(UIColor.systemGroupedBackground))
             .ignoresSafeArea(edges: .top)
             // ── Navigation destinations ──
