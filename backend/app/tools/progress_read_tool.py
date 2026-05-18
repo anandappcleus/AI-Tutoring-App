@@ -20,7 +20,7 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.database import ToolSessionFactory
+from app.database import new_tool_session
 from app.models.progress import PlateauFlag
 from app.models.student import QuizAnswer
 from app.tools.db_sync import run_async
@@ -113,7 +113,7 @@ class ProgressReadTool(BaseTool):
 
         since = datetime.now(tz=timezone.utc) - timedelta(days=days)
 
-        async with ToolSessionFactory() as session:
+        async with new_tool_session() as session:
             # ── Fetch quiz history ──────────────────────────────────
             try:
                 result = await session.execute(

@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import re
 import ssl
+from contextlib import asynccontextmanager
 from urllib.parse import urlparse, urlunparse
 
 import sqlalchemy as sa
@@ -106,6 +107,10 @@ def _build_tool_engine():
     Uses NullPool so asyncpg never holds connections between asyncio.run() calls.
     Each tool invocation gets a fresh connection that belongs to its own event loop,
     eliminating the 'Future attached to a different loop' error.
+
+    NOTE: Do NOT call this at module level — the engine must be created inside
+    the same asyncio.run() event loop that will use it.  Use new_tool_session()
+    as the public API; it creates a fresh engine on every call.
     """
     settings = get_settings()
     url, connect_args = _prepare_engine_args(settings.DATABASE_URL)
@@ -118,6 +123,7 @@ def _build_tool_engine():
     )
 
 
+# Legacy module-level engine kept for backward compatibility; prefer new_tool_session().
 _tool_engine = _build_tool_engine()
 
 ToolSessionFactory = async_sessionmaker(
@@ -125,6 +131,27 @@ ToolSessionFactory = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
+
+@asynccontextmanager
+async def new_tool_session():
+    """
+    Yield a fresh AsyncSession for use inside CrewAI tool coroutines.
+
+    Creates a brand-new engine + NullPool connection for every call so the
+    asyncpg connection is always bound to the *current* event loop (the one
+    created by asyncio.run() in the tool's thread).  This avoids the
+    'RuntimeError: no running event loop' / 'Future attached to a different
+    loop' errors that occur when the module-level _tool_engine is created
+    inside Uvicorn's loop but later reused inside a thread-local asyncio.run().
+    """
+    engine = _build_tool_engine()
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    try:
+        async with factory() as session:
+            yield session
+    finally:
+        await engine.dispose()
 
 
 async def ping_db() -> bool:
