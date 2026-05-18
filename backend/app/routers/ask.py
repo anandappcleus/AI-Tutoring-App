@@ -34,7 +34,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,7 +63,13 @@ _VISION_MODEL = "meta/llama-3.2-90b-vision-instruct"  # resolved at runtime from
 class ConversationTurnIn(BaseModel):
     """A single prior turn sent by the iOS client for multi-turn context."""
     role: str = Field(..., pattern=r"^(user|assistant)$")
-    content: str = Field(..., max_length=2000)
+    content: str = Field(..., max_length=10_000)  # generous upper bound; trimmed below
+
+    @field_validator("content")
+    @classmethod
+    def truncate_content(cls, v: str) -> str:
+        """Silently truncate overlong turns rather than rejecting the request."""
+        return v[:1800]
 
 
 class AskRequest(BaseModel):
@@ -972,7 +978,14 @@ async def get_chat_history(
         raw = await redis.get(hist_key)
         if raw is None:
             return {"history": []}
-        return {"history": json.loads(raw)}
+        turns = json.loads(raw)
+        # Sanitize any legacy turns whose content exceeds the client-side max_length.
+        _MAX = 1800
+        sanitized = [
+            {**t, "content": t["content"][:_MAX]} if len(t.get("content", "")) > _MAX else t
+            for t in turns
+        ]
+        return {"history": sanitized}
     except Exception:
         log.warning("get_chat_history: Redis error  student_id=%s", current_student.id, exc_info=True)
         return {"history": []}
