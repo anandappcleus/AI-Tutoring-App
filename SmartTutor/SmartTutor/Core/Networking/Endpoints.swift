@@ -53,6 +53,13 @@ enum Endpoint {
     // Sprint 7+: Mock tests (static fallback in MockTestsViewModel if 404)
     case mockTests                      // GET /mock-tests
 
+    // Full Paper Mode
+    case mockTestQuestions(paperId: String)                                           // GET  /mock-tests/{id}/questions
+    case startAttempt(paperId: String)                                                // POST /mock-tests/{id}/attempts
+    case saveAnswers(paperId: String, attemptId: String, answers: [String: String])   // PATCH /mock-tests/{id}/attempts/{aid}
+    case submitAttempt(paperId: String, attemptId: String)                            // POST /mock-tests/{id}/attempts/{aid}/submit
+    case attemptResult(attemptId: String)                                             // GET  /mock-tests/attempts/{aid}/result
+
     // MARK: Path
 
     var path: String {
@@ -71,6 +78,11 @@ enum Endpoint {
         case .packs:                return "/packs"
         case .downloadPack(let id): return "/packs/\(id)/download"
         case .mockTests:            return "/mock-tests"
+        case .mockTestQuestions(let pid):            return "/mock-tests/\(pid)/questions"
+        case .startAttempt(let pid):                 return "/mock-tests/\(pid)/attempts"
+        case .saveAnswers(let pid, let aid, _):      return "/mock-tests/\(pid)/attempts/\(aid)"
+        case .submitAttempt(let pid, let aid):       return "/mock-tests/\(pid)/attempts/\(aid)/submit"
+        case .attemptResult(let aid):               return "/mock-tests/attempts/\(aid)/result"
         }
     }
 
@@ -81,8 +93,9 @@ enum Endpoint {
         case .login, .register, .refresh, .ask, .syncAnswers,
              .registerDeviceToken:                             return "POST"
         case .me, .plan, .progress, .packs, .downloadPack, .mockTests,
-             .chatHistory:                                     return "GET"
-        case .updateProfile:                                   return "PATCH"
+             .chatHistory, .mockTestQuestions, .attemptResult: return "GET"
+        case .startAttempt, .submitAttempt:                    return "POST"
+        case .updateProfile, .saveAnswers:                     return "PATCH"
         }
     }
 
@@ -132,6 +145,9 @@ enum Endpoint {
 
         case .registerDeviceToken(let token):
             return try? JSONSerialization.data(withJSONObject: ["token": token])
+
+        case .saveAnswers(_, _, let answers):
+            return try? JSONSerialization.data(withJSONObject: ["answers": answers])
 
         default:
             return nil

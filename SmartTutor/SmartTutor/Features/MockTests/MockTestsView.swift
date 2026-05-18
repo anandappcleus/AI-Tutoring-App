@@ -23,6 +23,7 @@ struct MockTest: Identifiable, Hashable {
     let questionCount: Int
     let durationMinutes: Int
     let difficulty: String      // Easy | Medium | Hard
+    let questionsAvailable: Bool // true when DB has questions for this paper
 }
 
 // MARK: - ViewModel
@@ -70,7 +71,8 @@ struct MockTest: Identifiable, Hashable {
                          subjects: r.subjects, year: r.year,
                          questionCount: r.questionCount,
                          durationMinutes: r.durationMinutes,
-                         difficulty: r.difficulty)
+                         difficulty: r.difficulty,
+                         questionsAvailable: r.questionsAvailable)
             }
             AppLogger.apiSuccess(AppLogger.mockTests, endpoint: "GET /mock-tests",
                                  detail: "count=\(mapped.count)")
@@ -98,12 +100,14 @@ private struct MockTestResponse: Decodable {
     let questionCount: Int
     let durationMinutes: Int
     let difficulty: String
+    let questionsAvailable: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, title, difficulty, subjects, year
-        case examType        = "exam_type"
-        case questionCount   = "question_count"
-        case durationMinutes = "duration_minutes"
+        case examType           = "exam_type"
+        case questionCount      = "question_count"
+        case durationMinutes    = "duration_minutes"
+        case questionsAvailable = "questions_available"
     }
 }
 
@@ -113,6 +117,7 @@ struct MockTestsView: View {
     @Environment(AppState.self) private var appState
     @State private var vm = MockTestsViewModel()
     @State private var selectedTest: MockTest?
+    @State private var fullPaperTest: MockTest?  // drives the full-screen session cover
 
     private var examTarget: String? { appState.currentProfile?.examTarget.rawValue }
 
@@ -143,7 +148,17 @@ struct MockTestsView: View {
             }
         }
         .sheet(item: $selectedTest) { test in
-            MockTestDetailView(test: test)
+            MockTestDetailView(test: test) { testToStart in
+                selectedTest = nil
+                // Small delay so the sheet dismiss animation completes before the cover appears
+                Task {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    fullPaperTest = testToStart
+                }
+            }
+        }
+        .fullScreenCover(item: $fullPaperTest) { test in
+            MockTestSessionView(test: test)
         }
         .task {
             AppLogger.navigated(to: "MockTestsView", from: "Dashboard")
@@ -354,6 +369,10 @@ private struct MockTestCard: View {
 
 struct MockTestDetailView: View {
     let test: MockTest
+    /// Called when the user taps "Start Full Paper Mode". The sheet should dismiss
+    /// and then the caller presents MockTestSessionView as a fullScreenCover.
+    var onStartFullPaper: ((MockTest) -> Void)? = nil
+
     @Environment(\.dismiss) private var dismiss
     @AppStorage("selectedMainTab") private var selectedMainTab = 0
     @AppStorage("pendingStudyTopic") private var pendingStudyTopic = ""
@@ -411,6 +430,28 @@ struct MockTestDetailView: View {
 
                 // CTA
                 VStack(spacing: 12) {
+                    // Full Paper Mode — shown when questions are loaded in DB
+                    if test.questionsAvailable {
+                        Button {
+                            AppLogger.userAction(AppLogger.mockTests,
+                                                 action: "start-full-paper",
+                                                 context: test.id)
+                            dismiss()
+                            onStartFullPaper?(test)
+                        } label: {
+                            Label("Start Full Paper Mode", systemImage: "doc.text.fill")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(
+                                    LinearGradient(colors: [.indigo, .purple],
+                                                   startPoint: .leading, endPoint: .trailing)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                    }
+
                     Button {
                         AppLogger.userAction(AppLogger.mockTests,
                                              action: "start-practice",
@@ -424,16 +465,18 @@ struct MockTestDetailView: View {
                     } label: {
                         Label("Practise with AI Tutor", systemImage: "brain.head.profile")
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(test.questionsAvailable ? .indigo : .white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 52)
-                            .background(Color.indigo)
+                            .background(test.questionsAvailable
+                                        ? Color(UIColor.secondarySystemBackground)
+                                        : Color.indigo)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(test.questionsAvailable ? Color.indigo.opacity(0.4) : Color.clear, lineWidth: 1.5)
+                            )
                     }
-
-                    Text("Full paper mode coming soon")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 32)
