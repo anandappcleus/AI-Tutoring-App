@@ -4,6 +4,7 @@
 from app.models.base import Base
 from app.models.student import Student, QuizAnswer, StudyPlan, Subscription
 from app.models.progress import ProgressSnapshot, PlateauFlag
+from app.models.mock_test import MockTestQuestion, MockTestAttempt
 
 __all__ = [
     "Base",
@@ -13,4 +14,6 @@ __all__ = [
     "Subscription",
     "ProgressSnapshot",
     "PlateauFlag",
+    "MockTestQuestion",
+    "MockTestAttempt",
 ]

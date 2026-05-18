@@ -96,9 +96,12 @@ def _infer_subject(pdf_path: Path) -> str:
 
     stem = pdf_path.stem.lower()
 
-    # Full-word match (custom filenames)
-    for subject in ("physics", "chemistry", "mathematics", "maths", "biology", "botany", "zoology"):
+    # Full-word match (custom filenames, including Mathongo "math" abbreviation)
+    for subject in ("physics", "chemistry", "mathematics", "maths", "math", "biology", "botany", "zoology"):
         if subject in stem:
+            # Normalise short forms
+            if subject in ("maths", "math"):
+                return "mathematics"
             return subject
 
     # NCERT abbreviation: 2-char series prefix + 2-char subject code + digits
