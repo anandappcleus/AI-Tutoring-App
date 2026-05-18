@@ -89,6 +89,11 @@ struct StudyMessage: Identifiable, Equatable {
 
     static let freeDailyLimit = 10
 
+    /// Guards against calling GET /ask/history more than once per app session.
+    /// The ViewModel may be re-created (e.g. when the SwiftUI hierarchy is rebuilt
+    /// after a silent token-refresh), but we only want one history fetch per launch.
+    private static var hasLoadedSessionHistory = false
+
     // MARK: Dependencies (injected for testability)
 
     private let apiClient: APIClient
@@ -344,7 +349,17 @@ struct StudyMessage: Identifiable, Equatable {
     /// Fetch the last session's conversation turns from Redis via GET /ask/history.
     /// If history exists, rebuilds conversationHistory (for context sending) and
     /// prepends the last 3 Q&A pairs as visible messages above the welcome message.
+    ///
+    /// The `hasLoadedSessionHistory` static flag ensures this only hits the network
+    /// once per app session even if the ViewModel is re-created (e.g. after a silent
+    /// token refresh rebuilds the SwiftUI hierarchy).
     private func loadPreviousSession() async {
+        guard !Self.hasLoadedSessionHistory else {
+            logger.debug("StudyViewModel.loadPreviousSession: already loaded this session — skipping")
+            return
+        }
+        Self.hasLoadedSessionHistory = true
+
         struct HistoryResponse: Decodable {
             struct Turn: Decodable { let role: String; let content: String }
             let history: [Turn]
