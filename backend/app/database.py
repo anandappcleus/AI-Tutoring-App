@@ -14,6 +14,8 @@ FastAPI dependency:
 from __future__ import annotations
 
 import logging
+import re
+import ssl
 from urllib.parse import urlparse, urlunparse
 
 import sqlalchemy as sa
@@ -44,6 +46,26 @@ def _mask_db_url(url: str) -> str:
     return "<db-url>"
 
 
+def _prepare_engine_args(database_url: str) -> tuple[str, dict]:
+    """
+    asyncpg does not honour ``?ssl=require`` / ``?sslmode=require`` in the
+    connection URL.  Strip those parameters and return an ssl.SSLContext via
+    ``connect_args`` instead — required for Neon / any TLS-only Postgres host.
+
+    Returns (clean_url, connect_args_dict).
+    """
+    connect_args: dict = {}
+    if re.search(r'[?&]ssl(?:mode)?=', database_url, re.IGNORECASE):
+        # Remove ?ssl=... or &ssl=... / ?sslmode=... or &sslmode=...
+        clean_url = re.sub(r'[?&]ssl(?:mode)?=[^&]*', '', database_url)
+        clean_url = re.sub(r'[?&]$', '', clean_url)  # trailing ? or &
+        ssl_ctx = ssl.create_default_context()
+        connect_args["ssl"] = ssl_ctx
+        log.debug("db._prepare_engine_args: SSL via connect_args (stripped from URL)")
+        return clean_url, connect_args
+    return database_url, connect_args
+
+
 def _build_engine():
     settings = get_settings()
     masked = _mask_db_url(settings.DATABASE_URL)
@@ -54,8 +76,9 @@ def _build_engine():
         settings.DB_POOL_MAX_OVERFLOW,
         settings.DB_POOL_RECYCLE,
     )
+    url, connect_args = _prepare_engine_args(settings.DATABASE_URL)
     return create_async_engine(
-        settings.DATABASE_URL,
+        url,
         echo=False,          # SQL logged via sqlalchemy.engine logger in logging_config
         future=True,
         pool_pre_ping=True,  # test connections before checkout — catches stale sockets
@@ -63,6 +86,7 @@ def _build_engine():
         max_overflow=settings.DB_POOL_MAX_OVERFLOW,
         pool_timeout=settings.DB_POOL_TIMEOUT,
         pool_recycle=settings.DB_POOL_RECYCLE,
+        connect_args=connect_args,
     )
 
 
@@ -84,11 +108,13 @@ def _build_tool_engine():
     eliminating the 'Future attached to a different loop' error.
     """
     settings = get_settings()
+    url, connect_args = _prepare_engine_args(settings.DATABASE_URL)
     return create_async_engine(
-        settings.DATABASE_URL,
+        url,
         echo=False,
         future=True,
         poolclass=NullPool,
+        connect_args=connect_args,
     )
 
 

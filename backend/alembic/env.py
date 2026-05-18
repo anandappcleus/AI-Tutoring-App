@@ -1,11 +1,12 @@
 import asyncio
+import ssl
 import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import pool
+from sqlalchemy import pool, create_engine
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
 
@@ -15,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # ── Import settings + all models (required for autogenerate) ─────────
 from app.config import get_settings  # noqa: E402
 from app.models import Base  # noqa: E402, F401 — side-effect: registers all models
+from app.database import _prepare_engine_args  # noqa: E402
 
 # Alembic Config object
 config = context.config
@@ -43,26 +45,21 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-# ── Online migrations (async) ─────────────────────────────────────────
-def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-async def run_async_migrations() -> None:
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
-    await connectable.dispose()
-
-
+# ── Online migrations (sync via psycopg2) ────────────────────────────
+# Using synchronous psycopg2 avoids the asyncpg SSL-upgrade handshake
+# issue with Neon's serverless proxy on macOS.
 def run_migrations_online() -> None:
-    asyncio.run(run_async_migrations())
+    db_url = settings.DATABASE_URL
+    # Convert +asyncpg dialect to plain psycopg2 for the migration engine.
+    # Also translate ?ssl=require → ?sslmode=require (psycopg2 syntax).
+    import re
+    sync_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+    sync_url = re.sub(r'[?&]ssl=require', '?sslmode=require', sync_url, flags=re.IGNORECASE)
+    connectable = create_engine(sync_url, poolclass=pool.NullPool)
+    with connectable.connect() as connection:
+        context.configure(connection=connection, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 if context.is_offline_mode():
