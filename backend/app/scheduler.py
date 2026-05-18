@@ -124,23 +124,50 @@ async def run_nightly_crew() -> None:
 
 async def _fetch_active_students() -> list[Student]:
     """
-    Return active students who have answered at least one question in the last 7 days.
-    This avoids running the crew for completely dormant accounts.
+    Return active students who should receive a nightly plan:
+      1. Students with at least one QuizAnswer in the last 7 days (regular users), OR
+      2. Active students with no study plan for today (new / never-planned users).
+    This avoids running the crew for completely dormant accounts while ensuring
+    new students always get their first plan on join day.
     """
-    from app.models.student import QuizAnswer
+    from app.models.student import QuizAnswer, StudyPlan
 
+    IST = timezone(timedelta(hours=5, minutes=30))
+    today = datetime.now(tz=IST).date()
     since = datetime.now(tz=timezone.utc) - timedelta(days=7)
     try:
         async with AsyncSessionFactory() as session:
-            # Students who have recent quiz activity
-            result = await session.execute(
-                select(Student)
+            # Students with recent quiz activity
+            recently_active_q = (
+                select(Student.id)
                 .join(QuizAnswer, QuizAnswer.student_id == Student.id)
                 .where(
                     Student.is_active.is_(True),
                     QuizAnswer.answered_at >= since,
                 )
-                .distinct()
+            )
+            # New students: active but no plan for today yet
+            no_plan_today_q = (
+                select(Student.id)
+                .outerjoin(
+                    StudyPlan,
+                    (StudyPlan.student_id == Student.id)
+                    & (StudyPlan.plan_date == today),
+                )
+                .where(
+                    Student.is_active.is_(True),
+                    StudyPlan.id.is_(None),
+                )
+            )
+            combined = recently_active_q.union(no_plan_today_q)
+            student_ids_result = await session.execute(combined)
+            student_ids = [row[0] for row in student_ids_result.all()]
+
+            if not student_ids:
+                return []
+
+            result = await session.execute(
+                select(Student).where(Student.id.in_(student_ids))
             )
             return list(result.scalars().all())
     except Exception:
