@@ -48,8 +48,10 @@ private let logger = Logger(subsystem: "com.smarttutor.app", category: "AppState
         }
         // Restore session from Keychain on cold start
         currentProfile = StudentProfile.load()
-        logger.info("AppState: restored  authenticated=\(self.isAuthenticated)  id=\(self.currentProfile?.id ?? "none")")
-    }
+        logger.info("AppState: restored  authenticated=\(self.isAuthenticated)  id=\(self.currentProfile?.id ?? "none")")        // Auto-logout when the refresh token is rejected by the server
+        apiClient.onSessionExpired = { [weak self] in
+            self?.handleSessionExpiry()
+        }    }
 
     // MARK: - Login
 

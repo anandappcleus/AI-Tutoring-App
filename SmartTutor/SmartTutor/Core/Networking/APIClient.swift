@@ -174,6 +174,10 @@ class APIClient {
     // Guard flag: prevents infinite refresh loops if the refresh endpoint also 401s
     var isRefreshing = false
 
+    /// Called on the main actor when a token refresh fails (session fully expired).
+    /// AppState sets this in its init to trigger automatic logout.
+    var onSessionExpired: (() -> Void)? = nil
+
     init() {
         let config = URLSessionConfiguration.default
         // LLM inference (POST /ask) can take 30–90s on Railway cold start.
@@ -281,6 +285,7 @@ class APIClient {
                 try await refreshTokens()
             } catch {
                 logger.error("APIClient.execute  refresh_failed  \(error)")
+                onSessionExpired?()
                 throw APIError.unauthorized
             }
             // Rebuild request with new token and retry

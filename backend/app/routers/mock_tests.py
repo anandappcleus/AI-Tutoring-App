@@ -512,7 +512,7 @@ async def save_answers(
 async def submit_attempt(
     paper_id: str,
     attempt_id: uuid.UUID,
-    body: SaveAnswersRequest,
+    body: SaveAnswersRequest | None = None,
     db: AsyncSession = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ) -> SubmitResponse:
@@ -535,9 +535,10 @@ async def submit_attempt(
             subject_breakdown=attempt.subject_breakdown or {},
         )
 
-    # Merge final answers
+    # Merge final answers (body may be None if client already auto-saved)
     merged = dict(attempt.answers or {})
-    merged.update(body.answers)
+    if body is not None:
+        merged.update(body.answers)
     attempt.answers = merged
 
     # Load questions for scoring
