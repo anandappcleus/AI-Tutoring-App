@@ -370,16 +370,33 @@ async def list_mock_tests(
         pattern="^(JEE|NEET|WBCHSE)$",
         description="Filter by exam type. Omit to return all papers.",
     ),
+    db: AsyncSession = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ) -> list[MockTestResponse]:
-    """Return the catalog of past-paper mock tests, sorted by year descending."""
-    catalog = _MOCK_TEST_CATALOG
+    """Return the catalog of past-paper mock tests, sorted by year descending.
+    The questions_available flag is determined live from the DB so it is always
+    accurate regardless of what the static catalog says.
+    """
+    # Fetch the set of paper_ids that actually have questions in the DB
+    rows = await db.execute(
+        select(MockTestQuestion.paper_id).distinct()
+    )
+    papers_with_questions: set[str] = {row[0] for row in rows.all()}
+
+    catalog = list(_MOCK_TEST_CATALOG)
     if exam_type:
         catalog = [t for t in catalog if t.exam_type == exam_type]
         log.info("mock_tests.list  exam_type=%s  count=%d", exam_type, len(catalog))
     else:
         log.info("mock_tests.list  exam_type=all  count=%d", len(catalog))
-    return sorted(catalog, key=lambda t: t.year, reverse=True)
+
+    # Patch questions_available based on real DB state
+    result = []
+    for entry in sorted(catalog, key=lambda t: t.year, reverse=True):
+        available = entry.id in papers_with_questions
+        result.append(entry.model_copy(update={"questions_available": available}))
+
+    return result
 
 
 @router.get(

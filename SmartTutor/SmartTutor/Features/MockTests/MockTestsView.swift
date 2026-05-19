@@ -79,9 +79,146 @@ struct MockTest: Identifiable, Hashable {
             loadState = mapped.isEmpty ? .empty : .loaded(mapped)
         } catch {
             AppLogger.apiFailure(AppLogger.mockTests, endpoint: "GET /mock-tests", error: error)
-            loadState = .error(error.localizedDescription)
+            // Offline / server unavailable — fall back to built-in catalog so
+            // the feature is never blank.
+            AppLogger.userAction(AppLogger.mockTests, action: "static-catalog-fallback")
+            loadState = .loaded(MockTestsViewModel.staticCatalog)
         }
     }
+
+    // MARK: Built-in catalog (mirrors backend; used when API is unreachable)
+
+    static let staticCatalog: [MockTest] = [
+        // JEE Mains 2019 — Jan (questions available)
+        MockTest(id: "jee-2019-0109-am", title: "JEE Mains Jan 2019 — 9 Jan Morning",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0109-pm", title: "JEE Mains Jan 2019 — 9 Jan Evening",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0110-am", title: "JEE Mains Jan 2019 — 10 Jan Morning",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0110-pm", title: "JEE Mains Jan 2019 — 10 Jan Evening",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0111-am", title: "JEE Mains Jan 2019 — 11 Jan Morning",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0111-pm", title: "JEE Mains Jan 2019 — 11 Jan Evening",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0112-am", title: "JEE Mains Jan 2019 — 12 Jan Morning",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0112-pm", title: "JEE Mains Jan 2019 — 12 Jan Evening",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        // JEE Mains 2019 — April (questions available)
+        MockTest(id: "jee-2019-0408-am", title: "JEE Mains Apr 2019 — 8 Apr Morning",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0408-pm", title: "JEE Mains Apr 2019 — 8 Apr Evening",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0409-am", title: "JEE Mains Apr 2019 — 9 Apr Morning",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0409-pm", title: "JEE Mains Apr 2019 — 9 Apr Evening",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0410-am", title: "JEE Mains Apr 2019 — 10 Apr Morning",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0410-pm", title: "JEE Mains Apr 2019 — 10 Apr Evening",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0412-am", title: "JEE Mains Apr 2019 — 12 Apr Morning",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "jee-2019-0412-pm", title: "JEE Mains Apr 2019 — 12 Apr Evening",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2019, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: true),
+        // JEE Mains 2024/2023 (no questions yet)
+        MockTest(id: "jee-2024-j1-s1", title: "JEE Mains Jan 2024 — Shift 1",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2024, questionCount: 90, durationMinutes: 180, difficulty: "Hard",
+                 questionsAvailable: false),
+        MockTest(id: "jee-2024-j1-s2", title: "JEE Mains Jan 2024 — Shift 2",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2024, questionCount: 90, durationMinutes: 180, difficulty: "Hard",
+                 questionsAvailable: false),
+        MockTest(id: "jee-2023-j1-s1", title: "JEE Mains Jan 2023 — Shift 1",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2023, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: false),
+        MockTest(id: "jee-2023-j1-s2", title: "JEE Mains Jan 2023 — Shift 2",
+                 examType: "JEE", subjects: "Physics · Chemistry · Maths",
+                 year: 2023, questionCount: 90, durationMinutes: 180, difficulty: "Medium",
+                 questionsAvailable: false),
+        // NEET (questions available)
+        MockTest(id: "neet-2025", title: "NEET UG 2025",
+                 examType: "NEET", subjects: "Physics · Chemistry · Biology",
+                 year: 2025, questionCount: 180, durationMinutes: 200, difficulty: "Hard",
+                 questionsAvailable: true),
+        MockTest(id: "neet-2023", title: "NEET UG 2023",
+                 examType: "NEET", subjects: "Physics · Chemistry · Biology",
+                 year: 2023, questionCount: 180, durationMinutes: 200, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "neet-2022", title: "NEET UG 2022",
+                 examType: "NEET", subjects: "Physics · Chemistry · Biology",
+                 year: 2022, questionCount: 180, durationMinutes: 200, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "neet-2021", title: "NEET UG 2021",
+                 examType: "NEET", subjects: "Physics · Chemistry · Biology",
+                 year: 2021, questionCount: 180, durationMinutes: 200, difficulty: "Easy",
+                 questionsAvailable: true),
+        MockTest(id: "neet-2020", title: "NEET UG 2020",
+                 examType: "NEET", subjects: "Physics · Chemistry · Biology",
+                 year: 2020, questionCount: 180, durationMinutes: 200, difficulty: "Easy",
+                 questionsAvailable: true),
+        MockTest(id: "neet-2019", title: "NEET UG 2019",
+                 examType: "NEET", subjects: "Physics · Chemistry · Biology",
+                 year: 2019, questionCount: 180, durationMinutes: 200, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "neet-2018", title: "NEET UG 2018",
+                 examType: "NEET", subjects: "Physics · Chemistry · Biology",
+                 year: 2018, questionCount: 180, durationMinutes: 200, difficulty: "Medium",
+                 questionsAvailable: true),
+        MockTest(id: "neet-2016", title: "NEET UG 2016",
+                 examType: "NEET", subjects: "Physics · Chemistry · Biology",
+                 year: 2016, questionCount: 180, durationMinutes: 200, difficulty: "Easy",
+                 questionsAvailable: true),
+        // WBCHSE
+        MockTest(id: "wbchse-phy-2024", title: "WBCHSE Physics 2024",
+                 examType: "WBCHSE", subjects: "Physics",
+                 year: 2024, questionCount: 50, durationMinutes: 90, difficulty: "Medium",
+                 questionsAvailable: false),
+        MockTest(id: "wbchse-chem-2024", title: "WBCHSE Chemistry 2024",
+                 examType: "WBCHSE", subjects: "Chemistry",
+                 year: 2024, questionCount: 50, durationMinutes: 90, difficulty: "Medium",
+                 questionsAvailable: false),
+        MockTest(id: "wbchse-math-2024", title: "WBCHSE Mathematics 2024",
+                 examType: "WBCHSE", subjects: "Mathematics",
+                 year: 2024, questionCount: 50, durationMinutes: 90, difficulty: "Medium",
+                 questionsAvailable: false),
+    ]
 
     func setFilter(_ filter: String) {
         AppLogger.userAction(AppLogger.mockTests, action: "filter-changed", context: filter)
@@ -345,6 +482,15 @@ private struct MockTestCard: View {
                             .padding(.vertical, 2)
                             .background(difficultyColor.opacity(0.12))
                             .clipShape(Capsule())
+                        if test.questionsAvailable {
+                            Label("Full Paper", systemImage: "doc.text.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.indigo)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.indigo.opacity(0.10))
+                                .clipShape(Capsule())
+                        }
                     }
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -430,7 +576,7 @@ struct MockTestDetailView: View {
 
                 // CTA
                 VStack(spacing: 12) {
-                    // Full Paper Mode — shown when questions are loaded in DB
+                    // Full Paper Mode — always shown; disabled with badge when not yet available
                     if test.questionsAvailable {
                         Button {
                             AppLogger.userAction(AppLogger.mockTests,
@@ -449,6 +595,20 @@ struct MockTestDetailView: View {
                                                    startPoint: .leading, endPoint: .trailing)
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                    } else {
+                        VStack(spacing: 6) {
+                            Label("Full Paper Mode", systemImage: "doc.text.fill")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.5))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(Color(UIColor.systemGray3))
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            Text("Questions for this paper are being processed. Check back soon.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
                         }
                     }
 
