@@ -306,7 +306,14 @@ class APIClient {
             }
             // Rebuild request with new token and retry
             let retryRequest = try buildURLRequest(endpoint)
-            return try await execute(retryRequest, endpoint: endpoint, isRetry: true)
+            do {
+                return try await execute(retryRequest, endpoint: endpoint, isRetry: true)
+            } catch let apiError as APIError where apiError == .unauthorized {
+                // Refresh succeeded but endpoint still 401s (e.g. student_not_found after DB reset)
+                // — treat as true session expiry and force logout
+                onSessionExpired?()
+                throw apiError
+            }
         }
 
         try validateHTTPResponse(response, data: data, context: endpoint.path)
