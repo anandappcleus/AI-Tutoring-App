@@ -506,7 +506,7 @@ async def save_answers(
 
 @router.post(
     "/{paper_id}/attempts/{attempt_id}/submit",
-    response_model=SubmitResponse,
+    response_model=AttemptResultResponse,
     summary="Submit attempt and receive scored result",
 )
 async def submit_attempt(
@@ -515,7 +515,7 @@ async def submit_attempt(
     body: SaveAnswersRequest | None = None,
     db: AsyncSession = Depends(get_db),
     current_student: Student = Depends(get_current_student),
-) -> SubmitResponse:
+) -> AttemptResultResponse:
     """
     Finalise an attempt: merge any last answers, score it, persist results.
     Idempotent — calling again returns the cached score.
@@ -524,15 +524,24 @@ async def submit_attempt(
     if not attempt or attempt.student_id != current_student.id:
         raise HTTPException(status_code=404, detail="Attempt not found")
 
+    # Load questions (needed for scoring and correct-answer map)
+    result = await db.execute(
+        select(MockTestQuestion).where(MockTestQuestion.paper_id == paper_id)
+    )
+    questions = result.scalars().all()
+    correct_answers = {str(q.id): q.correct_answer for q in questions}
+
     # Already scored — return cached result
     if attempt.submitted_at is not None and attempt.score is not None:
-        return SubmitResponse(
+        return AttemptResultResponse(
             attempt_id=str(attempt.id),
             score=attempt.score,
             max_score=attempt.max_score or 0,
             accuracy_pct=float(attempt.accuracy_pct or 0),
             time_taken_seconds=attempt.time_taken_seconds,
             subject_breakdown=attempt.subject_breakdown or {},
+            answers=dict(attempt.answers or {}),
+            correct_answers=correct_answers,
         )
 
     # Merge final answers (body may be None if client already auto-saved)
@@ -540,12 +549,6 @@ async def submit_attempt(
     if body is not None:
         merged.update(body.answers)
     attempt.answers = merged
-
-    # Load questions for scoring
-    result = await db.execute(
-        select(MockTestQuestion).where(MockTestQuestion.paper_id == paper_id)
-    )
-    questions = result.scalars().all()
 
     score, max_score, breakdown = _score_attempt(questions, merged)
 
@@ -565,13 +568,15 @@ async def submit_attempt(
         "mock_tests.attempt.submit  student=%s  paper=%s  score=%d/%d  accuracy=%.1f%%",
         current_student.id, paper_id, score, max_score, accuracy,
     )
-    return SubmitResponse(
+    return AttemptResultResponse(
         attempt_id=str(attempt.id),
         score=score,
         max_score=max_score,
         accuracy_pct=accuracy,
         time_taken_seconds=time_taken,
         subject_breakdown=breakdown,
+        answers=merged,
+        correct_answers=correct_answers,
     )
 
 
