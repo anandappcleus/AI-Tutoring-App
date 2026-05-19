@@ -462,12 +462,13 @@ struct MockTestSessionView: View {
         VStack(spacing: 10) {
             ForEach(Array(options.enumerated()), id: \.offset) { idx, option in
                 let letter = ["A", "B", "C", "D"][safe: idx] ?? "\(idx+1)"
-                let isSelected = vm.answers[q.id] == letter
+                let value = "\(idx + 1)"   // 1-indexed — matches backend correct_answer ("1"/"2"/"3"/"4")
+                let isSelected = vm.answers[q.id] == value
                 Button {
                     if isSelected {
                         vm.clearAnswer(for: q.id)
                     } else {
-                        vm.setAnswer(letter, for: q.id)
+                        vm.setAnswer(value, for: q.id)
                     }
                 } label: {
                     HStack(spacing: 12) {
