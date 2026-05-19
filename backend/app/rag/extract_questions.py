@@ -268,13 +268,31 @@ _NEET_Q_RE = re.compile(
     re.DOTALL,
 )
 
-# NEET options: (A) ... (B) ... (C) ... (D) ...
+# NEET options: handles both (A)-(D) and (a)-(d)
 _NEET_OPT_RE = re.compile(
-    r"\(\s*([A-D])\s*\)\s*(.*?)(?=\s*\(\s*[A-D]\s*\)|\n\s*\n|\Z)",
+    r"\(\s*([A-Da-d])\s*\)\s*(.*?)(?=\s*\(\s*[A-Da-d]\s*\)|\n\s*\n|\Z)",
     re.DOTALL,
 )
 
-# NEET answer key: "1. (A)" or "1 A" or "1. A"
+# Options section header — tolerates PDF word-break artifacts: "Op tions:", "options :"
+_NEET_OPT_HEADER_RE = re.compile(
+    r"[Oo]p\s*t\s*i\s*o\s*n\s*s?\s*[:.]",
+    re.IGNORECASE,
+)
+
+# Inline answer: "Answer: (a)", "A nswer: (b)", "Ans. (c)", "Ans: (d)"
+_NEET_INLINE_ANS_RE = re.compile(
+    r"[Aa]\s*n\s*s(?:wer)?\s*[:.\s]\s*\(?\s*([a-dA-D])\s*\)?",
+    re.IGNORECASE,
+)
+
+# Solution section start: "Solution:", "Sol:", "Sol :"
+_NEET_SOLUTION_RE = re.compile(
+    r"[Ss]ol(?:ution)?\s*[:.]",
+    re.IGNORECASE,
+)
+
+# NEET answer key: "1. (A)" or "1 A" or "1. A" (used when key is in separate section)
 _NEET_ANS_KEY_RE = re.compile(
     r"(?:^|\n)\s*(\d{1,3})\s*[.)]\s*\(?\s*([A-Da-d])\s*\)?",
     re.MULTILINE,
@@ -293,8 +311,15 @@ def _neet_subject(q_num: int) -> str:
 
 
 def _parse_neet(text: str, paper_id: str, year: int, source_file: str) -> list[MockTestQuestion]:
-    """Parse a NEET full-paper PDF into MockTestQuestion objects."""
-    # Split off answer key section
+    """Parse a NEET full-paper PDF into MockTestQuestion objects.
+
+    Handles two PDF formats:
+    1. Separate answer key at end (academic PDFs): answer map built from key section.
+    2. Inline answers per question (solution PDFs): "Answer: (a)" / "A nswer: (b)"
+       within each question block — the extractor strips options + answer + solution
+       from the question stem.
+    """
+    # Try to split off a separate answer key section
     ans_split = re.search(r"\bAnswer\s+Key\b|\bAnswers?\s*:\s*\n", text, re.IGNORECASE)
     if ans_split:
         q_text = text[: ans_split.start()]
@@ -302,7 +327,7 @@ def _parse_neet(text: str, paper_id: str, year: int, source_file: str) -> list[M
     else:
         q_text, a_text = text, ""
 
-    # Build answer map
+    # Build answer map from separate key section (may be empty for solution PDFs)
     answer_map: dict[int, str] = {}
     for m in _NEET_ANS_KEY_RE.finditer(a_text):
         answer_map[int(m.group(1))] = _NEET_OPT_LETTER.get(m.group(2), m.group(2))
@@ -314,18 +339,47 @@ def _parse_neet(text: str, paper_id: str, year: int, source_file: str) -> list[M
             continue
         block = m.group(2)
 
+        # ── Locate where options start ─────────────────────────────────
+        # Priority 1: explicit "Options:" / "Op tions:" header (solution PDFs)
+        opt_hdr = _NEET_OPT_HEADER_RE.search(block)
+        if opt_hdr:
+            q_stem = block[: opt_hdr.start()]
+            opts_block = block[opt_hdr.end():]
+        else:
+            # Priority 2: first option marker (A)/(a)
+            first_opt = _NEET_OPT_RE.search(block)
+            if first_opt:
+                q_stem = block[: first_opt.start()]
+                opts_block = block[first_opt.start():]
+            else:
+                q_stem = block
+                opts_block = ""
+
+        # ── Extract inline answer (solution PDFs) ──────────────────────
+        inline_correct = ""
+        ans_m = _NEET_INLINE_ANS_RE.search(opts_block)
+        if ans_m:
+            letter = ans_m.group(1).upper()
+            inline_correct = _NEET_OPT_LETTER.get(letter, "")
+            opts_block = opts_block[: ans_m.start()]  # trim everything after answer
+
+        # ── Strip solution text from opts_block ────────────────────────
+        sol_m = _NEET_SOLUTION_RE.search(opts_block)
+        if sol_m:
+            opts_block = opts_block[: sol_m.start()]
+
+        # ── Extract individual options ─────────────────────────────────
         opts: dict[str, str] = {}
-        for opt_m in _NEET_OPT_RE.finditer(block):
+        for opt_m in _NEET_OPT_RE.finditer(opts_block):
             letter = opt_m.group(1).upper()
             opts[_NEET_OPT_LETTER[letter]] = re.sub(r"\s+", " ", opt_m.group(2).strip())
 
-        first_opt = _NEET_OPT_RE.search(block)
-        q_text_raw = block[: first_opt.start()].strip() if first_opt else block.strip()
-        q_text_raw = re.sub(r"\s+", " ", q_text_raw)
+        q_text_raw = re.sub(r"\s+", " ", q_stem.strip())
         if not q_text_raw:
             continue
 
-        correct = answer_map.get(q_num, "")
+        # Inline answer takes priority over separate key section
+        correct = inline_correct or answer_map.get(q_num, "")
         subject = _neet_subject(q_num)
         has_image = bool(re.search(r"\bfigure\b|\bdiagram\b|\bshown\b", q_text_raw, re.IGNORECASE))
 
