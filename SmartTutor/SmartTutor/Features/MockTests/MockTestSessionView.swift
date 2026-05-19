@@ -312,7 +312,7 @@ struct MockTestSessionView: View {
                     activeView
                 case .submitted:
                     if let result = vm.result {
-                        MockTestResultView(test: test, result: result, onDismiss: { dismiss() })
+                        MockTestResultView(test: test, result: result, questions: vm.questions, onDismiss: { dismiss() })
                     }
                 case .error(let msg):
                     errorView(message: msg)
@@ -438,11 +438,24 @@ struct MockTestSessionView: View {
         .background(Color(UIColor.systemBackground))
     }
 
-    // Question text
+    // Question text — run a lightweight cleanup pass to remove PDF artefacts
     private func questionBody(_ q: MockQuestion) -> some View {
-        Text(q.questionText)
+        Text(cleanQuestionText(q.questionText))
             .font(.system(size: 15))
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Remove common PDF extraction artefacts from question text.
+    /// Not full LaTeX rendering — just cleans the most common noise.
+    private func cleanQuestionText(_ raw: String) -> String {
+        var s = raw
+        // Vedantu / site watermarks embedded in PDFs
+        s = s.replacingOccurrences(of: #"www\.\S+\.com\s*\d*"#, with: "", options: .regularExpression)
+        // "Q. 1" / "Q.1" numbering artefacts at start of extracted text
+        s = s.replacingOccurrences(of: #"^Q\.\s*\d+\s*"#, with: "", options: [.regularExpression, .anchored])
+        // Collapse runs of 3+ whitespace/newline into a single space
+        s = s.replacingOccurrences(of: #"\s{3,}"#, with: " ", options: .regularExpression)
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // Options (MCQ) or integer input
@@ -450,12 +463,40 @@ struct MockTestSessionView: View {
     private func answerSection(_ q: MockQuestion) -> some View {
         if q.questionType == "integer" {
             integerAnswerView(q)
-        } else if let options = q.options {
+        } else if let options = q.options, !options.isEmpty {
             mcqOptionsView(q, options: options)
+        } else {
+            noOptionsPlaceholder(q)
         }
 
         // Marking scheme hint
         markingSchemeHint(q)
+    }
+
+    private func noOptionsPlaceholder(_ q: MockQuestion) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Options not available for this question.")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text("Mark for review and continue.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Skip") {
+                vm.toggleReview(for: q.id)
+                vm.goNext()
+            }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.orange)
+        }
+        .padding(14)
+        .background(Color.orange.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.orange.opacity(0.3), lineWidth: 1))
     }
 
     private func mcqOptionsView(_ q: MockQuestion, options: [String]) -> some View {
@@ -688,7 +729,23 @@ private struct QuestionPaletteView: View {
 struct MockTestResultView: View {
     let test: MockTest
     let result: AttemptResult
+    let questions: [MockQuestion]
     let onDismiss: () -> Void
+
+    // Map question id → question for O(1) lookup
+    private var questionMap: [String: MockQuestion] {
+        Dictionary(uniqueKeysWithValues: questions.map { ($0.id, $0) })
+    }
+
+    // Convert stored "1"/"2"/"3"/"4" back to display letter
+    private func answerLabel(_ value: String?, options: [String]?) -> String {
+        guard let v = value, !v.isEmpty, v != "0" else { return "—" }
+        let letters = ["A", "B", "C", "D"]
+        if let n = Int(v), n >= 1, n <= (options?.count ?? 4) {
+            return letters[safe: n - 1] ?? v
+        }
+        return v  // integer-type: show raw number
+    }
 
     var body: some View {
         ScrollView {
@@ -703,6 +760,11 @@ struct MockTestResultView: View {
 
                 // Stats row
                 statsRow
+
+                // Per-question review
+                if !questions.isEmpty {
+                    answerReviewSection
+                }
 
                 Spacer(minLength: 20)
 
@@ -834,6 +896,76 @@ struct MockTestResultView: View {
         .background(Color(UIColor.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+    }
+
+    // MARK: Answer Review
+
+    private var answerReviewSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Answer Review")
+                .font(.system(size: 15, weight: .semibold))
+                .padding(.horizontal, 20)
+
+            VStack(spacing: 6) {
+                ForEach(questions) { q in
+                    let given    = result.answers[q.id] ?? ""
+                    let correct  = result.correctAnswers[q.id] ?? ""
+                    let hasCorrect = !correct.isEmpty && correct != "0"
+                    let attempted  = !given.isEmpty && given != "0"
+
+                    let isCorrect  = attempted && hasCorrect && given == correct
+                    let isWrong    = attempted && hasCorrect && given != correct
+                    // unattempted or no correct key stored → gray
+
+                    HStack(spacing: 10) {
+                        // Status dot
+                        Circle()
+                            .fill(isCorrect ? Color.green : isWrong ? Color.red : Color(UIColor.systemGray4))
+                            .frame(width: 8, height: 8)
+
+                        Text("Q\(q.questionNumber)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .frame(width: 34, alignment: .leading)
+
+                        Text(q.subject.prefix(4).capitalized)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 36, alignment: .leading)
+
+                        Spacer()
+
+                        if isWrong {
+                            Text("You: \(answerLabel(given, options: q.options))")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.red)
+                            Text("✓ \(answerLabel(correct, options: q.options))")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.green)
+                        } else if isCorrect {
+                            Text(answerLabel(given, options: q.options))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.green)
+                        } else if attempted && !hasCorrect {
+                            Text(answerLabel(given, options: q.options))
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                            Text("(no key)")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Not attempted")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color(UIColor.systemGray3))
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.systemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            .padding(.horizontal, 20)
+        }
     }
 
     // MARK: Helpers
