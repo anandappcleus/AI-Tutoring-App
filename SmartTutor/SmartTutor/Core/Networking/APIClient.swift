@@ -283,10 +283,26 @@ class APIClient {
             logger.info("APIClient.execute  401_refresh  path=\(endpoint.path)")
             do {
                 try await refreshTokens()
+            } catch let apiError as APIError {
+                logger.error("APIClient.execute  refresh_failed  \(apiError)")
+                if apiError == .unauthorized {
+                    // Refresh token rejected by server — true session expiry; force logout
+                    onSessionExpired?()
+                }
+                // Re-throw the original APIError (could be .unauthorized, .noNetwork, .timedOut, etc.)
+                throw apiError
+            } catch let urlError as URLError {
+                // Network failure during refresh — don't logout, surface as connectivity error
+                logger.error("APIClient.execute  refresh_network_error  code=\(urlError.code.rawValue)")
+                switch urlError.code {
+                case .timedOut:                                                throw APIError.timedOut
+                case .notConnectedToInternet, .networkConnectionLost,
+                     .cannotConnectToHost, .cannotFindHost:                   throw APIError.noNetwork
+                default:                                                       throw APIError.noNetwork
+                }
             } catch {
-                logger.error("APIClient.execute  refresh_failed  \(error)")
-                onSessionExpired?()
-                throw APIError.unauthorized
+                logger.error("APIClient.execute  refresh_unknown_error  \(error)")
+                throw error
             }
             // Rebuild request with new token and retry
             let retryRequest = try buildURLRequest(endpoint)
