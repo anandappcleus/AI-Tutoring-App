@@ -220,6 +220,15 @@ class APIClient {
         req.httpBody = body.data(using: .utf8)
 
         let (data, response) = try await performDataTask(req)
+
+        // For login, a 401 means bad credentials — surface the server message directly
+        // rather than mapping to the generic "Session expired" error used for auth failures.
+        if let http = response as? HTTPURLResponse, http.statusCode == 401 {
+            let msg = extractErrorMessage(from: data) ?? "Incorrect email or password."
+            logger.warning("APIClient.login  bad_credentials")
+            throw APIError.serverError(statusCode: 401, body: msg)
+        }
+
         try validateHTTPResponse(response, data: data, context: "login")
 
         do {
@@ -364,6 +373,17 @@ class APIClient {
             }
             throw APIError.serverError(statusCode: http.statusCode, body: body)
         }
+    }
+
+    /// Pull the human-readable message out of the backend's error envelope.
+    /// Returns nil if the body cannot be parsed or has no message.
+    private func extractErrorMessage(from data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let detail = json["detail"] else { return nil }
+        if let detailStr = detail as? String { return detailStr }
+        if let detailObj = detail as? [String: Any],
+           let msg = detailObj["message"] as? String { return msg }
+        return nil
     }
 
     private func performDataTask(_ request: URLRequest) async throws -> (Data, URLResponse) {
