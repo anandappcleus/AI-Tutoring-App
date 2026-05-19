@@ -10,5 +10,16 @@
 	<string>SmartTutor uses the microphone so you can ask questions aloud in Bengali, Hindi or English.</string>
 	<key>SARVAM_API_KEY</key>
 	<string>sk_m4mlc1fc_H6a0oJwhyeaIqkRsOWdTrG9i</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>

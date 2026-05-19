@@ -27,14 +27,9 @@ enum BuildEnvironment {
     var apiBaseURL: URL {
         switch self {
         case .debug:
-            // Simulator can't reach localhost — always point at the live Railway API.
-            // Physical device debug builds also use Railway so you can test without
-            // running a local server.
-            #if targetEnvironment(simulator)
-            return URL(string: "https://smarttutor-api-production.up.railway.app")!
-            #else
+            // Simulator shares the Mac's network stack, so localhost:8000 works.
+            // Physical device debug builds also use localhost:8000 via USB tunnel.
             return URL(string: "http://localhost:8000")!
-            #endif
 
         case .release:
             // API_BASE_URL can be overridden via Release xcconfig / Info.plist.
