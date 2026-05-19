@@ -480,7 +480,6 @@ async def start_attempt(
 
 @router.patch(
     "/{paper_id}/attempts/{attempt_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
     summary="Auto-save answers during a live attempt",
 )
 async def save_answers(
@@ -489,7 +488,7 @@ async def save_answers(
     body: SaveAnswersRequest,
     db: AsyncSession = Depends(get_db),
     current_student: Student = Depends(get_current_student),
-) -> None:
+) -> dict:
     """Merge the provided answers dict into the attempt's stored answers."""
     attempt = await db.get(MockTestAttempt, attempt_id)
     if not attempt or attempt.student_id != current_student.id:
@@ -502,6 +501,7 @@ async def save_answers(
     merged.update(body.answers)
     attempt.answers = merged
     await db.commit()
+    return {"saved": True}
 
 
 @router.post(
