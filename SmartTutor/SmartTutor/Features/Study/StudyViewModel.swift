@@ -358,7 +358,8 @@ struct StudyMessage: Identifiable, Equatable {
             logger.debug("StudyViewModel.loadPreviousSession: already loaded this session — skipping")
             return
         }
-        Self.hasLoadedSessionHistory = true
+        // Mark as loaded ONLY after a successful (or definitively non-retryable) response.
+        // Leaving the flag false on 401 lets the next VM instance retry once the token is refreshed.
 
         struct HistoryResponse: Decodable {
             struct Turn: Decodable { let role: String; let content: String }
@@ -366,6 +367,7 @@ struct StudyMessage: Identifiable, Equatable {
         }
         do {
             let resp: HistoryResponse = try await apiClient.request(.chatHistory)
+            Self.hasLoadedSessionHistory = true   // success — don't fetch again this session
             guard !resp.history.isEmpty else { return }
 
             // Rebuild in-memory history for future sends
@@ -383,8 +385,13 @@ struct StudyMessage: Identifiable, Equatable {
             // Insert restored history before the welcome message
             messages = restored + messages
             logger.info("StudyViewModel.loadPreviousSession: restored \(restored.count) messages")
+        } catch let apiError as APIError where apiError == .unauthorized {
+            // Token expired at launch — refresh will happen via other requests.
+            // Leave hasLoadedSessionHistory = false so the next VM instance retries.
+            logger.debug("StudyViewModel.loadPreviousSession: token expired — will retry after refresh")
         } catch {
-            // Non-fatal: silently skip if Redis unavailable or not configured
+            // Non-fatal: silently skip for any other error (Redis unavailable, network, etc.)
+            Self.hasLoadedSessionHistory = true   // don't spam the server on every nav
             logger.debug("StudyViewModel.loadPreviousSession: \(error.localizedDescription)")
         }
     }
