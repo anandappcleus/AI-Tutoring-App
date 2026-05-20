@@ -133,4 +133,36 @@ final class DashboardViewModel {
         isShowingCachedPlan = true
         logger.info("DashboardViewModel: showing cached plan  topics=\(plan.topics.count)")
     }
+
+#if DEBUG
+    // MARK: - Dev: trigger nightly crew
+
+    /// Whether a manual crew trigger request is in flight.
+    private(set) var isGeneratingPlan: Bool = false
+
+    /// POST /admin/run-nightly-crew with the dev admin secret.
+    /// Only compiled into DEBUG builds; stripped from release.
+    func triggerNightlyCrew(studentId: String) async {
+        guard !isGeneratingPlan else { return }
+        isGeneratingPlan = true
+        defer { isGeneratingPlan = false }
+
+        let adminURL = AppConfig.apiBaseURL.appendingPathComponent("/admin/run-nightly-crew")
+        var req = URLRequest(url: adminURL)
+        req.httpMethod = "POST"
+        // Dev-only secret — only present in DEBUG builds, stripped from release.
+        req.setValue("smarttutor-admin-2026", forHTTPHeaderField: "X-Admin-Secret")
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: req)
+            if let http = response as? HTTPURLResponse, http.statusCode == 202 {
+                logger.info("DashboardViewModel.triggerNightlyCrew: accepted — crew running in background")
+            } else {
+                logger.warning("DashboardViewModel.triggerNightlyCrew: unexpected response")
+            }
+        } catch {
+            logger.error("DashboardViewModel.triggerNightlyCrew: \(error.localizedDescription)")
+        }
+    }
+#endif
 }

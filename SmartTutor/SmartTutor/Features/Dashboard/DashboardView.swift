@@ -84,6 +84,36 @@ struct DashboardView: View {
                                                     from: "TodaysFocus")
                             }
                         )
+                        #if DEBUG
+                        if vm.studyPlan == nil && !vm.isLoading {
+                            VStack(spacing: 6) {
+                                Button {
+                                    if let id = appState.currentProfile?.id {
+                                        Task { await vm.triggerNightlyCrew(studentId: id) }
+                                    }
+                                } label: {
+                                    Label(
+                                        vm.isGeneratingPlan ? "Triggering crew…" : "⚡ Trigger Nightly Crew [DEV]",
+                                        systemImage: vm.isGeneratingPlan ? "hourglass" : "bolt.fill"
+                                    )
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 10)
+                                    .background(vm.isGeneratingPlan ? Color.gray : Color.orange)
+                                    .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(vm.isGeneratingPlan)
+
+                                if vm.isGeneratingPlan {
+                                    Text("Crew running in background — pull to refresh in ~60s")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        #endif
                         LearningModulesSection(
                             showOfflinePacks:    $showOfflinePacks,
                             showParentDashboard: $showParentDashboard,
