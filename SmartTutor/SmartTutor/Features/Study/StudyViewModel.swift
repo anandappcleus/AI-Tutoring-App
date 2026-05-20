@@ -348,7 +348,7 @@ struct StudyMessage: Identifiable, Equatable {
 
     /// Fetch the last session's conversation turns from Redis via GET /ask/history.
     /// If history exists, rebuilds conversationHistory (for context sending) and
-    /// prepends the last 3 Q&A pairs as visible messages above the welcome message.
+    /// restores all Q&A pairs as visible messages above the welcome message.
     ///
     /// The `hasLoadedSessionHistory` static flag ensures this only hits the network
     /// once per app session even if the ViewModel is re-created (e.g. after a silent
@@ -373,10 +373,9 @@ struct StudyMessage: Identifiable, Equatable {
                 ConversationTurn(role: $0.role, content: $0.content)
             }
 
-            // Show last 3 Q&A pairs (6 turns) as chat bubbles above the welcome message
-            let displayTurns = resp.history.suffix(6)
+            // Restore ALL returned turns as visible chat bubbles (backend caps at 20 turns)
             var restored: [StudyMessage] = []
-            for turn in displayTurns {
+            for turn in resp.history {
                 let role: StudyMessage.Role = turn.role == "user" ? .user : .assistant
                 restored.append(StudyMessage(role: role, text: turn.content))
             }

@@ -901,7 +901,7 @@ async def ask(
             await redis.incr(rate_key)
             await redis.expire(rate_key, ttl_secs)
 
-            # Conversation history: append this Q&A pair, keep last 10 turns
+            # Conversation history: append this Q&A pair, keep last 20 turns (= 10 Q&A pairs)
             hist_key = f"chat:history:{student_id}"
             stored_raw = await redis.get(hist_key)
             stored: list = json.loads(stored_raw) if stored_raw else []
@@ -910,9 +910,9 @@ async def ask(
             # Append assistant answer (core explanation, capped for storage)
             asst_content = (parsed.get("explanation") or "")[:800]
             stored.append({"role": "assistant", "content": asst_content})
-            # Keep last 10 turns (= 5 Q&A pairs)
-            stored = stored[-10:]
-            await redis.set(hist_key, json.dumps(stored), ex=86400)  # 24 h TTL
+            # Keep last 20 turns (= 10 Q&A pairs) — 7-day TTL
+            stored = stored[-20:]
+            await redis.set(hist_key, json.dumps(stored), ex=604800)  # 7-day TTL
         except Exception:
             log.warning("ask.redis_post_save_failed  student_id=%s", student_id, exc_info=True)
 
@@ -965,7 +965,7 @@ async def get_chat_history(
     current_student: Student = Depends(get_current_student),
 ):
     """
-    Return the last 10 conversation turns (5 Q&A pairs) for the current student.
+    Return the last 20 conversation turns (10 Q&A pairs) for the current student.
 
     Used by the iOS app on StudyView appear to restore the previous session.
     Returns an empty list when Redis is not configured or the student has no history.
@@ -1208,14 +1208,53 @@ async def _ask_direct(
         raw = resp.choices[0].message.content.strip()
         return _dedup_repetition(raw)  # truncate 8B infinite-loop artifacts
 
+    async def _call_groq(timeout_s: float, max_tok: int = 3500) -> str:
+        """Call Groq API when available — ~2 s latency vs NIM's 40-60 s queue."""
+        resp = await asyncio.wait_for(
+            acompletion(
+                model=f"groq/{s.GROQ_MODEL}",
+                api_key=s.GROQ_API_KEY,
+                messages=[
+                    {"role": "system", "content": get_tutor_prompt(language)},
+                    {"role": "user",   "content": user_message},
+                ],
+                max_tokens=max_tok,
+                temperature=0.1,
+            ),
+            timeout=timeout_s,
+        )
+        raw = resp.choices[0].message.content.strip()
+        return _dedup_repetition(raw)
+
+    # ── Model routing ──────────────────────────────────────────────────────
+    # 1. Try primary NIM model (70B or sarvam-m for non-EN)
+    # 2. On timeout OR connection error: if Groq key is set, use Groq (fast + reliable)
+    # 3. Final fallback: NIM 8B (only if Groq is not configured)
+    nim_error: Exception | None = None
     try:
         return await _call_model(primary_model, 40.0, max_tok=3500)
-    except asyncio.TimeoutError:
-        # Primary model is queue-throttled on NIM free tier — fall back to fast model
-        fast_model = s.LLM_FAST_MODEL
+    except (asyncio.TimeoutError, Exception) as exc:
+        nim_error = exc
         log.warning(
-            "ask.primary_timeout  student_id=%s  primary=%s  fallback=%s",
-            student_id, primary_model, fast_model,
+            "ask.primary_failed  student_id=%s  primary=%s  error=%s  groq_available=%s",
+            student_id, primary_model, type(exc).__name__, bool(s.GROQ_API_KEY),
         )
+
+    # Prefer Groq when configured — much faster than NIM 8B and works when NIM is unreachable
+    if s.GROQ_API_KEY:
+        try:
+            return await _call_groq(20.0, max_tok=3500)
+        except Exception:
+            log.warning(
+                "ask.groq_fallback_failed  student_id=%s — retrying with NIM 8B",
+                student_id, exc_info=True,
+            )
+
+    # Last resort: NIM 8B fallback (only useful when primary NIM model is throttled,
+    # not when the entire NIM service is unreachable)
+    if isinstance(nim_error, asyncio.TimeoutError):
         # 8B gets 1500 tokens: enough for a clear answer, short enough to cap loops
-        return await _call_model(fast_model, 35.0, max_tok=1500)
+        return await _call_model(s.LLM_FAST_MODEL, 35.0, max_tok=1500)
+
+    # NIM is unreachable and no Groq key — re-raise to produce informative 503
+    raise nim_error

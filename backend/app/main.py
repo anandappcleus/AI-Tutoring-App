@@ -9,6 +9,16 @@ from app.config import get_settings
 from app.logging_config import configure_logging
 from app.middleware import RequestLoggingMiddleware
 
+# ── Inject macOS system keychain (Keychain Access) into Python SSL so that
+# corporate MITM certificates (e.g. Zscaler Root CA) are trusted by httpx /
+# requests / litellm.  No-op on Linux/Windows; safe in production on Railway.
+try:
+    import truststore
+    truststore.inject_into_ssl()
+    logging.getLogger(__name__).debug("truststore: macOS system keychain injected into SSL")
+except ImportError:
+    pass  # truststore not installed — fine on non-macOS / Railway
+
 settings = get_settings()
 
 # Configure logging before anything else logs (including SQLAlchemy engine init)

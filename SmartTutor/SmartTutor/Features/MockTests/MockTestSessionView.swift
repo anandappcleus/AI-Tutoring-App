@@ -329,10 +329,24 @@ struct MockTestSessionView: View {
                         timerLabel
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            showPalette = true
-                        } label: {
-                            Label("Questions", systemImage: "square.grid.3x3")
+                        HStack(spacing: 12) {
+                            Button {
+                                showPalette = true
+                            } label: {
+                                Label("Questions", systemImage: "square.grid.3x3")
+                            }
+                            Button {
+                                showSubmitConfirm = true
+                            } label: {
+                                Text("Submit")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.green)
+                                    .clipShape(Capsule())
+                            }
+                            .disabled(vm.sessionState == .submitting)
                         }
                     }
                 }
@@ -607,29 +621,15 @@ struct MockTestSessionView: View {
 
             Spacer()
 
-            if vm.currentIndex == vm.questions.count - 1 {
-                Button {
-                    showSubmitConfirm = true
-                } label: {
-                    Label("Submit", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.green)
-                        .clipShape(Capsule())
-                }
-                .disabled(vm.sessionState == .submitting)
-            } else {
-                Button {
-                    vm.goNext()
-                } label: {
-                    Label("Next", systemImage: "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.borderedProminent)
+            Button {
+                vm.goNext()
+            } label: {
+                Label("Next", systemImage: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .labelStyle(.titleAndIcon)
             }
+            .buttonStyle(.borderedProminent)
+            .disabled(vm.currentIndex == vm.questions.count - 1)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -660,47 +660,95 @@ private struct QuestionPaletteView: View {
     let vm: MockTestSessionViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 6)
+    // 9 columns — more compact for 180-question papers; fits iPhone comfortably
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 9)
+
+    // Group questions by subject, preserving order of first appearance
+    private var subjectGroups: [(subject: String, questions: [(idx: Int, q: MockQuestion)])] {
+        var seen: [String: [(idx: Int, q: MockQuestion)]] = [:]
+        var order: [String] = []
+        for (idx, q) in vm.questions.enumerated() {
+            let key = q.subject.capitalized
+            if seen[key] == nil { order.append(key) }
+            seen[key, default: []].append((idx, q))
+        }
+        return order.map { subj in (subject: subj, questions: seen[subj]!) }
+    }
+
+    // Summary counts
+    private var answeredCount:  Int { vm.answeredCount }
+    private var reviewCount:    Int { vm.markedForReview.count }
+    private var unansweredCount: Int { vm.questions.count - answeredCount }
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                // Legend
-                HStack(spacing: 16) {
-                    legendItem(color: Color(UIColor.systemGray5), label: "Not Attempted")
-                    legendItem(color: .green, label: "Answered")
-                    legendItem(color: .orange, label: "Review")
-                }
-                .padding(.horizontal, 20)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
 
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(Array(vm.questions.enumerated()), id: \.offset) { idx, q in
-                        let status = vm.status(for: q)
-                        let isCurrent = vm.currentIndex == idx
-                        Button {
-                            vm.goTo(index: idx)
-                            dismiss()
-                        } label: {
-                            Text("\(q.questionNumber)")
-                                .font(.system(size: 13, weight: isCurrent ? .black : .medium))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 36)
-                                .background(status.color)
-                                .foregroundStyle(status == .answered ? .white : .primary)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(isCurrent ? Color.indigo : Color.clear, lineWidth: 2)
-                                )
+                    // ── Stats bar ──────────────────────────────────────────
+                    HStack(spacing: 0) {
+                        statCell(value: answeredCount,   label: "Answered",  color: .green)
+                        Divider().frame(height: 40)
+                        statCell(value: reviewCount,     label: "Review",    color: .orange)
+                        Divider().frame(height: 40)
+                        statCell(value: unansweredCount, label: "Remaining", color: Color(UIColor.systemGray3))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .background(Color(UIColor.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 16)
+
+                    // ── Legend ─────────────────────────────────────────────
+                    HStack(spacing: 16) {
+                        legendItem(color: Color(UIColor.systemGray5), label: "Not Attempted")
+                        legendItem(color: .green,  label: "Answered")
+                        legendItem(color: .orange, label: "Review")
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+
+                    // ── Per-subject grids ──────────────────────────────────
+                    ForEach(subjectGroups, id: \.subject) { group in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(group.subject)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                                .padding(.horizontal, 16)
+
+                            LazyVGrid(columns: columns, spacing: 6) {
+                                ForEach(group.questions, id: \.idx) { item in
+                                    let status   = vm.status(for: item.q)
+                                    let isCurrent = vm.currentIndex == item.idx
+                                    Button {
+                                        vm.goTo(index: item.idx)
+                                        dismiss()
+                                    } label: {
+                                        Text("\(item.q.questionNumber)")
+                                            .font(.system(size: 12, weight: isCurrent ? .black : .medium))
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 34)
+                                            .background(isCurrent ? Color.indigo : status.color)
+                                            .foregroundStyle(
+                                                (isCurrent || status == .answered) ? .white : .primary
+                                            )
+                                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 7)
+                                                    .stroke(isCurrent ? Color.indigo : Color.clear, lineWidth: 2)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 16)
                         }
-                        .buttonStyle(.plain)
+                        .padding(.bottom, 16)
                     }
                 }
-                .padding(.horizontal, 20)
-
-                Spacer()
             }
-            .padding(.top, 20)
             .navigationTitle("Question Palette")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -712,11 +760,24 @@ private struct QuestionPaletteView: View {
         .presentationDetents([.medium, .large])
     }
 
+    private func statCell(value: Int, label: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+    }
+
     private func legendItem(color: Color, label: String) -> some View {
         HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 4)
                 .fill(color)
-                .frame(width: 16, height: 16)
+                .frame(width: 14, height: 14)
             Text(label)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)

@@ -17,9 +17,15 @@ class Settings(BaseSettings):
     LLM_API_KEY: str
     LLM_CHAT_MODEL: str = "ai21labs/sarvam-m"
     LLM_AGENT_MODEL: str = "meta/llama-3.3-70b-instruct"
-    LLM_FAST_MODEL: str = "meta/llama-3.1-8b-instruct"  # fallback when primary is throttled
+    LLM_FAST_MODEL: str = "meta/llama-3.1-8b-instruct"  # NIM fallback when primary is throttled
     LLM_VISION_MODEL: str = "meta/llama-3.2-90b-vision-instruct"  # 90B is far better at typeset math OCR
     EMBED_MODEL: str = "nvidia/nv-embedqa-e5-v5"
+
+    # ── Groq fallback (optional — free tier, ~2s latency vs NIM's 40-60s) ────
+    # Set GROQ_API_KEY in .env to enable; leave empty to keep NIM-only path.
+    # When set, replaces LLM_FAST_MODEL on NIM with llama-3.3-70b-versatile on Groq.
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"  # Groq free tier — 30k tokens/min
 
     # ── Vector DB ────────────────────────────────────────────────────
     VECTOR_DB: str = "chroma"  # "chroma" | "pinecone"
