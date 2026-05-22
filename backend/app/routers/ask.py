@@ -811,17 +811,36 @@ async def ask(
         log.warning("ask.sympy_failed  student_id=%s", student_id, exc_info=True)
 
     # ── Direct RAG + single LLM call (3-4× faster than CrewAI ReAct loop) ────
+    # Hard wall-clock cap: the iOS client times out at 120 s (timeoutIntervalForRequest).
+    # SymPy + all LLM fallbacks can theoretically consume ~115 s.  Capping at 90 s here
+    # guarantees a clean 504 response reaches the client well before the iOS silent timeout.
     t0 = time.perf_counter()
     try:
-        raw_output: str = await _ask_direct(
-            effective_question,
-            student_id,
-            lang,
-            weak_topics,
-            body.exam_type,
-            pre_chunks=pre_chunks,
-            sympy_answer=sympy_answer,
-            history=body.history or None,
+        raw_output: str = await asyncio.wait_for(
+            _ask_direct(
+                effective_question,
+                student_id,
+                lang,
+                weak_topics,
+                body.exam_type,
+                pre_chunks=pre_chunks,
+                sympy_answer=sympy_answer,
+                history=body.history or None,
+            ),
+            timeout=90.0,
+        )
+    except asyncio.TimeoutError:
+        elapsed_ms = (time.perf_counter() - t0) * 1_000
+        log.error(
+            "ask.llm_timeout  student_id=%s  lang=%s  %.0fms",
+            student_id, lang, elapsed_ms,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail={
+                "error": "llm_timeout",
+                "message": "The AI is taking too long to respond. Please try again in a moment.",
+            },
         )
     except Exception:
         log.error(

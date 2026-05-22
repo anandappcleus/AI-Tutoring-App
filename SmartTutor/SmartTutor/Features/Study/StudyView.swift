@@ -10,8 +10,8 @@ import os
 import SwiftUI
 
 struct StudyView: View {
-    @Environment(AppState.self) private var appState
-    @State private var vm = StudyViewModel()
+    @Environment(AppState.self)       private var appState
+    @Environment(StudyViewModel.self) private var vm
     @State private var inputText = ""
     @State private var isRecording = false
     @State private var showPaywall = false

@@ -40,7 +40,9 @@ COPY --chown=appuser:appuser . .
 # Remove the pre-create step — Railway volume mount overwrites the dir anyway
 # The CMD runs the seed as root (before su to appuser) to bypass volume perms.
 
-EXPOSE 8000
+
+# Railway injects PORT at runtime (typically 8080); local dev falls back to 8000.
+EXPOSE ${PORT:-8000}
 
 # Startup sequence (runs as root so it can write to the Railway volume mount):
 #   1. Seed /app/chroma_data from bundled chroma_db if volume is empty

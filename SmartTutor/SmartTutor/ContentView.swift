@@ -29,6 +29,9 @@ struct ContentView: View {
 
 private struct MainTabView: View {
     @AppStorage("selectedMainTab") private var selectedTab = 0
+    /// Owned here so it survives every tab switch and sheet dismiss.
+    /// StudyView reads it via @Environment instead of allocating its own instance.
+    @State private var studyViewModel = StudyViewModel()
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -49,6 +52,7 @@ private struct MainTabView: View {
                 .tag(3)
         }
         .tint(.indigo)
+        .environment(studyViewModel)
         .onChange(of: selectedTab) { _, tab in
             let names = ["Home", "Study", "Progress", "Settings"]
             let dest = tab < names.count ? names[tab] : "tab-\(tab)"

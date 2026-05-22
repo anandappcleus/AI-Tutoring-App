@@ -242,6 +242,11 @@ struct StudyMessage: Identifiable, Equatable {
         case .serverError(let code, _) where code == 429:
             viewState = .error("daily_limit_reached")
 
+        case .serverError(let code, _) where code == 504:
+            // Backend hit the LLM timeout wall (90 s hard cap) before iOS timed out.
+            messages.append(StudyMessage(role: .assistant, text: "The AI is taking too long to respond. Please try again in a moment."))
+            viewState = .idle
+
         case .serverError:
             messages.append(StudyMessage(
                 role: .assistant,
