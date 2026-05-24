@@ -22,6 +22,7 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.35), value: appState.isAuthenticated)
+        .networkStatusBanner()
     }
 }
 
