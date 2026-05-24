@@ -571,6 +571,13 @@ private struct LearningModulesSection: View {
                 iconColor: .purple,
                 bgColor: .purple.opacity(0.1)
             ),
+            ModuleItem(
+                title: "Parent Dashboard",
+                subtitle: "Monitor progress",
+                icon: "person.2.fill",
+                iconColor: .blue,
+                bgColor: .blue.opacity(0.1)
+            ),
         ]
     }
 
@@ -593,6 +600,8 @@ private struct LearningModulesSection: View {
                             AppLogger.navigated(to: "OfflinePacksView", from: "Dashboard")
                         case "Formula Sheets": showFormulaSheets = true
                             AppLogger.navigated(to: "FormulaSheetView", from: "Dashboard")
+                        case "Parent Dashboard": showParentDashboard = true
+                            AppLogger.navigated(to: "ParentDashboardView", from: "Dashboard")
                         default:
                             AppLogger.dashboard.warning("module-tap: unhandled module '\(mod.title)'")
                         }

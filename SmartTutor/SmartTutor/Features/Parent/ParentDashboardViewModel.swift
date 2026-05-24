@@ -32,6 +32,22 @@ private let logger = Logger(subsystem: "com.smarttutor.app", category: "ParentDa
     /// Overall accuracy percentage (0–100).
     var avgAccuracy: Int { progressData.map { Int($0.overallAccuracyPct) } ?? 0 }
 
+    /// Day streak (consecutive days with ≥1 answer).
+    var dayStreak: Int { progressData?.dayStreak ?? 0 }
+
+    /// Study time this week, formatted as "2h 30m" or "45 min".
+    var studyTimeFormatted: String {
+        guard let data = progressData else { return "—" }
+        let min = data.estimatedStudyMinWeek
+        guard min > 0 else { return "—" }
+        if min < 60 { return "\(min) min" }
+        let h = min / 60; let m = min % 60
+        return m == 0 ? "\(h)h" : "\(h)h \(m)m"
+    }
+
+    /// Per-day activity for the Daily Activity Log.
+    var dailyActivity: [ProgressResponse.DailyActivity] { progressData?.dailyActivity ?? [] }
+
     /// Topics the student is struggling with (accuracy < 70%).
     var weakTopics: [String] { progressData?.weakTopics ?? [] }
 

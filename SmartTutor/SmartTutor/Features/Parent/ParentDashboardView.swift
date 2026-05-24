@@ -18,30 +18,16 @@ struct ParentDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Header
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "person.2.fill")
-                            .font(.system(size: 20))
-                        Text("Parent Dashboard")
-                            .font(.system(size: 24, weight: .bold))
-                    }
-                    Text(vm.weekRange.map { "Week: \($0)" } ?? "Monitoring your child's progress")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.85))
+                // Week range subtitle banner
+                if let range = vm.weekRange {
+                    Text(range)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color(UIColor.secondarySystemBackground))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                .padding(.bottom, 36)
-                .background(
-                    LinearGradient(
-                        colors: [Color(red: 0.16, green: 0.44, blue: 0.95), .cyan],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
 
                 VStack(spacing: 16) {
                     if vm.isLoading {
@@ -60,22 +46,12 @@ struct ParentDashboardView: View {
                             .foregroundStyle(.primary)
 
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                            SummaryCell(value: "—",                              label: "Study Time",    color: .blue)
-                            SummaryCell(value: "\(vm.questionsAttempted)",       label: "Questions",     color: .green)
-                            SummaryCell(value: "\(vm.avgAccuracy)%",             label: "Avg Accuracy",  color: .purple)
-                            SummaryCell(value: "—",                              label: "Streak",        color: .orange)
+                            SummaryCell(value: vm.studyTimeFormatted,         label: "Study Time",    color: .blue)
+                            SummaryCell(value: "\(vm.questionsAttempted)",    label: "Questions",     color: .green)
+                            SummaryCell(value: "\(vm.avgAccuracy)%",          label: "Avg Accuracy",  color: .purple)
+                            SummaryCell(value: vm.dayStreak > 0 ? "\(vm.dayStreak) days" : "—",
+                                                                               label: "Streak",        color: .orange)
                         }
-
-                        HStack(spacing: 8) {
-                            Image(systemName: "info.circle")
-                                .foregroundStyle(.secondary)
-                            Text("Study time & streak coming soon")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(12)
-                        .background(Color.secondary.opacity(0.07))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     .padding(20)
                     .background(Color(UIColor.systemBackground))
@@ -116,6 +92,50 @@ struct ParentDashboardView: View {
                                     )
                                 }
                             }
+                        }
+                        .padding(20)
+                        .background(Color(UIColor.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                    }
+
+                    // Daily Activity Log
+                    if !vm.dailyActivity.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Label("Daily Activity Log", systemImage: "book.open.fill")
+                                .font(.system(size: 16, weight: .bold))
+                            VStack(spacing: 0) {
+                                ForEach(Array(vm.dailyActivity.enumerated()), id: \.element.dayName) { idx, day in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(day.dayName)
+                                                .font(.system(size: 14, weight: .semibold))
+                                            Text("\(day.questions) questions")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "clock")
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(.secondary)
+                                            Text("\(day.estimatedMin) min")
+                                                .font(.system(size: 13))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(idx % 2 == 0
+                                        ? Color(UIColor.systemBackground)
+                                        : Color(UIColor.secondarySystemBackground))
+                                    if idx < vm.dailyActivity.count - 1 {
+                                        Divider().padding(.leading, 16)
+                                    }
+                                }
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(UIColor.separator).opacity(0.4), lineWidth: 0.5))
                         }
                         .padding(20)
                         .background(Color(UIColor.systemBackground))
@@ -200,14 +220,26 @@ struct ParentDashboardView: View {
                     } // end else
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, -16)
+                .padding(.top, 16)
                 .padding(.bottom, 32)
             }
         }
         .background(Color(UIColor.systemGroupedBackground))
-        .ignoresSafeArea(edges: .top)
         .navigationTitle("Parent Dashboard")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(
+            LinearGradient(colors: [Color(red: 0.16, green: 0.44, blue: 0.95), .cyan],
+                           startPoint: .leading, endPoint: .trailing),
+            for: .navigationBar
+        )
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Image(systemName: "person.2.fill")
+                    .foregroundStyle(.white)
+            }
+        }
         .task {
             AppLogger.navigated(to: "ParentDashboardView")
             if let id = appState.currentProfile?.id {
