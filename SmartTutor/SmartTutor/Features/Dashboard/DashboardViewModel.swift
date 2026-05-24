@@ -77,6 +77,12 @@ final class DashboardViewModel {
                 loadCachedPlan(for: studentId)
                 logger.error("DashboardViewModel.loadPlan: failed  \(error.localizedDescription ?? "")")
             }
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            // URLSession throws .cancelled (not CancellationError) when the enclosing
+            // Swift Task is cancelled — e.g. pull-to-refresh gesture dismissed by the
+            // user before the request completed. Don't overwrite a successfully-loaded
+            // plan with the cached one just because the gesture was released.
+            logger.debug("DashboardViewModel.loadPlan: url_task_cancelled")
         } catch is CancellationError {
             // Task was cancelled (e.g. view disappeared mid-fetch) — not an error.
             logger.debug("DashboardViewModel.loadPlan: cancelled")
