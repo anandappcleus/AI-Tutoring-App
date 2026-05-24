@@ -29,73 +29,125 @@ struct StudyView: View {
     private var questionsToday: Int { vm.questionsUsedToday }
 
     var body: some View {
-        VStack(spacing: 0) {
-            StudyHeaderView(
-                isPremium: isPremium,
-                questionsToday: questionsToday,
-                showPaywall: $showPaywall
-            )
-
-            // Map ViewModel messages → ChatMessage for the existing scroll view
-            ChatScrollView(
-                messages: vm.messages.map {
-                    ChatMessage(
-                        type: $0.role == .user ? .question : .answer,
-                        text: $0.text,
-                        image: $0.image
-                    )
-                },
-                isLoading: isLoading
-            )
-
-            // Inline error banner (non-fatal errors)
-            if case .error(let code) = vm.viewState, code != "daily_limit_reached", code != "unauthorized" {
-                Text("Something went wrong. Tap to retry.")
-                    .font(.system(size: 13))
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Premium warning banner — only when running low
+                if !isPremium && questionsToday >= 5 {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 13))
+                            .padding(.top, 1)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Running low on questions!")
+                                .font(.system(size: 13, weight: .semibold))
+                            Button {
+                                AppLogger.userAction(AppLogger.study, action: "upgrade-tapped",
+                                                     context: "daily-limit-banner")
+                                showPaywall = true
+                            } label: {
+                                Text("Upgrade to Premium")
+                                    .font(.system(size: 12))
+                                    .underline()
+                            }
+                        }
+                    }
                     .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.red.opacity(0.85))
-                    .onTapGesture { vm.dismissError() }
-            }
+                    .padding(.vertical, 10)
+                    .background(Color.yellow.opacity(0.85))
+                }
 
-            InputAreaView(
-                inputText: $inputText,
-                isRecording: $isRecording,
-                isLoading: isLoading,
-                subjects: subjects,
-                onAsk: handleAsk,
-                onVoice: handleVoiceInput
+                // Map ViewModel messages → ChatMessage for the existing scroll view
+                ChatScrollView(
+                    messages: vm.messages.map {
+                        ChatMessage(
+                            type: $0.role == .user ? .question : .answer,
+                            text: $0.text,
+                            image: $0.image
+                        )
+                    },
+                    isLoading: isLoading
+                )
+
+                // Inline error banner (non-fatal errors)
+                if case .error(let code) = vm.viewState, code != "daily_limit_reached", code != "unauthorized" {
+                    Text("Something went wrong. Tap to retry.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.red.opacity(0.85))
+                        .onTapGesture { vm.dismissError() }
+                }
+
+                InputAreaView(
+                    inputText: $inputText,
+                    isRecording: $isRecording,
+                    isLoading: isLoading,
+                    subjects: subjects,
+                    onAsk: handleAsk,
+                    onVoice: handleVoiceInput
+                )
+            }
+            .background(Color(UIColor.systemBackground))
+            .navigationTitle("AI Tutor")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(
+                LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
+                for: .navigationBar
             )
-        }
-        .background(Color(UIColor.systemBackground))
-        .sheet(isPresented: $showPaywall) {
-            PaywallView(onSubscribe: { showPaywall = false })
-        }
-        .sheet(isPresented: $showVoiceInput, onDismiss: { isRecording = false }) {
-            let langCode = (appState.currentProfile?.preferredLanguage.rawValue ?? "bn") + "-IN"
-            VoiceInputView(languageCode: langCode) { transcription in
-                inputText = transcription
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Image(systemName: "book.fill")
+                        .foregroundStyle(.white)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { showPaywall = true } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 11))
+                            Text(isPremium ? "∞" : "\(10 - questionsToday) left")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.2))
+                        .clipShape(Capsule())
+                    }
+                }
             }
-        }
-        .onChange(of: vm.viewState) { _, state in
-            if case .error(let code) = state {
-                if code == "daily_limit_reached" { showPaywall = true }
-                // "unauthorized" handled at ContentView level via AppState
+            .sheet(isPresented: $showPaywall) {
+                PaywallView(onSubscribe: { showPaywall = false })
             }
-        }
-        .onAppear {
-            // Consume any topic pre-filled by Dashboard → Start AI Lesson, Syllabus Map,
-            // Formula Sheets, Mock Tests, or camera/voice search bar submissions.
-            let topic = pendingStudyTopic.trimmingCharacters(in: .whitespaces)
-            guard !topic.isEmpty else { return }
-            pendingStudyTopic = ""
-            AppLogger.study.info("StudyView.onAppear: consuming pendingStudyTopic  preview=\(topic.prefix(60))")
-            // Small delay so the tab transition animation completes first.
-            Task {
-                try? await Task.sleep(for: .milliseconds(200))
-                vm.ask(question: topic)
+            .sheet(isPresented: $showVoiceInput, onDismiss: { isRecording = false }) {
+                let langCode = (appState.currentProfile?.preferredLanguage.rawValue ?? "bn") + "-IN"
+                VoiceInputView(languageCode: langCode) { transcription in
+                    inputText = transcription
+                }
+            }
+            .onChange(of: vm.viewState) { _, state in
+                if case .error(let code) = state {
+                    if code == "daily_limit_reached" { showPaywall = true }
+                    // "unauthorized" handled at ContentView level via AppState
+                }
+            }
+            .onAppear {
+                // Consume any topic pre-filled by Dashboard → Start AI Lesson, Syllabus Map,
+                // Formula Sheets, Mock Tests, or camera/voice search bar submissions.
+                let topic = pendingStudyTopic.trimmingCharacters(in: .whitespaces)
+                guard !topic.isEmpty else { return }
+                pendingStudyTopic = ""
+                AppLogger.study.info("StudyView.onAppear: consuming pendingStudyTopic  preview=\(topic.prefix(60))")
+                // Small delay so the tab transition animation completes first.
+                Task {
+                    try? await Task.sleep(for: .milliseconds(200))
+                    vm.ask(question: topic)
+                }
             }
         }
     }
@@ -135,7 +187,7 @@ struct ChatMessage: Identifiable {
     }
 }
 
-// MARK: - Header
+// MARK: - Header (unused — kept for reference; logic moved to NavigationStack toolbar)
 
 private struct StudyHeaderView: View {
     let isPremium: Bool
