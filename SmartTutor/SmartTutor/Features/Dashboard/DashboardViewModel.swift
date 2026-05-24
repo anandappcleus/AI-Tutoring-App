@@ -98,11 +98,6 @@ final class DashboardViewModel {
         Task { [weak self] in
             guard let self else { return }
             var previous = syncManager.isNetworkReachable
-            // Guard: only trigger a reconnect-refresh after the network was *actually*
-            // seen as offline during this session. The initial false→true transition at
-            // app startup is not a reconnect; DashboardView.task already handles the
-            // first fetch, so we must not fire a duplicate request on launch.
-            var hasEverBeenOffline = false
             while !Task.isCancelled {
                 await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
                     withObservationTracking {
@@ -112,13 +107,15 @@ final class DashboardViewModel {
                     }
                 }
                 let current = syncManager.isNetworkReachable
-                // Swift's @Observable fires onChange on every mutation, even same-value
-                // writes (e.g. NWPathMonitor firing repeatedly at startup). Skip events
-                // where the value hasn't actually changed to avoid spurious reconnect
-                // triggers that would incorrectly set hasEverBeenOffline = true.
+                // Skip same-value mutations (NWPathMonitor fires on every path update,
+                // including startup, even when the value is unchanged).
                 guard current != previous else { continue }
-                if !current { hasEverBeenOffline = true }
-                if current && !previous && hasEverBeenOffline && !currentStudentId.isEmpty {
+                // Refresh as soon as the network comes back AND the plan on screen is
+                // the cached version. Using isShowingCachedPlan instead of a
+                // hasEverBeenOffline flag avoids the startup race where NWPathMonitor
+                // fires false → same value as the initial false → hasEverBeenOffline
+                // never gets set → reconnect refresh never triggers.
+                if current && isShowingCachedPlan && !currentStudentId.isEmpty {
                     logger.info("DashboardViewModel: network restored — refreshing plan")
                     Task { [weak self] in
                         try? await Task.sleep(for: .seconds(2))
