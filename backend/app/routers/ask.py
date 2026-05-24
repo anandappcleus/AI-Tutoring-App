@@ -1251,7 +1251,9 @@ async def _ask_direct(
     # 3. Final fallback: NIM 8B (only if Groq is not configured)
     nim_error: Exception | None = None
     try:
-        return await _call_model(primary_model, 40.0, max_tok=3500)
+        # 55 s: NIM 70B queues for 40–60 s under load; 55 s gives it a fair
+        # chance to respond before falling back to the smaller model.
+        return await _call_model(primary_model, 55.0, max_tok=3500)
     except (asyncio.TimeoutError, Exception) as exc:
         nim_error = exc
         log.warning(

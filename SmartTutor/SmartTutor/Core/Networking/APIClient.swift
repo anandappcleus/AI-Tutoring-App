@@ -178,6 +178,13 @@ class APIClient {
     /// AppState sets this in its init to trigger automatic logout.
     var onSessionExpired: (() -> Void)? = nil
 
+    /// Set once (in DEBUG builds only) after the first successful prod fallback.
+    /// All subsequent requests skip localhost and go straight to prod, avoiding
+    /// repeated ECONNREFUSED round-trips when the local server is not running.
+    #if DEBUG
+    private var isUsingProdFallback = false
+    #endif
+
     init() {
         let config = URLSessionConfiguration.default
         // LLM inference (POST /ask) can take 30–90s on Railway cold start.
@@ -193,6 +200,8 @@ class APIClient {
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.keyEncodingStrategy   = .convertToSnakeCase
+
+        logger.info("APIClient.init  baseURL=\(AppConfig.apiBaseURL)  isLocalhostBuild=\(AppConfig.isLocalhostBuild)")
     }
 
     // MARK: - Public API
@@ -201,8 +210,18 @@ class APIClient {
     /// handles silent token refresh on 401, and maps network/decode errors.
     func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T {
         logger.debug("APIClient.request  \(endpoint.httpMethod) \(endpoint.path)")
+        #if DEBUG
+        // If localhost was previously unreachable this session, skip it and
+        // go straight to prod to avoid repeated ECONNREFUSED latency.
+        let baseURL: URL? = isUsingProdFallback ? AppConfig.prodURL : nil
+        let urlRequest = try buildURLRequest(endpoint, baseURL: baseURL)
+        return try await execute(urlRequest, endpoint: endpoint, isRetry: false,
+                                 isProdFallback: isUsingProdFallback)
+        #else
         let urlRequest = try buildURLRequest(endpoint)
-        return try await execute(urlRequest, endpoint: endpoint, isRetry: false)
+        return try await execute(urlRequest, endpoint: endpoint, isRetry: false,
+                                 isProdFallback: false)
+        #endif
     }
 
     // MARK: - Login (no auth header)
@@ -210,8 +229,16 @@ class APIClient {
     /// Authenticate with email + password, persist tokens.
     func login(email: String, password: String) async throws -> AuthTokenResponse {
         logger.info("APIClient.login  email=\(email)")
+        #if DEBUG
+        let baseURL = isUsingProdFallback ? AppConfig.prodURL : AppConfig.apiBaseURL
+        #else
+        let baseURL = AppConfig.apiBaseURL
+        #endif
+        return try await performLogin(email: email, password: password, baseURL: baseURL)
+    }
 
-        var req = URLRequest(url: Endpoint.login(email: email, password: password).url)
+    private func performLogin(email: String, password: String, baseURL: URL) async throws -> AuthTokenResponse {
+        var req = URLRequest(url: baseURL.appendingPathComponent("/auth/token"))
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
@@ -219,7 +246,25 @@ class APIClient {
         let body = "username=\(email.urlEncoded)&password=\(password.urlEncoded)&grant_type=password"
         req.httpBody = body.data(using: .utf8)
 
-        let (data, response) = try await performDataTask(req)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await performDataTask(req)
+        } catch let urlError as URLError
+            where urlError.code == .cannotConnectToHost || urlError.code == .cannotFindHost {
+            #if DEBUG
+            if AppConfig.isLocalhostBuild && baseURL != AppConfig.prodURL {
+                isUsingProdFallback = true
+                logger.warning("APIClient.login  localhost_unreachable — switching_to_prod")
+                return try await performLogin(email: email, password: password,
+                                              baseURL: AppConfig.prodURL)
+            }
+            #endif
+            logger.warning("APIClient.login  no_network  code=\(urlError.code.rawValue)")
+            throw APIError.noNetwork
+        } catch let urlError as URLError {
+            logger.warning("APIClient.login  no_network  code=\(urlError.code.rawValue)")
+            throw APIError.noNetwork
+        }
 
         // For login, a 401 means bad credentials — surface the server message directly
         // rather than mapping to the generic "Session expired" error used for auth failures.
@@ -235,7 +280,7 @@ class APIClient {
             let tokens = try decoder.decode(AuthTokenResponse.self, from: data)
             TokenStore.saveAccessToken(tokens.accessToken)
             TokenStore.saveRefreshToken(tokens.refreshToken)
-            logger.info("APIClient.login  success  expires_in=\(tokens.expiresIn)s")
+            logger.info("APIClient.login  success  baseURL=\(baseURL)  expires_in=\(tokens.expiresIn)s")
             return tokens
         } catch {
             logger.error("APIClient.login  decode_error=\(error)")
@@ -245,8 +290,9 @@ class APIClient {
 
     // MARK: - Private helpers
 
-    private func buildURLRequest(_ endpoint: Endpoint) throws -> URLRequest {
-        var req = URLRequest(url: endpoint.url)
+    private func buildURLRequest(_ endpoint: Endpoint, baseURL: URL? = nil) throws -> URLRequest {
+        let url = (baseURL ?? AppConfig.apiBaseURL).appendingPathComponent(endpoint.path)
+        var req = URLRequest(url: url)
         req.httpMethod = endpoint.httpMethod
         req.setValue("application/json", forHTTPHeaderField: "Accept")
 
@@ -266,19 +312,48 @@ class APIClient {
     private func execute<T: Decodable>(
         _ request: URLRequest,
         endpoint: Endpoint,
-        isRetry: Bool
+        isRetry: Bool,
+        isProdFallback: Bool = false
     ) async throws -> T {
+        #if DEBUG
+        // Re-route to prod if a concurrent request already latched the fallback flag
+        // while this request was awaiting its turn (avoids a wasted ECONNREFUSED hop).
+        var request = request
+        var isProdFallback = isProdFallback
+        if isUsingProdFallback && !isProdFallback && AppConfig.isLocalhostBuild {
+            isProdFallback = true
+            request.url = AppConfig.prodURL.appendingPathComponent(endpoint.path)
+            logger.info("APIClient.execute  latch_already_set — skipping_localhost  path=\(endpoint.path)")
+        }
+        #endif
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await performDataTask(request)
         } catch let urlError as URLError where urlError.code == .timedOut {
             logger.warning("APIClient.execute  timed_out  path=\(endpoint.path)")
             throw APIError.timedOut
-        } catch let urlError as URLError where [.notConnectedToInternet,
-                                                .networkConnectionLost,
-                                                .cannotConnectToHost,   // -1004 connection refused
-                                                .cannotFindHost,        // -1003 DNS failure
-                                               ].contains(urlError.code) {
+        } catch let urlError as URLError
+            where urlError.code == .notConnectedToInternet
+               || urlError.code == .networkConnectionLost {
+            // Genuine no-network (device is offline) — never fall back to prod.
+            logger.warning("APIClient.execute  no_network  code=\(urlError.code.rawValue)  path=\(endpoint.path)")
+            throw APIError.noNetwork
+        } catch let urlError as URLError
+            where urlError.code == .cannotConnectToHost   // -1004 connection refused
+               || urlError.code == .cannotFindHost {      // -1003 DNS failure
+            #if DEBUG
+            // Server unreachable (not a client-offline condition). In debug builds
+            // with a localhost base URL, fall back to prod once and latch the flag
+            // so all subsequent requests skip the local server automatically.
+            if !isProdFallback && AppConfig.isLocalhostBuild {
+                isUsingProdFallback = true
+                var fallbackReq = request
+                fallbackReq.url = AppConfig.prodURL.appendingPathComponent(endpoint.path)
+                logger.warning("APIClient.execute  localhost_unreachable — switching_to_prod  path=\(endpoint.path)")
+                return try await execute(fallbackReq, endpoint: endpoint,
+                                         isRetry: isRetry, isProdFallback: true)
+            }
+            #endif
             logger.warning("APIClient.execute  no_network  code=\(urlError.code.rawValue)  path=\(endpoint.path)")
             throw APIError.noNetwork
         }
@@ -291,7 +366,8 @@ class APIClient {
         if http.statusCode == 401 && !isRetry && !isRefreshing {
             logger.info("APIClient.execute  401_refresh  path=\(endpoint.path)")
             do {
-                try await refreshTokens()
+                let refreshBase: URL? = isProdFallback ? AppConfig.prodURL : nil
+                try await refreshTokens(baseURL: refreshBase)
             } catch let apiError as APIError {
                 logger.error("APIClient.execute  refresh_failed  \(apiError)")
                 if apiError == .unauthorized {
@@ -313,10 +389,12 @@ class APIClient {
                 logger.error("APIClient.execute  refresh_unknown_error  \(error)")
                 throw error
             }
-            // Rebuild request with new token and retry
-            let retryRequest = try buildURLRequest(endpoint)
+            // Rebuild request with new token and retry — preserve prod fallback if active
+            let retryBaseURL: URL? = isProdFallback ? AppConfig.prodURL : nil
+            let retryRequest = try buildURLRequest(endpoint, baseURL: retryBaseURL)
             do {
-                return try await execute(retryRequest, endpoint: endpoint, isRetry: true)
+                return try await execute(retryRequest, endpoint: endpoint,
+                                         isRetry: true, isProdFallback: isProdFallback)
             } catch let apiError as APIError where apiError == .unauthorized {
                 // Refresh succeeded but endpoint still 401s (e.g. student_not_found after DB reset)
                 // — treat as true session expiry and force logout
@@ -338,7 +416,7 @@ class APIClient {
         }
     }
 
-    private func refreshTokens() async throws {
+    private func refreshTokens(baseURL: URL? = nil) async throws {
         guard !isRefreshing else { return }
         guard let refreshToken = TokenStore.refreshToken() else {
             logger.warning("APIClient.refreshTokens  no_refresh_token")
@@ -347,9 +425,10 @@ class APIClient {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        logger.info("APIClient.refreshTokens  attempting_refresh")
+        let effectiveBase = baseURL ?? AppConfig.apiBaseURL
+        logger.info("APIClient.refreshTokens  attempting_refresh  base=\(effectiveBase)")
 
-        var req = URLRequest(url: AppConfig.apiBaseURL.appendingPathComponent("/auth/refresh"))
+        var req = URLRequest(url: effectiveBase.appendingPathComponent("/auth/refresh"))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONSerialization.data(withJSONObject: ["refresh_token": refreshToken])

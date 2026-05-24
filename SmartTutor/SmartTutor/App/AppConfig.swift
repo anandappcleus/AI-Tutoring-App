@@ -44,4 +44,18 @@ enum BuildEnvironment {
 enum AppConfig {
     static let apiBaseURL = BuildEnvironment.current.apiBaseURL
     static let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+
+    /// Production Railway URL — used as a DEBUG fallback when localhost is unreachable.
+    static let prodURL = URL(string: "https://smarttutor-api-production.up.railway.app")!
+
+    /// True in DEBUG builds when the active base URL is localhost.
+    /// APIClient uses this to decide whether to attempt a prod fallback on
+    /// cannotConnectToHost errors (dev server not running).
+    static var isLocalhostBuild: Bool {
+        #if DEBUG
+        return apiBaseURL.host == "localhost"
+        #else
+        return false
+        #endif
+    }
 }

@@ -106,6 +106,11 @@ final class DashboardViewModel {
                     }
                 }
                 let current = syncManager.isNetworkReachable
+                // Swift's @Observable fires onChange on every mutation, even same-value
+                // writes (e.g. NWPathMonitor firing repeatedly at startup). Skip events
+                // where the value hasn't actually changed to avoid spurious reconnect
+                // triggers that would incorrectly set hasEverBeenOffline = true.
+                guard current != previous else { continue }
                 if !current { hasEverBeenOffline = true }
                 if current && !previous && hasEverBeenOffline && !currentStudentId.isEmpty {
                     logger.info("DashboardViewModel: network restored — refreshing plan")
@@ -148,13 +153,22 @@ final class DashboardViewModel {
 
     /// Whether a manual crew trigger request is in flight.
     private(set) var isGeneratingPlan: Bool = false
+    /// Timestamp of the last crew trigger attempt. Used to debounce rapid re-taps
+    /// after a near-instant failure (e.g. ECONNREFUSED) resets isGeneratingPlan
+    /// before SwiftUI can re-disable the button.
+    private var lastCrewTriggerAt: Date? = nil
+    private static let crewTriggerCooldown: TimeInterval = 3
 
     /// POST /admin/run-nightly-crew with the dev admin secret.
     /// Only compiled into DEBUG builds; stripped from release.
     func triggerNightlyCrew(studentId: String) async {
         guard !isGeneratingPlan else { return }
+        if let last = lastCrewTriggerAt,
+           Date().timeIntervalSince(last) < Self.crewTriggerCooldown { return }
+        lastCrewTriggerAt = Date()
         isGeneratingPlan = true
         defer { isGeneratingPlan = false }
+        logger.info("DashboardViewModel.triggerNightlyCrew: tapped  studentId=\(studentId)")
 
         let adminURL = AppConfig.apiBaseURL.appendingPathComponent("/admin/run-nightly-crew")
         var req = URLRequest(url: adminURL)

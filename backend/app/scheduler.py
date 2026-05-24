@@ -112,8 +112,9 @@ async def run_nightly_crew() -> None:
             log.error(
                 "nightly_crew.student_failed  student_id=%s", sid, exc_info=True
             )
-        # Small sleep between students to respect NIM rate limits
-        await asyncio.sleep(1)
+        # Sleep between students: allows the NIM rate-limit window to partially
+        # reset before the next student's crew run begins (~10 LLM calls each).
+        await asyncio.sleep(30)
 
     elapsed_s = time.perf_counter() - t0
     log.info(
@@ -176,7 +177,13 @@ async def _fetch_active_students() -> list[Student]:
 
 
 async def _run_student_crew(student: Student, today: date) -> None:
-    """Dispatch one student's nightly crew to the thread pool."""
+    """
+    Dispatch one student's nightly crew to the thread pool.
+
+    Retries up to 3 times on NVIDIA NIM 429 rate-limit errors with
+    exponential backoff (60 s, 120 s) so a single rate-limited student
+    does not count as a permanent failure.
+    """
     sid = str(student.id)
     phone = getattr(student, "phone_number", "") or ""  # phone not in model yet — Sprint 6
     plan_date = today.isoformat()
@@ -187,11 +194,32 @@ async def _run_student_crew(student: Student, today: date) -> None:
     )
     t0 = time.perf_counter()
     loop = asyncio.get_running_loop()
-    await loop.run_in_executor(
-        _crew_executor,
-        _crew_sync,
-        sid, phone, plan_date, student.preferred_language,
-    )
+
+    _MAX_ATTEMPTS = 3
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            await loop.run_in_executor(
+                _crew_executor,
+                _crew_sync,
+                sid, phone, plan_date, student.preferred_language,
+            )
+            break  # success — exit retry loop
+        except Exception as exc:
+            _is_rate_limit = (
+                "429" in str(exc)
+                or "RateLimitError" in type(exc).__name__
+                or "Too Many Requests" in str(exc)
+            )
+            if _is_rate_limit and attempt < _MAX_ATTEMPTS - 1:
+                wait_s = 60 * (2 ** attempt)  # 60 s, then 120 s
+                log.warning(
+                    "nightly_crew.rate_limited  student_id=%s  attempt=%d/%d  waiting=%ds",
+                    sid, attempt + 1, _MAX_ATTEMPTS, wait_s,
+                )
+                await asyncio.sleep(wait_s)
+            else:
+                raise
+
     elapsed_ms = (time.perf_counter() - t0) * 1_000
     log.info(
         "nightly_crew.student_done  student_id=%s  %.0fms", sid, elapsed_ms

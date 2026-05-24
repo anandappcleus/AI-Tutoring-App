@@ -62,6 +62,7 @@ def _prepare_engine_args(database_url: str) -> tuple[str, dict]:
         clean_url = re.sub(r'[?&]$', '', clean_url)  # trailing ? or &
         ssl_ctx = ssl.create_default_context()
         connect_args["ssl"] = ssl_ctx
+        connect_args["timeout"] = 10  # fail fast if Neon compute is suspended (default is 60s)
         log.debug("db._prepare_engine_args: SSL via connect_args (stripped from URL)")
         return clean_url, connect_args
     return database_url, connect_args
