@@ -322,6 +322,7 @@ struct MockTestSessionView: View {
                     errorView(message: msg)
                 }
             }
+            .background(Color(UIColor.systemBackground).ignoresSafeArea())
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 if vm.sessionState == .active || vm.sessionState == .submitting {
