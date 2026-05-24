@@ -33,13 +33,14 @@ struct LearnerProgressView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
                 .padding(.bottom, 36)
-                .background(
+                .background {
                     LinearGradient(
                         colors: [.indigo, .purple],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
-                )
+                    .ignoresSafeArea(edges: .top)
+                }
 
                 VStack(spacing: 16) {
                     if vm.isLoading {
@@ -153,12 +154,13 @@ struct LearnerProgressView: View {
                         let attentionTopics: [ProgressResponse.TopicProgress] = {
                             let weak = data.topics.filter { data.weakTopics.contains($0.topic) }
                             if !weak.isEmpty { return weak }
-                            return Array(
-                                data.topics
-                                    .filter { $0.topic != "Uncategorised" }
-                                    .sorted { $0.accuracyPct < $1.accuracyPct }
-                                    .prefix(3)
-                            )
+                            // Fallback: only show lowest topics if they're genuinely weak (< 80%)
+                            let lowest = data.topics
+                                .filter { $0.topic != "Uncategorised" }
+                                .sorted { $0.accuracyPct < $1.accuracyPct }
+                                .prefix(3)
+                            guard lowest.contains(where: { $0.accuracyPct < 80 }) else { return [] }
+                            return Array(lowest)
                         }()
                         if !attentionTopics.isEmpty {
                             VStack(alignment: .leading, spacing: 16) {
@@ -270,7 +272,6 @@ struct LearnerProgressView: View {
             }
         }
         .background(Color(UIColor.systemGroupedBackground))
-        .ignoresSafeArea(edges: .top)
         .task {
             AppLogger.navigated(to: "LearnerProgressView")
             if let id = appState.currentProfile?.id {
