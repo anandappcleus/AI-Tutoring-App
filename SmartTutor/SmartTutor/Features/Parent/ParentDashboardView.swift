@@ -102,7 +102,7 @@ struct ParentDashboardView: View {
                     // Daily Activity Log
                     if !vm.dailyActivity.isEmpty {
                         VStack(alignment: .leading, spacing: 14) {
-                            Label("Daily Activity Log", systemImage: "book.open.fill")
+                            Label("Daily Activity Log", systemImage: "calendar.day.timeline.left")
                                 .font(.system(size: 16, weight: .bold))
                             VStack(spacing: 0) {
                                 ForEach(Array(vm.dailyActivity.enumerated()), id: \.element.dayName) { idx, day in
