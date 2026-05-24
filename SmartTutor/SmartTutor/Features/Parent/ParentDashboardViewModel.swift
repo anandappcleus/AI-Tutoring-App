@@ -60,6 +60,61 @@ private let logger = AppLogger.parent
         return "\(d.weekStart) – \(d.weekEnd)"
     }
 
+    // MARK: - Exam readiness (derived from progress data + profile)
+
+    /// Student's exam target, set at load time. Drives the readiness card title + score range.
+    private(set) var examTarget: String = "JEE"
+    /// Student's first name, used in the readiness narrative.
+    private(set) var studentName: String = "Student"
+
+    /// Max possible score for the student's exam.
+    private var maxScore: Int {
+        switch examTarget {
+        case "NEET":   return 720
+        case "WBCHSE": return 500
+        default:       return 300   // JEE Mains & Advanced
+        }
+    }
+
+    var examReadinessTitle: String { "\(examTarget) Exam Readiness Prediction" }
+
+    /// Progress bar fill (0.0–1.0) based on overall accuracy.
+    var predictedScoreProgress: Double {
+        guard let data = progressData, data.totalQuestions > 0 else { return 0 }
+        return min(data.overallAccuracyPct / 100.0, 1.0)
+    }
+
+    /// "low–high / max" score range derived from accuracy.
+    var predictedScoreText: String {
+        guard let data = progressData, data.totalQuestions > 0 else { return "—" }
+        let mid  = Int((data.overallAccuracyPct / 100.0) * Double(maxScore))
+        let low  = max(0, mid - 10)
+        let high = min(maxScore, mid + 10)
+        return "\(low)–\(high) / \(maxScore)"
+    }
+
+    /// Dynamic narrative using the student's name, accuracy trend, and weak topic count.
+    var readinessSummary: String {
+        guard let data = progressData, data.totalQuestions > 0 else {
+            return "Complete more practice questions to generate a readiness prediction."
+        }
+        let acc = data.overallAccuracyPct
+        let trend: String
+        if acc >= 75      { trend = "is on track for a good score" }
+        else if acc >= 60 { trend = "is making steady progress" }
+        else              { trend = "needs focused practice to improve the score" }
+        let weakCount = data.weakTopics.count
+        let weakNote  = weakCount > 0
+            ? " Consistent practice on \(weakCount) weak topic\(weakCount == 1 ? "" : "s") can improve the score by 15–20 marks."
+            : " Keep up the consistent practice!"
+        return "Based on current performance, \(studentName) \(trend).\(weakNote)"
+    }
+
+    /// Subject accuracy tags, e.g. ["Physics: 78%", "Chemistry: 65%"]. Empty when unavailable.
+    var subjectTags: [String] {
+        progressData?.subjectAccuracy.map { "\($0.subject): \(Int($0.accuracyPct))%" } ?? []
+    }
+
     // MARK: - Dependencies
 
     private let apiClient: APIClient
@@ -70,7 +125,9 @@ private let logger = AppLogger.parent
 
     // MARK: - Load
 
-    func load(studentId: String) async {
+    func load(studentId: String, examTarget: String = "JEE", studentName: String = "Student") async {
+        self.examTarget  = examTarget
+        self.studentName = studentName
         guard !isLoading else { return }
         isLoading = true
         errorMessage = nil

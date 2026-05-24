@@ -145,7 +145,7 @@ struct ParentDashboardView: View {
 
                     // Exam prediction
                     VStack(alignment: .leading, spacing: 14) {
-                        Label("JEE Exam Readiness Prediction", systemImage: "target")
+                        Label(vm.examReadinessTitle, systemImage: "target")
                             .font(.system(size: 17, weight: .bold))
                             .foregroundStyle(.white)
 
@@ -153,32 +153,33 @@ struct ParentDashboardView: View {
                             Text("Predicted Score Range")
                                 .font(.system(size: 14))
                             Spacer()
-                            Text("165–185 / 300")
+                            Text(vm.predictedScoreText)
                                 .font(.system(size: 14, weight: .bold))
                         }
                         .foregroundStyle(.white)
 
                         LinearProgressBar(
-                            value: 0.62,
+                            value: vm.predictedScoreProgress,
                             foreground: .white.opacity(0.9),
                             background: .white.opacity(0.2)
                         )
 
-                        Text("Based on current performance, Riya is on track for a good score. Consistent practice on weak topics can improve the score by 15–20 marks.")
+                        Text(vm.readinessSummary)
                             .font(.system(size: 13))
                             .foregroundStyle(.white.opacity(0.85))
                             .lineSpacing(3)
 
-                        let subjectTags = ["Physics: 78%", "Chemistry: 65%", "Maths: 82%"]
-                        HStack(spacing: 8) {
-                            ForEach(subjectTags, id: \.self) { tag in
-                                Text(tag)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.white.opacity(0.2))
-                                    .clipShape(Capsule())
+                        if !vm.subjectTags.isEmpty {
+                            HStack(spacing: 8) {
+                                ForEach(vm.subjectTags, id: \.self) { tag in
+                                    Text(tag)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.white.opacity(0.2))
+                                        .clipShape(Capsule())
+                                }
                             }
                         }
                     }
@@ -243,7 +244,11 @@ struct ParentDashboardView: View {
         .task {
             AppLogger.navigated(to: "ParentDashboardView")
             if let id = appState.currentProfile?.id {
-                await vm.load(studentId: id)
+                await vm.load(
+                    studentId:   id,
+                    examTarget:  appState.currentProfile?.examTarget.rawValue ?? "JEE",
+                    studentName: appState.currentProfile?.name ?? "Student"
+                )
             }
         }
     }
