@@ -159,7 +159,7 @@ struct AttemptResult: Decodable {
     func goTo(index: Int) {
         guard index >= 0, index < questions.count else { return }
         currentIndex = index
-        logger.debug("MockTestSession: navigate  q=\(index + 1)/\(questions.count)")
+        logger.debug("MockTestSession: navigate  q=\(index + 1)/\(self.questions.count)")
     }
 
     func goNext() { goTo(index: currentIndex + 1) }
@@ -185,7 +185,7 @@ struct AttemptResult: Decodable {
         } else {
             markedForReview.insert(questionId)
         }
-        logger.debug("MockTestSession: review_toggled  q=\(questionId)  isMarked=\(markedForReview.contains(questionId))")
+        logger.debug("MockTestSession: review_toggled  q=\(questionId)  isMarked=\(self.markedForReview.contains(questionId))")
     }
 
     // MARK: - Submit
