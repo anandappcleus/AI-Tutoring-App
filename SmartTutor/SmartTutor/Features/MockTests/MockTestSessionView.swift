@@ -114,9 +114,6 @@ struct AttemptResult: Decodable {
     private var attemptId: String = ""
     private var timerTask: Task<Void, Never>? = nil
     private var lastSavedAnswers: [String: String] = [:]
-    /// Guard against concurrent .task firings (SwiftUI can fire .task twice
-    /// during fullScreenCover presentation on some iOS versions).
-    private var isStarting = false
 
     let test: MockTest
     private let apiClient: APIClient
@@ -129,12 +126,6 @@ struct AttemptResult: Decodable {
     // MARK: - Session start
 
     func startSession() async {
-        guard !isStarting else {
-            logger.debug("MockTestSession: startSession already in progress — skipping")
-            return
-        }
-        isStarting = true
-        defer { isStarting = false }
         sessionState = .loading
         do {
             // 1. Load questions

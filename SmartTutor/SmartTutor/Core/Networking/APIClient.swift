@@ -362,8 +362,13 @@ class APIClient {
             throw APIError.serverError(statusCode: 0, body: "No HTTP response")
         }
 
-        // Silent refresh on 401 — attempt once
-        if http.statusCode == 401 && !isRetry && !isRefreshing {
+        // Silent refresh on 401 — attempt once.
+        // Note: !isRefreshing is intentionally NOT checked here. When two concurrent
+        // requests both receive 401 (e.g. /plan + /ask/history on startup with expired
+        // tokens), the second one must still enter this branch so it waits for the
+        // in-progress refresh and retries with fresh tokens, rather than falling through
+        // to validateHTTPResponse which would throw .unauthorized immediately.
+        if http.statusCode == 401 && !isRetry {
             logger.info("APIClient.execute  401_refresh  path=\(endpoint.path)")
             do {
                 let refreshBase: URL? = isProdFallback ? AppConfig.prodURL : nil
@@ -417,7 +422,15 @@ class APIClient {
     }
 
     private func refreshTokens(baseURL: URL? = nil) async throws {
-        guard !isRefreshing else { return }
+        // If a refresh is already in progress (another concurrent 401 beat us here),
+        // wait for it to finish — the tokens will be fresh when it's done.
+        if isRefreshing {
+            logger.debug("APIClient.refreshTokens  waiting_for_in_progress_refresh")
+            while isRefreshing {
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            return  // tokens are now fresh; caller will retry
+        }
         guard let refreshToken = TokenStore.refreshToken() else {
             logger.warning("APIClient.refreshTokens  no_refresh_token")
             throw APIError.unauthorized
