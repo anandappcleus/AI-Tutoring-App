@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 18 May 2026 (Neon DB migration; Full Paper Mock Tests; scheduler new-student fix; chroma_db untracked)*
+*Last updated: 24 May 2026 (Bug fixes: 401 race, MockTest double-task, syllabus map names, offline reconnect; real-time network banner; Progress view header + weak-topics logic)*
 
 ---
 
@@ -436,6 +436,32 @@ The Progress screen was rebuilt to match the provided design mockup.
 |---|------|--------|--------|
 | 1 | `backend/chroma_db/` untracked from git | Was committed despite being in `.gitignore`; `git rm -r --cached` removes tracking without deleting files on disk | `0402378` | ✅ |
 | 2 | `GET /ask/history` polling guard | Once-per-session flag prevents repeated polling on `StudyView` appear | `app/routers/ask.py` | `21e30a5` | ✅ |
+
+---
+
+## Post-Sprint 6 (cont.) — Bug Fixes & UX Hardening ✅ Complete
+
+*24 May 2026 — token refresh race, MockTest session guard, syllabus map name mismatch, offline reconnect, network status banner, Progress screen header & weak-topic logic.*
+
+### Backend Fixes (deployed to Railway)
+
+| # | Issue | Root Cause | Fix | Commit |
+|---|-------|-----------|-----|--------|
+| 1 | **Syllabus Map: only "Laws of Motion" marked done** | `_TOPIC_KEYWORD_MAP` canonical names in `ask.py` didn't match iOS chapter titles (e.g. `"Work, Energy and Power"` vs `"Work, Energy & Power"`; separate Waves + Oscillations vs merged; Ray Optics vs Optics etc.) | Rewrote all ~30 canonical names to exactly match iOS titles; merged Oscillations → "Waves & Oscillations"; split Organic Chemistry into I & II; merged Probability+Statistics, Sequences & Series, Coordinate Geometry, 3D Geometry & Vectors | `c98d05f` |
+
+### iOS Fixes (committed + pushed)
+
+| # | Issue | Root Cause | Fix | File(s) | Commit |
+|---|-------|-----------|-----|---------|--------|
+| 1 | **`/plan` throws `.unauthorized` immediately when `/ask/history` 401 refresh is in-progress** | `execute()` had `guard !isRefreshing` before the 401 retry path — second concurrent caller returned `.unauthorized` straight away instead of waiting | Removed `&& !isRefreshing` condition; replaced `guard !isRefreshing else { return }` in `refreshTokens` with a 50 ms polling wait loop so concurrent callers wait for the in-progress refresh and retry with fresh tokens | `APIClient.swift` | `d71ecd6` |
+| 2 | **MockTestSession never starts ("Session expired" flash on second tap)** | `.task` fires twice on `fullScreenCover` — first is cancelled by SwiftUI, second is the real call. `isStarting = true` guard blocked the successful second call | Removed `isStarting` guard entirely; kept `URLError.cancelled` catch (silent, stays `.loading`) for the cancelled first call | `MockTestSessionView.swift` | `d71ecd6` |
+| 3 | **MockTestSession error/loading popup has transparent background** | `NavigationStack` inside `fullScreenCover` had no explicit background | Added `.background(Color(UIColor.systemBackground).ignoresSafeArea())` to the inner `Group` | `MockTestSessionView.swift` | `e09534c` |
+| 4 | **Syllabus Map progress overlay: fuzzy name matching** | Even after backend fix, minor formatting differences (` & ` vs ` and `, em-dash) could miss matches | Added `normalizedKey()` helper in `overlayProgress`: lowercases, replaces ` & ` → ` and `, em-dash → ` - ` before comparing | `SyllabusMapView.swift` | `c98d05f` |
+| 5 | **Auto-refresh not firing when app starts offline** | `hasEverBeenOffline` in `observeReachability()` was never set because NWPathMonitor fires initial callback with `false` (offline) == initial value `false` → guard hit `continue` → flag never flipped | Replaced `hasEverBeenOffline` with `isShowingCachedPlan` check — always `true` when offline cache was loaded, regardless of history | `DashboardViewModel.swift` | `87fb4e2` |
+| 6 | **Real-time network status banner** | Absent | New `NetworkStatusBanner.swift` (`NetworkStatusBannerModifier` + `.networkStatusBanner()` View extension); uses `withObservationTracking` loop on `OfflineSyncManager.isNetworkReachable`; offline = persistent dark-grey bar; reconnected = green bar auto-dismisses after 3 s; spring-animated slide from top; wired at `ContentView` root | `Core/UI/NetworkStatusBanner.swift`, `ContentView.swift` | `bfad2d6` |
+| 7 | **Banner overlaps Dashboard header content** | `safeAreaInset(edge: .top)` adds to safe area, but `DashboardView`'s `ScrollView` has `.ignoresSafeArea(edges: .top)` which extends through all top safe area including the banner | Replaced `safeAreaInset` with `VStack(spacing: 0)` — banner sits above content as regular layout; `ignoresSafeArea` views can only extend into the original status-bar safe area | `NetworkStatusBanner.swift` | `7066718` |
+| 8 | **Progress header text overlaps Dynamic Island** | `ScrollView` had `.ignoresSafeArea(edges: .top)`; gradient header used fixed `.padding(.top, 20)` — not enough to clear Dynamic Island (~59 pt) | Removed `.ignoresSafeArea` from `ScrollView`; moved it to the gradient `.background {}` only — gradient still bleeds behind status bar visually, text is correctly positioned below safe area | `LearnerProgressView.swift` | `e23b2ef` |
+| 9 | **"Topics Needing Attention" shows 100% accurate topics** | Fallback (no server-side weak topics) unconditionally showed 3 lowest topics even when all had 100% accuracy | Guard added: fallback only fires if at least one topic is below 80% accuracy; at ≥ 80% the section is hidden entirely | `LearnerProgressView.swift` | `e23b2ef` |
 
 ---
 
