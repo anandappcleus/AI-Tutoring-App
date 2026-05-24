@@ -30,15 +30,18 @@ private struct NetworkStatusBannerModifier: ViewModifier {
     private let syncManager = OfflineSyncManager.shared
 
     func body(content: Content) -> some View {
-        content
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if bannerState != .hidden {
-                    banner
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
+        // Use a VStack instead of safeAreaInset so that child views with
+        // .ignoresSafeArea(edges: .top) (e.g. DashboardView's ScrollView)
+        // don't extend through the banner area and overlap it.
+        VStack(spacing: 0) {
+            if bannerState != .hidden {
+                banner
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
-            .animation(.spring(duration: 0.35), value: bannerState == .hidden)
-            .task { await observeConnectivity() }
+            content
+        }
+        .animation(.spring(duration: 0.35), value: bannerState == .hidden)
+        .task { await observeConnectivity() }
     }
 
     // MARK: Banner view
