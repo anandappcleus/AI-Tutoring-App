@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 24 May 2026 (Bug fixes: 401 race, MockTest double-task, syllabus map names, offline reconnect; real-time network banner; Progress view header + weak-topics logic)*
+*Last updated: 24 May 2026 (Structured logging for all features; Parent Dashboard dynamic exam readiness; SF Symbol + compiler fixes)*
 
 ---
 
@@ -462,6 +462,47 @@ The Progress screen was rebuilt to match the provided design mockup.
 | 7 | **Banner overlaps Dashboard header content** | `safeAreaInset(edge: .top)` adds to safe area, but `DashboardView`'s `ScrollView` has `.ignoresSafeArea(edges: .top)` which extends through all top safe area including the banner | Replaced `safeAreaInset` with `VStack(spacing: 0)` — banner sits above content as regular layout; `ignoresSafeArea` views can only extend into the original status-bar safe area | `NetworkStatusBanner.swift` | `7066718` |
 | 8 | **Progress header text overlaps Dynamic Island** | `ScrollView` had `.ignoresSafeArea(edges: .top)`; gradient header used fixed `.padding(.top, 20)` — not enough to clear Dynamic Island (~59 pt) | Removed `.ignoresSafeArea` from `ScrollView`; moved it to the gradient `.background {}` only — gradient still bleeds behind status bar visually, text is correctly positioned below safe area | `LearnerProgressView.swift` | `e23b2ef` |
 | 9 | **"Topics Needing Attention" shows 100% accurate topics** | Fallback (no server-side weak topics) unconditionally showed 3 lowest topics even when all had 100% accuracy | Guard added: fallback only fires if at least one topic is below 80% accuracy; at ≥ 80% the section is hidden entirely | `LearnerProgressView.swift` | `e23b2ef` |
+
+---
+
+## Post-Sprint 6 (cont.) — Structured Logging + Parent Dashboard Dynamic Data ✅ Complete
+
+*24 May 2026 — centralized structured logging for all critical features; Parent Dashboard exam readiness card wired to real API data; compiler + symbol fixes.*
+
+### Structured Logging (`AppLogger` expansion + critical feature coverage)
+
+| # | Change | File(s) | Commit |
+|---|--------|---------|--------|
+| 1 | **AppLogger — 3 new categories** — `mockSession` (`MockTestSession`), `progress` (`Progress`), `parent` (`ParentDashboard`); all features now have a dedicated subsystem/category filterable in Xcode Console and Console.app | `Core/Logging/AppLogger.swift` | `16adc2a` |
+| 2 | **MockTestSessionViewModel** — switched from private `Logger(...)` to `AppLogger.mockSession`; added logs for `goTo()` (debug: question navigation), `setAnswer()` (info: answer recorded with preview), `clearAnswer()` (info), `toggleReview()` (debug: final isMarked state), `autoSave()` success (debug); upgraded `autoSave` failure from `.debug` → `.warning` for Console.app visibility | `Features/MockTests/MockTestSessionView.swift` | `16adc2a` |
+| 3 | **ProgressViewModel** — switched private `Logger(...)` → `AppLogger.progress` | `Features/Progress/ProgressViewModel.swift` | `16adc2a` |
+| 4 | **ParentDashboardViewModel** — switched private `Logger(...)` → `AppLogger.parent` | `Features/Parent/ParentDashboardViewModel.swift` | `16adc2a` |
+| 5 | **os.Logger autoclosure `self` capture fix** — `goTo()` and `toggleReview()` log lines required explicit `self.questions.count` and `self.markedForReview.contains(...)` to satisfy Swift's explicit capture requirement in `@autoclosure` | `Features/MockTests/MockTestSessionView.swift` | `722503c` |
+
+### API Data Flow Verification
+
+| Endpoint | Expected response | Client decode | Status |
+|----------|------------------|---------------|--------|
+| `PATCH /mock-tests/{pid}/attempts/{aid}` (auto-save) | `{"saved": true}` | `SaveAnswersResponse.saved: Bool` | ✅ Match |
+| `POST /ask` → offline `.noNetwork` | Server persists via `/ask`; offline → `enqueue(question:)` to `OfflineSyncManager` | Correct — does NOT double-enqueue | ✅ Verified |
+| `GET /progress/:id` → Parent Dashboard | `ProgressResponse` with `subjectAccuracy`, `overallAccuracyPct`, `weakTopics` | All decoded; `decodeIfPresent` safe defaults | ✅ Verified |
+
+### Parent Dashboard — Exam Readiness Card (all data now dynamic)
+
+| Field | Before | After | Commit |
+|-------|--------|-------|--------|
+| Title | `"JEE Exam Readiness Prediction"` (hardcoded) | `"\(examTarget) Exam Readiness Prediction"` (from profile) | `4feb3c1` |
+| Score range | `"165–185 / 300"` (hardcoded) | Derived: `overallAccuracyPct × maxScore ± 10` (JEE=300, NEET=720, WBCHSE=500) | `4feb3c1` |
+| Progress bar | `0.62` (hardcoded) | `overallAccuracyPct / 100` | `4feb3c1` |
+| Narrative | `"Riya is on track…"` (name + text hardcoded) | Dynamic: student name + accuracy tier (≥75% / ≥60% / <60%) + weak topic count | `4feb3c1` |
+| Subject tags | `["Physics: 78%", "Chemistry: 65%", "Maths: 82%"]` (hardcoded) | From `subjectAccuracy[]` API response; row hidden when empty | `4feb3c1` |
+| `load()` params | `studentId` only | Added `examTarget` + `studentName`; `.task` passes `appState.currentProfile` values | `4feb3c1` |
+
+### UI / Symbol Fix
+
+| # | Issue | Fix | Commit |
+|---|-------|-----|--------|
+| 1 | **Invalid SF Symbol `book.open.fill`** — `No symbol named 'book.open.fill' found in system symbol set` warning at runtime for Daily Activity Log header | Replaced with `calendar.day.timeline.left` (valid iOS 15+ symbol, semantically fits daily log) | `2f91e05` |
 
 ---
 
