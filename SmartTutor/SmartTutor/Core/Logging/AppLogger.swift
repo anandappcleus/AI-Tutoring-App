@@ -51,6 +51,15 @@ enum AppLogger {
     /// Offline packs and Core Data sync
     static let offline    = Logger(subsystem: "com.smarttutor.app", category: "OfflinePacks")
 
+    /// Mock test full-paper session (timer, answers, auto-save, submit)
+    static let mockSession = Logger(subsystem: "com.smarttutor.app", category: "MockTestSession")
+
+    /// Learner progress loading and reconnect refresh
+    static let progress   = Logger(subsystem: "com.smarttutor.app", category: "Progress")
+
+    /// Parent dashboard — weekly summary, alerts, exam readiness
+    static let parent     = Logger(subsystem: "com.smarttutor.app", category: "ParentDashboard")
+
     // MARK: - Convenience Helpers
 
     /// Log a user-initiated tap action with the feature category it belongs to.

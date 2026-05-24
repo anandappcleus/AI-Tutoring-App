@@ -10,7 +10,7 @@ import Foundation
 import Observation
 import os.log
 
-private let logger = Logger(subsystem: "com.smarttutor.app", category: "ProgressViewModel")
+private let logger = AppLogger.progress
 
 @Observable @MainActor
 final class ProgressViewModel {

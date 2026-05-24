@@ -13,7 +13,7 @@ import Foundation
 import Observation
 import os.log
 
-private let logger = Logger(subsystem: "com.smarttutor.app", category: "ParentDashboardViewModel")
+private let logger = AppLogger.parent
 
 @MainActor
 @Observable final class ParentDashboardViewModel {

@@ -15,7 +15,7 @@ import Observation
 import os.log
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.smarttutor.app", category: "MockTestSession")
+private let logger = AppLogger.mockSession
 
 // MARK: - Domain Models
 
@@ -159,6 +159,7 @@ struct AttemptResult: Decodable {
     func goTo(index: Int) {
         guard index >= 0, index < questions.count else { return }
         currentIndex = index
+        logger.debug("MockTestSession: navigate  q=\(index + 1)/\(questions.count)")
     }
 
     func goNext() { goTo(index: currentIndex + 1) }
@@ -168,12 +169,14 @@ struct AttemptResult: Decodable {
 
     func setAnswer(_ answer: String, for questionId: String) {
         answers[questionId] = answer
+        logger.info("MockTestSession: answer_set  q=\(questionId)  ans=\(answer.prefix(30))")
         // Debounce auto-save: save immediately when answer changes
         Task { await autoSave() }
     }
 
     func clearAnswer(for questionId: String) {
         answers.removeValue(forKey: questionId)
+        logger.info("MockTestSession: answer_cleared  q=\(questionId)")
     }
 
     func toggleReview(for questionId: String) {
@@ -182,6 +185,7 @@ struct AttemptResult: Decodable {
         } else {
             markedForReview.insert(questionId)
         }
+        logger.debug("MockTestSession: review_toggled  q=\(questionId)  isMarked=\(markedForReview.contains(questionId))")
     }
 
     // MARK: - Submit
@@ -241,9 +245,10 @@ struct AttemptResult: Decodable {
                 .saveAnswers(paperId: test.id, attemptId: attemptId, answers: answers)
             )
             lastSavedAnswers = answers
+            logger.debug("MockTestSession: autoSave ok  answers=\(self.answers.count)")
         } catch {
             // Non-fatal — answers saved in memory; will retry on next answer change
-            logger.debug("MockTestSession: autoSave failed (non-fatal)  \(error.localizedDescription)")
+            logger.warning("MockTestSession: autoSave failed (non-fatal)  \(error.localizedDescription)")
         }
     }
 
