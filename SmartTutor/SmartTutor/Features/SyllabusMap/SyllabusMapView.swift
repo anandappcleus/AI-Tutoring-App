@@ -140,20 +140,29 @@ private let wbchseSyllabus: [SyllabusSubject] = [
         await overlayProgress(studentId: sid)
     }
 
+    /// Normalise a topic/chapter name for fuzzy matching.
+    /// Converts "Work, Energy & Power" and "Work, Energy and Power" to the same key.
+    private func normalizedKey(_ s: String) -> String {
+        s.lowercased()
+         .replacingOccurrences(of: " & ", with: " and ")
+         .replacingOccurrences(of: " \u{2014} ", with: " - ")   // em-dash (Organic Chemistry — I)
+    }
+
     private func overlayProgress(studentId: String) async {
         isLoadingProgress = true
         AppLogger.apiStart(AppLogger.syllabus, endpoint: "GET /progress/\(studentId)")
         do {
             let progress: ProgressResponse = try await apiClient.request(.progress(studentId: studentId))
-            // Build topic → accuracy map
+            // Build topic → accuracy map with normalised keys so that
+            // "&" vs "and" differences between backend and iOS titles don't cause misses.
             var accuracyMap: [String: Double] = [:]
             for t in progress.topics {
-                accuracyMap[t.topic.lowercased()] = t.accuracyPct
+                accuracyMap[normalizedKey(t.topic)] = t.accuracyPct
             }
             // Overlay onto chapters
             subjects = subjects.map { subj in
                 let updatedChapters = subj.chapters.map { chap -> SyllabusChapter in
-                    let matchedAcc = accuracyMap[chap.title.lowercased()]
+                    let matchedAcc = accuracyMap[normalizedKey(chap.title)]
                     var updated = chap
                     updated.accuracy = matchedAcc
                     return updated
