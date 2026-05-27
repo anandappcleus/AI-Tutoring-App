@@ -16,17 +16,26 @@ struct ParentDashboardView: View {
     @State private var whatsappEnabled = true
 
     var body: some View {
+        ZStack {
+            // Full-screen gradient — NowAssist design system
+            LinearGradient(
+                gradient: Gradient(colors: AppColors.gradientColors),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
         ScrollView {
             VStack(spacing: 0) {
                 // Week range subtitle banner
                 if let range = vm.weekRange {
                     Text(range)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 8)
-                        .background(Color(UIColor.secondarySystemBackground))
+                        .background(Color.black.opacity(0.2))
                 }
 
                 VStack(spacing: 16) {
@@ -43,7 +52,7 @@ struct ParentDashboardView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Label("This Week's Summary", systemImage: "target")
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(AppColors.textPrimary)
 
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                             SummaryCell(value: vm.studyTimeFormatted,         label: "Study Time",    color: .blue)
@@ -54,9 +63,8 @@ struct ParentDashboardView: View {
                         }
                     }
                     .padding(20)
-                    .background(Color(UIColor.systemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
 
                     // Alerts derived from weak topics
                     if !vm.weakTopics.isEmpty {
@@ -74,11 +82,13 @@ struct ParentDashboardView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             Label("Topic Accuracy", systemImage: "chart.bar.fill")
                                 .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(AppColors.textPrimary)
                             VStack(spacing: 10) {
                                 ForEach(vm.topicBreakdown, id: \.topic) { t in
                                     HStack {
                                         Text(t.topic)
                                             .font(.system(size: 14))
+                                            .foregroundStyle(AppColors.textPrimary)
                                             .lineLimit(1)
                                         Spacer()
                                         Text("\(Int(t.accuracyPct))%")
@@ -88,15 +98,14 @@ struct ParentDashboardView: View {
                                     LinearProgressBar(
                                         value: t.accuracyPct / 100,
                                         foreground: t.accuracyPct >= 70 ? .green : .orange,
-                                        background: Color(UIColor.systemGray5)
+                                        background: Color.white.opacity(0.15)
                                     )
                                 }
                             }
                         }
                         .padding(20)
-                        .background(Color(UIColor.systemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
                     }
 
                     // Daily Activity Log
@@ -104,43 +113,44 @@ struct ParentDashboardView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             Label("Daily Activity Log", systemImage: "calendar.day.timeline.left")
                                 .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(AppColors.textPrimary)
                             VStack(spacing: 0) {
                                 ForEach(Array(vm.dailyActivity.enumerated()), id: \.element.dayName) { idx, day in
                                     HStack {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(day.dayName)
                                                 .font(.system(size: 14, weight: .semibold))
+                                                .foregroundStyle(AppColors.textPrimary)
                                             Text("\(day.questions) questions")
                                                 .font(.system(size: 12))
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(AppColors.textSecondary)
                                         }
                                         Spacer()
                                         HStack(spacing: 4) {
                                             Image(systemName: "clock")
                                                 .font(.system(size: 11))
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(AppColors.textSecondary)
                                             Text("\(day.estimatedMin) min")
                                                 .font(.system(size: 13))
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(AppColors.textSecondary)
                                         }
                                     }
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 12)
                                     .background(idx % 2 == 0
-                                        ? Color(UIColor.systemBackground)
-                                        : Color(UIColor.secondarySystemBackground))
+                                        ? AppColors.cardBackground
+                                        : AppColors.cardBackgroundSecondary)
                                     if idx < vm.dailyActivity.count - 1 {
                                         Divider().padding(.leading, 16)
                                     }
                                 }
                             }
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(UIColor.separator).opacity(0.4), lineWidth: 0.5))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15), lineWidth: 0.5))
                         }
                         .padding(20)
-                        .background(Color(UIColor.systemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
                     }
 
                     // Exam prediction
@@ -186,7 +196,7 @@ struct ParentDashboardView: View {
                     .padding(20)
                     .background(
                         LinearGradient(
-                            colors: [.indigo, .purple],
+                            gradient: Gradient(colors: AppColors.gradientColors),
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -204,9 +214,10 @@ struct ParentDashboardView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("WhatsApp Alerts")
                                 .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(AppColors.textPrimary)
                             Text("Get daily updates via WhatsApp")
                                 .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppColors.textSecondary)
                         }
                         Spacer()
                         Toggle("", isOn: $whatsappEnabled)
@@ -214,10 +225,9 @@ struct ParentDashboardView: View {
                             .tint(.green)
                     }
                     .padding(20)
-                    .background(Color(UIColor.systemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.green.opacity(0.25), lineWidth: 2))
-                    .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.green.opacity(0.4), lineWidth: 1.5))
                     } // end else
                 }
                 .padding(.horizontal, 16)
@@ -225,12 +235,12 @@ struct ParentDashboardView: View {
                 .padding(.bottom, 32)
             }
         }
-        .background(Color(UIColor.systemGroupedBackground))
+        .scrollContentBackground(.hidden)
+        } // ZStack
         .navigationTitle("Parent Dashboard")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(
-            LinearGradient(colors: [Color(red: 0.16, green: 0.44, blue: 0.95), .cyan],
-                           startPoint: .leading, endPoint: .trailing),
+            LinearGradient(gradient: Gradient(colors: AppColors.gradientColors), startPoint: .top, endPoint: .bottom),
             for: .navigationBar
         )
         .toolbarBackground(.visible, for: .navigationBar)
@@ -278,11 +288,11 @@ private struct SummaryCell: View {
                 .foregroundStyle(color)
             Text(label)
                 .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppColors.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .background(color.opacity(0.08))
+        .background(AppColors.cardBackgroundSecondary)
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
@@ -305,9 +315,10 @@ private struct AlertCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(alert.topic)
                     .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppColors.textPrimary)
                 Text(alert.message)
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppColors.textSecondary)
                     .lineSpacing(2)
                 if isWarning {
                     Button {

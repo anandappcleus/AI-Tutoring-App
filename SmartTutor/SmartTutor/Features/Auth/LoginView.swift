@@ -21,7 +21,7 @@ struct AuthFieldView: View {
 
     @State private var showSecure = false
 
-    private let accent = Color(red: 0.36, green: 0.33, blue: 0.93)
+    private let accent = AppColors.accent
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -69,21 +69,14 @@ struct LoginView: View {
     @Environment(AppState.self) private var appState
     @State private var showRegister = false
 
-    // Brand gradient — matches OnboardingView exactly
-    private let gradientColors: [Color] = [
-        Color(red: 0.36, green: 0.33, blue: 0.93),
-        Color(red: 0.58, green: 0.28, blue: 0.91),
-        Color(red: 0.93, green: 0.33, blue: 0.58),
-    ]
-
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background gradient
+                // Background gradient — matches NowAssist design system
                 LinearGradient(
-                    colors: gradientColors,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+                    gradient: Gradient(colors: AppColors.gradientColors),
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
                 .ignoresSafeArea()
 

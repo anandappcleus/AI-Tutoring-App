@@ -17,6 +17,14 @@ struct OfflinePacksView: View {
     private let totalKB = 500_000   // 500 MB storage cap for display
 
     var body: some View {
+        ZStack {
+            LinearGradient(
+                gradient: Gradient(colors: AppColors.gradientColors),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
         ScrollView {
             VStack(spacing: 0) {
 
@@ -45,7 +53,7 @@ struct OfflinePacksView: View {
                 .padding(14)
                 .background(
                     LinearGradient(
-                        colors: [.indigo, .purple],
+                        gradient: Gradient(colors: AppColors.gradientColors),
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -133,11 +141,12 @@ struct OfflinePacksView: View {
                 .padding(.bottom, 32)
             }
         }
-        .background(Color(UIColor.systemGroupedBackground))
+        .scrollContentBackground(.hidden)
+        } // ZStack
         .navigationTitle("Offline Packs")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(
-            LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
+            LinearGradient(gradient: Gradient(colors: AppColors.gradientColors), startPoint: .top, endPoint: .bottom),
             for: .navigationBar
         )
         .toolbarBackground(.visible, for: .navigationBar)

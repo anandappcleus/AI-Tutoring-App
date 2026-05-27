@@ -274,7 +274,7 @@ struct MockTestsView: View {
         .navigationTitle("Mock Tests")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(
-            LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
+            LinearGradient(gradient: Gradient(colors: AppColors.gradientColors), startPoint: .top, endPoint: .bottom),
             for: .navigationBar
         )
         .toolbarBackground(.visible, for: .navigationBar)
@@ -402,8 +402,8 @@ struct MockTestsView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
-                    .background(vm.selectedFilter == f ? Color.indigo : Color(UIColor.systemGray5))
-                    .foregroundStyle(vm.selectedFilter == f ? .white : .primary)
+                    .background(vm.selectedFilter == f ? AppColors.accent : AppColors.cardBackground)
+                    .foregroundStyle(AppColors.textPrimary)
                     .clipShape(Capsule())
             }
             Spacer()
@@ -459,18 +459,18 @@ private struct MockTestCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                     Text(String(test.year))
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppColors.textSecondary)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(test.title)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppColors.textPrimary)
                         .multilineTextAlignment(.leading)
 
                     Text(test.subjects)
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppColors.textSecondary)
 
                     HStack(spacing: 10) {
                         Label("\(test.questionCount) Qs", systemImage: "list.bullet")
@@ -485,27 +485,26 @@ private struct MockTestCard: View {
                         if test.questionsAvailable {
                             Label("Full Paper", systemImage: "doc.text.fill")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.indigo)
+                                .foregroundStyle(AppColors.textSecondary)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.indigo.opacity(0.10))
+                                .background(AppColors.cardBackgroundSecondary)
                                 .clipShape(Capsule())
                         }
                     }
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppColors.textSecondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppColors.textSecondary)
             }
             .padding(16)
-            .background(Color(UIColor.systemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         }
         .buttonStyle(.plain)
     }

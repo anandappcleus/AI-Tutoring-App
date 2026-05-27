@@ -30,7 +30,16 @@ struct StudyView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            ZStack {
+                // Full-screen gradient — NowAssist design system
+                LinearGradient(
+                    gradient: Gradient(colors: AppColors.gradientColors),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+
+                VStack(spacing: 0) {
                 // Premium warning banner — only when running low
                 if !isPremium && questionsToday >= 5 {
                     HStack(alignment: .top, spacing: 8) {
@@ -90,12 +99,16 @@ struct StudyView: View {
                     onAsk: handleAsk,
                     onVoice: handleVoiceInput
                 )
-            }
-            .background(Color(UIColor.systemBackground))
+            } // VStack
+            } // ZStack
             .navigationTitle("AI Tutor")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(
-                LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
+                LinearGradient(
+                    gradient: Gradient(colors: AppColors.gradientColors),
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
                 for: .navigationBar
             )
             .toolbarBackground(.visible, for: .navigationBar)
@@ -306,15 +319,15 @@ private struct ChatBubble: View {
                     HStack(spacing: 6) {
                         ZStack {
                             Circle()
-                                .fill(Color.indigo.opacity(0.15))
+                                .fill(AppColors.cardBackgroundSecondary)
                                 .frame(width: 24, height: 24)
                             Text("AI")
                                 .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.indigo)
+                                .foregroundStyle(AppColors.textSecondary)
                         }
                         Text("AI Tutor")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.indigo)
+                            .foregroundStyle(AppColors.textSecondary)
                     }
                 }
                 if isQuestion, let img = message.image {
@@ -325,13 +338,13 @@ private struct ChatBubble: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 MathTextView(message.text, fontSize: 15)
-                    .foregroundStyle(isQuestion ? Color.white : Color.primary)
+                    .foregroundStyle(isQuestion ? Color.white : AppColors.textPrimary)
             }
             .padding(16)
             .background(
                 isQuestion
-                ? AnyShapeStyle(Color.indigo)
-                : AnyShapeStyle(Color(UIColor.secondarySystemBackground))
+                ? AnyShapeStyle(AppColors.accent)
+                : AnyShapeStyle(AppColors.cardBackground)
             )
             .clipShape(
                 RoundedRectangle(cornerRadius: 20)
@@ -352,10 +365,10 @@ private struct TypingIndicatorView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     ZStack {
-                        Circle().fill(Color.indigo.opacity(0.15)).frame(width: 24, height: 24)
-                        Text("AI").font(.system(size: 8, weight: .bold)).foregroundStyle(.indigo)
+                        Circle().fill(AppColors.cardBackgroundSecondary).frame(width: 24, height: 24)
+                        Text("AI").font(.system(size: 8, weight: .bold)).foregroundStyle(AppColors.textSecondary)
                     }
-                    Text("AI Tutor").font(.system(size: 12, weight: .semibold)).foregroundStyle(.indigo)
+                    Text("AI Tutor").font(.system(size: 12, weight: .semibold)).foregroundStyle(AppColors.textSecondary)
                 }
                 HStack(spacing: 4) {
                     ForEach(0..<3) { i in
@@ -376,7 +389,7 @@ private struct TypingIndicatorView: View {
                 }
             }
             .padding(16)
-            .background(Color(UIColor.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             Spacer(minLength: 48)
         }
@@ -404,10 +417,10 @@ private struct InputAreaView: View {
                         } label: {
                             Text(subject)
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(AppColors.textPrimary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
-                                .background(Color(UIColor.secondarySystemBackground))
+                                .background(AppColors.cardBackground)
                                 .clipShape(Capsule())
                         }
                     }
@@ -419,24 +432,26 @@ private struct InputAreaView: View {
             HStack(spacing: 8) {
                 TextField("Ask in Bengali / English...", text: $inputText, axis: .vertical)
                     .font(.system(size: 15))
+                    .foregroundStyle(AppColors.textPrimary)
+                    .tint(AppColors.textPrimary)
                     .lineLimit(1...4)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color(UIColor.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 1.5)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1.5)
                     )
 
                 Button(action: onVoice) {
                     ZStack {
                         Circle()
-                            .fill(isRecording ? Color.red : Color(UIColor.secondarySystemBackground))
+                            .fill(isRecording ? Color.red : AppColors.cardBackground)
                             .frame(width: 44, height: 44)
                         Image(systemName: isRecording ? "mic.fill" : "mic")
                             .font(.system(size: 18))
-                            .foregroundStyle(isRecording ? .white : .primary)
+                            .foregroundStyle(isRecording ? .white : AppColors.textPrimary)
                     }
                 }
                 .scaleEffect(isRecording ? 1.1 : 1.0)
@@ -447,8 +462,8 @@ private struct InputAreaView: View {
                         Circle()
                             .fill(
                                 inputText.trimmingCharacters(in: .whitespaces).isEmpty || isLoading
-                                ? Color.indigo.opacity(0.35)
-                                : Color.indigo
+                                ? AppColors.accent.opacity(0.35)
+                                : AppColors.accent
                             )
                             .frame(width: 44, height: 44)
                         Image(systemName: "paperplane.fill")
@@ -461,7 +476,7 @@ private struct InputAreaView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
         }
-        .background(Color(UIColor.systemBackground))
-        .overlay(Divider(), alignment: .top)
+        .background(AppColors.cardBackground)
+        .overlay(Divider().overlay(Color.white.opacity(0.15)), alignment: .top)
     }
 }

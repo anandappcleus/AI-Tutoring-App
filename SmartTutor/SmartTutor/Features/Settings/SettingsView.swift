@@ -11,6 +11,7 @@ import UserNotifications
 
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
+    @ObservedObject private var appearanceManager = AppearanceManager.shared
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled = true
     @State private var showLanguagePicker = false
@@ -27,6 +28,15 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        ZStack {
+            // Full-screen gradient — NowAssist design system
+            LinearGradient(
+                gradient: Gradient(colors: AppColors.gradientColors),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
         ScrollView {
             VStack(spacing: 0) {
                 // Gradient header
@@ -42,13 +52,6 @@ struct SettingsView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
                 .padding(.bottom, 36)
-                .background(
-                    LinearGradient(
-                        colors: [.indigo, .purple],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
 
                 VStack(spacing: 16) {
                     // Profile card
@@ -63,7 +66,7 @@ struct SettingsView: View {
                                     Circle()
                                         .fill(
                                             LinearGradient(
-                                                colors: [.indigo, .purple],
+                                                gradient: Gradient(colors: AppColors.gradientColors),
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             )
@@ -76,16 +79,17 @@ struct SettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(appState.currentProfile?.name ?? "—")
                                         .font(.system(size: 17, weight: .bold))
+                                        .foregroundStyle(AppColors.textPrimary)
                                     Text(appState.currentProfile?.email ?? "—")
                                         .font(.system(size: 14))
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(AppColors.textSecondary)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(AppColors.textSecondary)
                                     .padding(10)
-                                    .background(Color(UIColor.secondarySystemBackground))
+                                    .background(AppColors.cardBackgroundSecondary)
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                         }
@@ -100,9 +104,8 @@ struct SettingsView: View {
                         }
                     }
                     .padding(20)
-                    .background(Color(UIColor.systemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
 
                     // Preferences section
                     SettingsGroupBox(title: "Preferences") {
@@ -131,6 +134,37 @@ struct SettingsView: View {
                             title: "Sound Effects", subtitle: "Feedback sounds",
                             isOn: $soundEffectsEnabled
                         )
+                    }
+
+                    // Appearance section — ported from NowAssist
+                    SettingsGroupBox(title: "Appearance") {
+                        ForEach(Array(AppearanceMode.allCases.enumerated()), id: \.element) { idx, mode in
+                            Button {
+                                appearanceManager.appearanceMode = mode
+                            } label: {
+                                HStack(spacing: 16) {
+                                    Image(systemName: mode.icon)
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(AppColors.accent)
+                                        .frame(width: 36, height: 36)
+                                    Text(mode.rawValue)
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    if appearanceManager.appearanceMode == mode {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppColors.accent)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                            }
+                            .buttonStyle(.plain)
+                            if idx < AppearanceMode.allCases.count - 1 {
+                                Divider().padding(.leading, 68)
+                            }
+                        }
                     }
 
                     // Account & support
@@ -168,19 +202,18 @@ struct SettingsView: View {
                     VStack(spacing: 4) {
                         Text("SmartTutor")
                             .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppColors.textSecondary)
                         Text("Version \(AppConfig.appVersion)")
                             .font(.system(size: 12))
-                            .foregroundStyle(.secondary.opacity(0.7))
+                            .foregroundStyle(AppColors.textSecondary.opacity(0.8))
                         Text("© 2026 SmartTutor. All rights reserved.")
                             .font(.system(size: 12))
-                            .foregroundStyle(.secondary.opacity(0.6))
+                            .foregroundStyle(AppColors.textSecondary.opacity(0.7))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(20)
-                    .background(Color(UIColor.systemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
 
                     // Logout
                     Button {
@@ -204,7 +237,8 @@ struct SettingsView: View {
                 .padding(.bottom, 40)
             }
         }
-        .background(Color(UIColor.systemGroupedBackground))
+        .scrollContentBackground(.hidden)
+        } // ZStack
         .ignoresSafeArea(edges: .top)
         .task {
             AppLogger.navigated(to: "SettingsView")
@@ -254,9 +288,10 @@ private struct ProfileMetaCell: View {
         VStack(spacing: 4) {
             Text(label)
                 .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppColors.textSecondary)
             Text(value)
                 .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppColors.textPrimary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -271,15 +306,14 @@ private struct SettingsGroupBox<Content: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppColors.textSecondary)
                 .padding(.horizontal, 4)
 
             VStack(spacing: 0) {
                 content
             }
-            .background(Color(UIColor.systemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
         }
     }
 }
@@ -297,17 +331,17 @@ private struct SettingsNavRow: View {
         } label: {
             HStack(spacing: 14) {
                 ZStack {
-                    Circle().fill(iconBg.opacity(0.15)).frame(width: 40, height: 40)
+                    Circle().fill(iconBg.opacity(0.25)).frame(width: 40, height: 40)
                     Image(systemName: icon).foregroundStyle(iconBg).font(.system(size: 17))
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.primary)
-                    Text(subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
+                    Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(AppColors.textPrimary)
+                    Text(subtitle).font(.system(size: 13)).foregroundStyle(AppColors.textSecondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppColors.textSecondary)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
@@ -326,15 +360,15 @@ private struct SettingsToggleRow: View {
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                Circle().fill(iconBg.opacity(0.15)).frame(width: 40, height: 40)
+                Circle().fill(iconBg.opacity(0.25)).frame(width: 40, height: 40)
                 Image(systemName: icon).foregroundStyle(iconBg).font(.system(size: 17))
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15, weight: .semibold))
-                Text(subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
+                Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(AppColors.textPrimary)
+                Text(subtitle).font(.system(size: 13)).foregroundStyle(AppColors.textSecondary)
             }
             Spacer()
-            Toggle("", isOn: $isOn).labelsHidden().tint(.indigo)
+            Toggle("", isOn: $isOn).labelsHidden().tint(AppColors.accent)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
@@ -351,12 +385,12 @@ private struct SettingsDisabledRow: View {
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                Circle().fill(iconBg.opacity(0.15)).frame(width: 40, height: 40)
+                Circle().fill(iconBg.opacity(0.25)).frame(width: 40, height: 40)
                 Image(systemName: icon).foregroundStyle(iconBg).font(.system(size: 17))
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15, weight: .semibold))
-                Text(subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
+                Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(AppColors.textPrimary)
+                Text(subtitle).font(.system(size: 13)).foregroundStyle(AppColors.textSecondary)
             }
             Spacer()
             Toggle("", isOn: $value)

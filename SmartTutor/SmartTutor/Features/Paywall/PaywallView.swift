@@ -29,13 +29,9 @@ struct PaywallView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [
-                    Color(red: 0.57, green: 0.25, blue: 0.95),
-                    Color(red: 0.35, green: 0.32, blue: 0.95),
-                    Color(red: 0.22, green: 0.49, blue: 0.95),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                gradient: Gradient(colors: AppColors.gradientColors),
+                startPoint: .top,
+                endPoint: .bottom
             )
             .ignoresSafeArea()
 

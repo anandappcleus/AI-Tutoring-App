@@ -342,7 +342,7 @@ struct FormulaSheetView: View {
         .navigationTitle("Formula Sheets")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(
-            LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
+            LinearGradient(gradient: Gradient(colors: AppColors.gradientColors), startPoint: .top, endPoint: .bottom),
             for: .navigationBar
         )
         .toolbarBackground(.visible, for: .navigationBar)

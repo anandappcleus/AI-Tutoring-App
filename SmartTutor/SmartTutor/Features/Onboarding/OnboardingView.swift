@@ -33,13 +33,9 @@ struct OnboardingView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [
-                    Color(red: 0.36, green: 0.33, blue: 0.93),
-                    Color(red: 0.58, green: 0.28, blue: 0.91),
-                    Color(red: 0.93, green: 0.33, blue: 0.58),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                gradient: Gradient(colors: AppColors.gradientColors),
+                startPoint: .top,
+                endPoint: .bottom
             )
             .ignoresSafeArea()
 

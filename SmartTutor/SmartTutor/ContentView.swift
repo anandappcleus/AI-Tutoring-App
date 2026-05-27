@@ -52,7 +52,7 @@ private struct MainTabView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
                 .tag(3)
         }
-        .tint(.indigo)
+        .tint(AppColors.accent)
         .environment(studyViewModel)
         .onChange(of: selectedTab) { _, tab in
             let names = ["Home", "Study", "Progress", "Settings"]

@@ -18,6 +18,15 @@ struct LearnerProgressView: View {
     @AppStorage("pendingStudyTopic") private var pendingStudyTopic = ""
 
     var body: some View {
+        ZStack {
+            // Full-screen gradient — NowAssist design system
+            LinearGradient(
+                gradient: Gradient(colors: AppColors.gradientColors),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
         ScrollView {
             VStack(spacing: 0) {
                 // ── Gradient header ─────────────────────────────────
@@ -33,14 +42,6 @@ struct LearnerProgressView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
                 .padding(.bottom, 36)
-                .background {
-                    LinearGradient(
-                        colors: [.indigo, .purple],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .ignoresSafeArea(edges: .top)
-                }
 
                 VStack(spacing: 16) {
                     if vm.isLoading {
@@ -242,9 +243,10 @@ struct LearnerProgressView: View {
                                 .foregroundStyle(.secondary.opacity(0.5))
                             Text("No progress yet")
                                 .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(AppColors.textPrimary)
                             Text("Answer some questions in the Study tab and your progress will appear here.")
                                 .font(.system(size: 14))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppColors.textSecondary)
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity)
@@ -259,10 +261,10 @@ struct LearnerProgressView: View {
                     } else if vm.isShowingCachedData {
                         Label("Showing cached data — will refresh when online", systemImage: "wifi.slash")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppColors.textSecondary)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .background(Color(UIColor.secondarySystemBackground))
+                            .background(AppColors.cardBackground)
                             .clipShape(Capsule())
                     }
                 }
@@ -271,7 +273,8 @@ struct LearnerProgressView: View {
                 .padding(.bottom, 32)
             }
         }
-        .background(Color(UIColor.systemGroupedBackground))
+        .scrollContentBackground(.hidden)
+        } // ZStack
         .task {
             AppLogger.navigated(to: "LearnerProgressView")
             if let id = appState.currentProfile?.id {
@@ -299,15 +302,14 @@ private struct ProgressStatCard: View {
                     .foregroundStyle(iconColor)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(value).font(.system(size: 22, weight: .bold))
-                Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(value).font(.system(size: 22, weight: .bold)).foregroundStyle(AppColors.textPrimary)
+                Text(label).font(.system(size: 11)).foregroundStyle(AppColors.textSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color(UIColor.systemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
     }
 }
 
@@ -320,7 +322,7 @@ private struct ChartCard<ChartContent: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text(title).font(.system(size: 16, weight: .bold))
+                Text(title).font(.system(size: 16, weight: .bold)).foregroundStyle(AppColors.textPrimary)
                 Spacer()
                 Image(systemName: trailingIcon)
                     .foregroundStyle(trailingColor)
@@ -328,9 +330,8 @@ private struct ChartCard<ChartContent: View>: View {
             chart
         }
         .padding(20)
-        .background(Color(UIColor.systemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
 }
 
@@ -343,9 +344,9 @@ private struct WeakTopicRow: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(name).font(.system(size: 14, weight: .semibold))
+                    Text(name).font(.system(size: 14, weight: .semibold)).foregroundStyle(AppColors.textPrimary)
                     Text("\(questions) questions attempted")
-                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                        .font(.system(size: 12)).foregroundStyle(AppColors.textSecondary)
                 }
                 Spacer()
                 Text("\(accuracy)%")
@@ -355,13 +356,13 @@ private struct WeakTopicRow: View {
             LinearProgressBar(
                 value: Double(accuracy) / 100.0,
                 foreground: .red,
-                background: Color.gray.opacity(0.15),
+                background: Color.white.opacity(0.15),
                 useGradient: true,
                 gradientColors: [.red, .orange]
             )
         }
         .padding(16)
-        .background(Color(UIColor.systemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
@@ -375,14 +376,14 @@ private struct ChartTooltipCard: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(AppColors.textPrimary)
             Text(subtitle)
                 .font(.system(size: 12))
                 .foregroundStyle(subtitleColor)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(Color(UIColor.systemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
     }

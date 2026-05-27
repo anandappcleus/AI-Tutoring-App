@@ -14,19 +14,13 @@ struct RegisterView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
-    private let gradientColors: [Color] = [
-        Color(red: 0.36, green: 0.33, blue: 0.93),
-        Color(red: 0.58, green: 0.28, blue: 0.91),
-        Color(red: 0.93, green: 0.33, blue: 0.58),
-    ]
-
     var body: some View {
         ZStack {
-            // Background gradient
+            // Background gradient — matches NowAssist design system
             LinearGradient(
-                colors: gradientColors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                gradient: Gradient(colors: AppColors.gradientColors),
+                startPoint: .top,
+                endPoint: .bottom
             )
             .ignoresSafeArea()
 

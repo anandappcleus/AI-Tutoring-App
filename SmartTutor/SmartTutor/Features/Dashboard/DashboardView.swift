@@ -33,7 +33,16 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ZStack {
+                // Full-screen gradient — NowAssist design system
+                LinearGradient(
+                    gradient: Gradient(colors: AppColors.gradientColors),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+
+                ScrollView {
                 VStack(spacing: 0) {
                     DashboardHeaderSection(
                         askText: $askText,
@@ -63,10 +72,10 @@ struct DashboardView: View {
                         if vm.isShowingCachedPlan {
                             Label("Showing cached plan — will refresh when online", systemImage: "wifi.slash")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppColors.textSecondary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
-                                .background(Color(UIColor.secondarySystemBackground))
+                                .background(AppColors.cardBackground)
                                 .clipShape(Capsule())
                                 .padding(.horizontal, 16)
                         }
@@ -134,8 +143,9 @@ struct DashboardView: View {
                     await vm.forceRefresh(studentId: id)
                 }
             }
-            .background(Color(UIColor.systemGroupedBackground))
+            .scrollContentBackground(.hidden)
             .ignoresSafeArea(edges: .top)
+            } // ZStack
             // ── Navigation destinations ──
             .navigationDestination(isPresented: $showOfflinePacks) {
                 OfflinePacksView()
@@ -248,7 +258,7 @@ private struct PickedImageQuerySheet: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(Color.indigo)
+                        .background(AppColors.accent)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
 
@@ -311,7 +321,7 @@ private struct DashboardHeaderSection: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [.indigo, .purple, Color(red: 0.88, green: 0.22, blue: 0.88)],
+                                gradient: Gradient(colors: AppColors.gradientColors),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -325,9 +335,10 @@ private struct DashboardHeaderSection: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Welcome back,")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppColors.textSecondary)
                     Text("\(studentName) 👋")
                         .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(AppColors.textPrimary)
                 }
 
                 Spacer()
@@ -340,10 +351,12 @@ private struct DashboardHeaderSection: View {
             HStack(spacing: 12) {
                 Image(systemName: "cpu")
                     .font(.system(size: 20))
-                    .foregroundStyle(.indigo)
+                    .foregroundStyle(AppColors.textSecondary)
 
                 TextField(askPlaceholder, text: $askText)
                     .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(AppColors.textPrimary)
+                    .tint(AppColors.textPrimary)
                     .onSubmit { onSubmit() }
 
                 Spacer(minLength: 0)
@@ -354,7 +367,7 @@ private struct DashboardHeaderSection: View {
                     } label: {
                         Image(systemName: "camera")
                             .font(.system(size: 20))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppColors.textSecondary)
                     }
                     .accessibilityLabel("Camera — photograph a question")
 
@@ -367,9 +380,9 @@ private struct DashboardHeaderSection: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(Color.indigo)
+                                .fill(AppColors.accent)
                                 .frame(width: 40, height: 40)
-                                .shadow(color: .indigo.opacity(0.35), radius: 6, y: 3)
+                                .shadow(color: AppColors.accent.opacity(0.35), radius: 6, y: 3)
                             Image(systemName: "mic.fill")
                                 .font(.system(size: 16))
                                 .foregroundStyle(.white)
@@ -380,26 +393,16 @@ private struct DashboardHeaderSection: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(Color(UIColor.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.gray.opacity(0.12), lineWidth: 1)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }
-        .background(Color(UIColor.systemBackground))
-        .clipShape(
-            .rect(
-                topLeadingRadius: 0,
-                bottomLeadingRadius: 32,
-                bottomTrailingRadius: 32,
-                topTrailingRadius: 0
-            )
-        )
-        .shadow(color: .black.opacity(0.03), radius: 10, y: 2)
+        .background(.clear)
     }
 }
 
@@ -416,14 +419,15 @@ private struct TodaysFocusSection: View {
             HStack(alignment: .bottom) {
                 Text("Today's Focus")
                     .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(AppColors.textPrimary)
                 Spacer()
                 Button(action: onPlannerTap) {
                     Label("AI Planner", systemImage: "cpu")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.indigo)
+                        .foregroundStyle(AppColors.textPrimary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(Color.indigo.opacity(0.1))
+                        .background(AppColors.cardBackgroundSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
@@ -431,14 +435,13 @@ private struct TodaysFocusSection: View {
 
             ZStack(alignment: .topTrailing) {
                 RoundedRectangle(cornerRadius: 28)
-                    .fill(Color(UIColor.systemBackground))
-                    .shadow(color: .black.opacity(0.04), radius: 12, y: 2)
+                    .fill(AppColors.cardBackground)
 
                 // Decorative gradient blob
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [.indigo.opacity(0.08), .purple.opacity(0.03)],
+                            colors: [.white.opacity(0.06), .white.opacity(0.02)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -450,28 +453,30 @@ private struct TodaysFocusSection: View {
                 if isLoading {
                     VStack(spacing: 12) {
                         ProgressView()
+                            .tint(.white)
                         Text("Loading today\'s plan...")
                             .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(40)
                 } else if let plan = studyPlan, let firstTopic = plan.topics.first {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 8) {
-                            TagBadge(text: firstTopic.topic, color: .purple)
-                            TagBadge(text: "AI Plan", color: .indigo)
+                            TagBadge(text: firstTopic.topic, color: AppColors.accent)
+                            TagBadge(text: "AI Plan", color: .white.opacity(0.6))
                         }
                         .padding(.bottom, 14)
 
                         Text(firstTopic.topic)
                             .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(AppColors.textPrimary)
                             .padding(.bottom, 8)
 
                         let totalMin = plan.topics.reduce(0) { $0 + $1.durationMin }
                         Text("~\(firstTopic.durationMin) min for this topic · \(plan.topics.count) topic\(plan.topics.count == 1 ? "" : "s") · ~\(totalMin) min total today")
                             .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppColors.textSecondary)
                             .lineSpacing(3)
                             .padding(.bottom, 20)
 
@@ -491,9 +496,8 @@ private struct TodaysFocusSection: View {
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 52)
-                            .background(Color(UIColor.label))
+                            .background(AppColors.accent)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .shadow(color: .gray.opacity(0.2), radius: 8, y: 3)
                         }
                     }
                     .padding(20)
@@ -501,12 +505,13 @@ private struct TodaysFocusSection: View {
                     VStack(spacing: 12) {
                         Image(systemName: "moon.stars.fill")
                             .font(.system(size: 36))
-                            .foregroundStyle(.indigo.opacity(0.6))
+                            .foregroundStyle(AppColors.textSecondary)
                         Text("Plan generates tonight")
                             .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppColors.textPrimary)
                         Text("The AI tutor creates your personalised plan nightly at 2 AM IST.")
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppColors.textSecondary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
@@ -585,8 +590,9 @@ private struct LearningModulesSection: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Learning Modules")
                 .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(AppColors.textPrimary)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 ForEach(modules) { mod in
                     ModuleCard(item: mod) {
                         AppLogger.userAction(AppLogger.dashboard,
@@ -632,18 +638,17 @@ private struct ModuleCard: View {
 
                 Text(item.title)
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(AppColors.textPrimary)
 
                 Text(item.subtitle)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppColors.textSecondary)
                     .padding(.top, 2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
-            .background(Color(UIColor.systemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 24))
-            .shadow(color: .black.opacity(0.04), radius: 10, y: 2)
             .scaleEffect(pressed ? 0.96 : 1.0)
         }
         .buttonStyle(.plain)
