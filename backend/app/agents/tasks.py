@@ -69,6 +69,12 @@ def make_planning_task(agent: Agent, context_tasks: list[Task]) -> Task:
             "- Apply SM-2 spaced repetition: revisit each weak topic every 2–3 days.\n"
             "- Each day should have 2–3 topic slots totalling 90–120 minutes.\n"
             "- Use write_plan_tool to persist each day's plan.\n"
+            "CRITICAL: Always use specific, real topic names (e.g. 'Newton\\'s Laws', "
+            "'Geometric Progression', 'Chemical Bonding'). "
+            "NEVER use generic placeholder names like 'Weak Topic 1', 'Topic 2', "
+            "'Weak Area 3', or any numbered placeholder. "
+            "If no weak topics are identified from quiz history, assign high-yield "
+            "JEE/NEET chapters appropriate for the student's exam target.\n"
             "Return ONLY valid JSON — no prose outside the JSON object."
         ),
         expected_output=(

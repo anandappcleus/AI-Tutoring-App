@@ -1013,16 +1013,24 @@ async def get_chat_history(
         return {"history": []}
 
 
+import re as _re
+_PLACEHOLDER_TOPIC = _re.compile(
+    r"^\s*(weak\s+topic\s*\d+|topic\s*\d+|topic\s+[a-z])\s*$",
+    _re.IGNORECASE,
+)
+
+
 async def _get_weak_topics(student_id, db: AsyncSession) -> list[str]:
     """
     Return up to 3 weak topic names for the student.
 
     Priority:
-      1. Today's study plan topics (the nightly crew already identified these).
+      1. Today's study plan topics (the nightly crew already identified these),
+         excluding generic placeholder names like "Weak Topic 1".
       2. Fallback: topics from the last 7 days of quiz_answers where accuracy < 60%
          across at least 2 attempts.
     """
-    # 1. Today's plan
+    # 1. Today's plan — skip if all names are generic placeholders
     result = await db.execute(
         select(StudyPlan).where(
             StudyPlan.student_id == student_id,
@@ -1031,9 +1039,14 @@ async def _get_weak_topics(student_id, db: AsyncSession) -> list[str]:
     )
     plan = result.scalar_one_or_none()
     if plan and plan.plan_json:
-        topics = [slot["topic"] for slot in plan.plan_json if "topic" in slot]
+        topics = [
+            slot["topic"] for slot in plan.plan_json
+            if "topic" in slot
+            and not _PLACEHOLDER_TOPIC.match(slot["topic"])
+        ]
         if topics:
             return topics[:3]
+        # All names were placeholders — fall through to quiz-history fallback.
 
     # 2. Fallback: derive from recent quiz answers
     cutoff = datetime.combine(

@@ -78,7 +78,18 @@ struct DashboardView: View {
                                 AppLogger.userAction(AppLogger.dashboard,
                                                      action: "start-ai-lesson",
                                                      context: topic)
-                                pendingStudyTopic = "Explain the key concepts in \(topic) with a worked example and give me 2 JEE/NEET practice problems"
+                                // If the plan contains a generic placeholder name (e.g. "Weak Topic 1")
+                                // the backend doesn't know what it means either. Ask the AI to teach
+                                // the student's most important weak topic instead — the backend injects
+                                // the real weak-topic list from quiz history into the system prompt.
+                                let isPlaceholder = topic.range(
+                                    of: #"^[Ww]eak\s+[Tt]opic\s*\d+$"#,
+                                    options: .regularExpression
+                                ) != nil
+                                let prompt = isPlaceholder
+                                    ? "Explain the key concepts in my most important weak topic with a worked example and give me 2 JEE/NEET practice problems"
+                                    : "Explain the key concepts in \(topic) with a worked example and give me 2 JEE/NEET practice problems"
+                                pendingStudyTopic = prompt
                                 selectedMainTab = 1
                                 AppLogger.navigated(to: "StudyView[topic=\(topic)]",
                                                     from: "TodaysFocus")
