@@ -12,7 +12,8 @@ import SwiftUI
 
 struct DashboardView: View {
     @Environment(AppState.self) private var appState
-    @State private var vm = DashboardViewModel()
+    @State private var vm          = DashboardViewModel()
+    @State private var progressVM   = ProgressViewModel()
 
     // Tab navigation bridge
     @AppStorage("selectedMainTab")   private var selectedMainTab   = 0
@@ -39,6 +40,8 @@ struct DashboardView: View {
                         askText: $askText,
                         studentName: appState.currentProfile?.name ?? "Student",
                         language: appState.currentProfile?.preferredLanguage ?? .english,
+                        examTarget: appState.currentProfile?.examTarget,
+                        dayStreak: progressVM.progressData?.dayStreak ?? 0,
                         onSubmit: {
                             let q = askText.trimmingCharacters(in: .whitespaces)
                             guard !q.isEmpty else { return }
@@ -69,6 +72,13 @@ struct DashboardView: View {
                                 .background(Color(UIColor.secondarySystemBackground))
                                 .clipShape(Capsule())
                                 .padding(.horizontal, 16)
+                        }
+                        if let progress = progressVM.progressData {
+                            QuickStatsStrip(
+                                dayStreak:         progress.dayStreak,
+                                questionsThisWeek: progress.totalQuestions,
+                                accuracyPct:       progress.overallAccuracyPct
+                            )
                         }
                         TodaysFocusSection(
                             studyPlan: vm.studyPlan,
@@ -143,6 +153,7 @@ struct DashboardView: View {
             .refreshable {
                 if let id = appState.currentProfile?.id {
                     await vm.forceRefresh(studentId: id)
+                    await progressVM.load(studentId: id)
                 }
             }
             .background(Color(UIColor.systemGroupedBackground))
@@ -205,6 +216,7 @@ struct DashboardView: View {
             if let id = appState.currentProfile?.id {
                 AppLogger.dashboard.info("DashboardView.task: loading plan  studentId=\(id)")
                 await vm.loadPlan(studentId: id)
+                await progressVM.load(studentId: id)
             }
         }
     }
@@ -293,15 +305,83 @@ private struct PickedImageQuerySheet: View {
     }
 }
 
+// MARK: - Quick Stats Strip
+
+private struct QuickStatsStrip: View {
+    let dayStreak:         Int
+    let questionsThisWeek: Int
+    let accuracyPct:       Double
+
+    var body: some View {
+        HStack(spacing: 10) {
+            StatPill(
+                icon: "flame.fill",
+                value: "\(dayStreak)",
+                label: "Day Streak",
+                iconColor: .orange,
+                bgColor: .orange.opacity(0.09)
+            )
+            StatPill(
+                icon: "checkmark.circle.fill",
+                value: "\(questionsThisWeek)",
+                label: "This Week",
+                iconColor: Color(red: 0.12, green: 0.65, blue: 0.40),
+                bgColor: Color(red: 0.12, green: 0.65, blue: 0.40).opacity(0.09)
+            )
+            StatPill(
+                icon: "target",
+                value: "\(Int(accuracyPct))%",
+                label: "Accuracy",
+                iconColor: .indigo,
+                bgColor: .indigo.opacity(0.09)
+            )
+        }
+    }
+}
+
+private struct StatPill: View {
+    let icon:      String
+    let value:     String
+    let label:     String
+    let iconColor: Color
+    let bgColor:   Color
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(iconColor)
+            Text(value)
+                .font(.system(size: 20, weight: .black))
+                .foregroundStyle(Color(UIColor.label))
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(bgColor)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(iconColor.opacity(0.15), lineWidth: 1)
+        )
+    }
+}
+
 // MARK: - Header
 
 private struct DashboardHeaderSection: View {
     @Binding var askText: String
     let studentName: String
-    let language: StudentProfile.Language
-    let onSubmit: () -> Void
+    let language:    StudentProfile.Language
+    let examTarget:  StudentProfile.ExamTarget?
+    let dayStreak:   Int
+    let onSubmit:    () -> Void
     let onCameraTap: () -> Void
-    let onMicTap: () -> Void
+    let onMicTap:    () -> Void
 
     private var askPlaceholder: String {
         switch language {
@@ -314,9 +394,28 @@ private struct DashboardHeaderSection: View {
         }
     }
 
+    private func daysToExam(_ target: StudentProfile.ExamTarget) -> Int {
+        var comps        = DateComponents()
+        comps.hour       = 0; comps.minute = 0; comps.second = 0
+        switch target {
+        case .jee:    comps.month = 4;  comps.day = 5
+        case .neet:   comps.month = 5;  comps.day = 5
+        case .wbchse: comps.month = 3;  comps.day = 10
+        }
+        let cal  = Calendar.current
+        let now  = Date()
+        comps.year = cal.component(.year, from: now)
+        guard var examDate = cal.date(from: comps) else { return 0 }
+        if examDate <= now {
+            comps.year = (comps.year ?? 2026) + 1
+            examDate   = cal.date(from: comps) ?? examDate
+        }
+        return max(0, cal.dateComponents([.day], from: now, to: examDate).day ?? 0)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
                 // Avatar
                 ZStack {
                     Circle()
@@ -332,16 +431,54 @@ private struct DashboardHeaderSection: View {
                         .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(.white)
                 }
+                .padding(.top, 3)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 7) {
                     Text("Welcome back,")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
                     Text("\(studentName) 👋")
                         .font(.system(size: 22, weight: .bold))
+                    // Exam countdown pill
+                    if let exam = examTarget {
+                        HStack(spacing: 5) {
+                            Image(systemName: "calendar.badge.clock")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("\(exam.rawValue) · \(daysToExam(exam)) days to go")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(.indigo)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.indigo.opacity(0.1))
+                        .clipShape(Capsule())
+                    }
                 }
 
                 Spacer()
+
+                // Streak badge — only shown once at least 1 day is active
+                if dayStreak > 0 {
+                    VStack(spacing: 2) {
+                        Text("🔥")
+                            .font(.system(size: 22))
+                        Text("\(dayStreak)")
+                            .font(.system(size: 17, weight: .black))
+                            .foregroundStyle(Color(red: 0.93, green: 0.42, blue: 0.08))
+                        Text("streak")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(Color.orange.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.orange.opacity(0.2), lineWidth: 1)
+                    )
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 60)
@@ -669,24 +806,90 @@ private struct LearningModulesSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             Text("Learning Modules")
                 .font(.system(size: 18, weight: .bold))
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
-                ForEach(modules) { mod in
+            // ── Featured: Mock Tests — full-width dark card ────────────────
+            let featuredExam = examTarget ?? "JEE"
+            Button { showMockTests = true } label: {
+                ZStack {
+                    // Background gradient
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(red: 0.10, green: 0.08, blue: 0.38),
+                                         Color(red: 0.28, green: 0.10, blue: 0.56)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    // Subtle dot-grid watermark
+                    Canvas { context, size in
+                        let sp: CGFloat = 18
+                        for x in stride(from: 0, through: size.width, by: sp) {
+                            for y in stride(from: 0, through: size.height, by: sp) {
+                                context.fill(
+                                    Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)),
+                                    with: .color(.white.opacity(0.07))
+                                )
+                            }
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+
+                    // Content
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Label("Mock Tests", systemImage: "checkmark.circle.fill")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(.white)
+                                Text("\(featuredExam) · Full papers · Timed · Detailed solutions")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.white.opacity(0.65))
+                            }
+                            Spacer()
+                            Image(systemName: "arrow.up.right.circle.fill")
+                                .font(.system(size: 26))
+                                .foregroundStyle(.white.opacity(0.3))
+                        }
+                        .padding(.bottom, 18)
+
+                        HStack(spacing: 6) {
+                            Image(systemName: "play.fill").font(.system(size: 12, weight: .bold))
+                            Text("Start Practice")
+                                .font(.system(size: 14, weight: .bold))
+                        }
+                        .foregroundStyle(Color(red: 0.28, green: 0.10, blue: 0.56))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 42)
+                        .background(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .padding(18)
+                }
+                .frame(height: 148)
+            }
+            .buttonStyle(.plain)
+            .shadow(
+                color: Color(red: 0.28, green: 0.10, blue: 0.56).opacity(0.30),
+                radius: 14, y: 6
+            )
+
+            // ── 2 × 2 grid for remaining modules ──────────────────────────
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(modules.filter { $0.title != "Mock Tests" }) { mod in
                     ModuleCard(item: mod) {
                         AppLogger.userAction(AppLogger.dashboard,
                                              action: "module-tap", context: mod.title)
                         switch mod.title {
-                        case "Mock Tests":     showMockTests     = true
-                            AppLogger.navigated(to: "MockTestsView",    from: "Dashboard")
-                        case "Syllabus Map":   showSyllabusMap   = true
-                            AppLogger.navigated(to: "SyllabusMapView",  from: "Dashboard")
-                        case "Offline Packs":  showOfflinePacks  = true
-                            AppLogger.navigated(to: "OfflinePacksView", from: "Dashboard")
-                        case "Formula Sheets": showFormulaSheets = true
-                            AppLogger.navigated(to: "FormulaSheetView", from: "Dashboard")
+                        case "Syllabus Map":     showSyllabusMap     = true
+                            AppLogger.navigated(to: "SyllabusMapView",    from: "Dashboard")
+                        case "Offline Packs":    showOfflinePacks    = true
+                            AppLogger.navigated(to: "OfflinePacksView",   from: "Dashboard")
+                        case "Formula Sheets":   showFormulaSheets   = true
+                            AppLogger.navigated(to: "FormulaSheetView",   from: "Dashboard")
                         case "Parent Dashboard": showParentDashboard = true
                             AppLogger.navigated(to: "ParentDashboardView", from: "Dashboard")
                         default:
