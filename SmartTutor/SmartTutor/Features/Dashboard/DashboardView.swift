@@ -421,9 +421,34 @@ private struct TodaysFocusSection: View {
     let isLoading: Bool
     let onPlannerTap: () -> Void
     let onStartLesson: (String) -> Void
+    @State private var selectedCard = 0
+
+    // One gradient pair per slot (loops if > 4 topics)
+    private let cardColors: [(start: Color, end: Color)] = [
+        (Color(red: 0.36, green: 0.41, blue: 0.96), Color(red: 0.55, green: 0.26, blue: 0.84)), // indigo → violet
+        (Color(red: 0.04, green: 0.62, blue: 0.58), Color(red: 0.09, green: 0.78, blue: 0.52)), // teal → emerald
+        (Color(red: 0.95, green: 0.47, blue: 0.09), Color(red: 0.99, green: 0.73, blue: 0.04)), // amber → gold
+        (Color(red: 0.84, green: 0.18, blue: 0.34), Color(red: 0.96, green: 0.44, blue: 0.24)), // crimson → coral
+    ]
+
+    private func subject(for topic: String) -> (label: String, icon: String) {
+        let t = topic.lowercased()
+        let mathWords = ["vector", "algebra", "matrices", "matrix", "calculus", "integration",
+                         "differentiation", "trigonometry", "probability", "statistics",
+                         "coordinate", "function", "sequence", "series", "progression",
+                         "binomial", "complex", "determinant", "inverse"]
+        let chemWords = ["bonding", "organic", "inorganic", "reaction", "mole", "equilibrium",
+                         "kinetics", "electrochemistry", "polymer", "solution", "acid",
+                         "base", "redox", "hydrocarbon", "aldehyde", "ketone", "amine",
+                         "periodic", "element", "compound", "chemistry"]
+        if mathWords.contains(where: { t.contains($0) }) { return ("Mathematics", "function") }
+        if chemWords.contains(where: { t.contains($0) }) { return ("Chemistry", "flask.fill") }
+        return ("Physics", "atom")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // ── Section header ─────────────────────────────────────────
             HStack(alignment: .bottom) {
                 Text("Today's Focus")
                     .font(.system(size: 18, weight: .bold))
@@ -440,132 +465,140 @@ private struct TodaysFocusSection: View {
                 .buttonStyle(.plain)
             }
 
-            ZStack(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: 28)
+            if isLoading {
+                // ── Loading state ─────────────────────────────────────
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color(UIColor.systemBackground))
+                    .shadow(color: .black.opacity(0.05), radius: 12, y: 2)
+                    .frame(height: 200)
+                    .overlay {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text("Loading today\'s plan...")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+            } else if let plan = studyPlan, !plan.topics.isEmpty {
+                // ── Gradient topic cards ───────────────────────────────
+                VStack(spacing: 10) {
+                    TabView(selection: $selectedCard) {
+                        ForEach(Array(plan.topics.enumerated()), id: \.element.topic) { idx, slot in
+                            let colors = cardColors[idx % cardColors.count]
+                            let sub = subject(for: slot.topic)
+                            Button { onStartLesson(slot.topic) } label: {
+                                ZStack(alignment: .bottomTrailing) {
+                                    // Large watermark digit
+                                    Text("\(idx + 1)")
+                                        .font(.system(size: 130, weight: .black))
+                                        .foregroundStyle(.white.opacity(0.07))
+                                        .offset(x: 10, y: 28)
+
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        // Top row: subject badge + duration
+                                        HStack {
+                                            Label(sub.label, systemImage: sub.icon)
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .foregroundStyle(.white.opacity(0.92))
+                                                .padding(.horizontal, 9)
+                                                .padding(.vertical, 5)
+                                                .background(.white.opacity(0.18))
+                                                .clipShape(Capsule())
+                                            Spacer()
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "clock")
+                                                    .font(.system(size: 10))
+                                                Text("~\(slot.durationMin) min")
+                                                    .font(.system(size: 11, weight: .medium))
+                                            }
+                                            .foregroundStyle(.white.opacity(0.8))
+                                        }
+                                        .padding(.bottom, 18)
+
+                                        // Topic name
+                                        Text(slot.topic)
+                                            .font(.system(size: 22, weight: .bold))
+                                            .foregroundStyle(.white)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.leading)
+                                            .fixedSize(horizontal: false, vertical: true)
+
+                                        Spacer(minLength: 16)
+
+                                        // CTA — white pill, text in card's start color
+                                        HStack(spacing: 7) {
+                                            Image(systemName: "play.fill")
+                                                .font(.system(size: 12, weight: .bold))
+                                            Text("Start AI Lesson")
+                                                .font(.system(size: 14, weight: .bold))
+                                        }
+                                        .foregroundStyle(colors.start)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 46)
+                                        .background(.white)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    }
+                                    .padding(20)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .frame(minHeight: 220)
+                                .background(
+                                    LinearGradient(
+                                        colors: [colors.start, colors.end],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 24))
+                                .shadow(color: colors.start.opacity(0.35), radius: 14, y: 6)
+                                .padding(.horizontal, 4)
+                                .padding(.bottom, 6)
+                            }
+                            .buttonStyle(.plain)
+                            .tag(idx)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: 248)
+
+                    // ── Custom animated pill indicators ────────────────
+                    if plan.topics.count > 1 {
+                        HStack(spacing: 6) {
+                            ForEach(0..<plan.topics.count, id: \.self) { i in
+                                Capsule()
+                                    .fill(i == selectedCard
+                                          ? cardColors[i % cardColors.count].start
+                                          : Color(UIColor.systemFill))
+                                    .frame(width: i == selectedCard ? 22 : 7, height: 7)
+                                    .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selectedCard)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+
+            } else {
+                // ── Empty / pre-plan state ─────────────────────────────
+                RoundedRectangle(cornerRadius: 24)
                     .fill(Color(UIColor.systemBackground))
                     .shadow(color: .black.opacity(0.04), radius: 12, y: 2)
-
-                // Decorative gradient blob
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.indigo.opacity(0.08), .purple.opacity(0.03)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 140, height: 140)
-                    .offset(x: 20, y: -20)
-                    .clipped()
-
-                if isLoading {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                        Text("Loading today\'s plan...")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
-                } else if let plan = studyPlan, let firstTopic = plan.topics.first {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // ── Header badges ──────────────────────────────────
-                        HStack(spacing: 8) {
-                            TagBadge(text: firstTopic.topic, color: .purple)
-                            TagBadge(text: "AI Plan", color: .indigo)
+                    .frame(minHeight: 160)
+                    .overlay {
+                        VStack(spacing: 12) {
+                            Image(systemName: "moon.stars.fill")
+                                .font(.system(size: 36))
+                                .foregroundStyle(.indigo.opacity(0.6))
+                            Text("Plan generates tonight")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("The AI tutor creates your personalised plan nightly at 2 AM IST.")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
                         }
-                        .padding(.bottom, 14)
-
-                        // ── Primary topic title ────────────────────────────
-                        Text(firstTopic.topic)
-                            .font(.system(size: 20, weight: .bold))
-                            .padding(.bottom, 8)
-
-                        let totalMin = plan.topics.reduce(0) { $0 + $1.durationMin }
-                        Text("~\(firstTopic.durationMin) min for this topic · \(plan.topics.count) topic\(plan.topics.count == 1 ? "" : "s") · ~\(totalMin) min total today")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
-                            .lineSpacing(3)
-                            .padding(.bottom, 20)
-
-                        // ── Primary CTA ────────────────────────────────────
-                        Button {
-                            onStartLesson(firstTopic.topic)
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "play.fill")
-                                    .font(.system(size: 15))
-                                Text("Start AI Lesson")
-                                    .font(.system(size: 15, weight: .bold))
-                            }
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52)
-                            .background(Color(UIColor.label))
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .shadow(color: .gray.opacity(0.2), radius: 8, y: 3)
-                        }
-
-                        // ── Remaining topics (2, 3, …) ─────────────────────
-                        if plan.topics.count > 1 {
-                            Divider()
-                                .padding(.vertical, 16)
-
-                            VStack(spacing: 0) {
-                                ForEach(plan.topics.dropFirst(), id: \.topic) { slot in
-                                    Button {
-                                        onStartLesson(slot.topic)
-                                    } label: {
-                                        HStack(spacing: 12) {
-                                            // Numbered circle
-                                            ZStack {
-                                                Circle()
-                                                    .fill(Color.indigo.opacity(0.1))
-                                                    .frame(width: 32, height: 32)
-                                                Text("\(plan.topics.firstIndex(where: { $0.topic == slot.topic }).map { $0 + 1 } ?? 2)")
-                                                    .font(.system(size: 13, weight: .bold))
-                                                    .foregroundStyle(.indigo)
-                                            }
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(slot.topic)
-                                                    .font(.system(size: 14, weight: .semibold))
-                                                    .foregroundStyle(Color(UIColor.label))
-                                                Text("~\(slot.durationMin) min")
-                                                    .font(.system(size: 12))
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                            Spacer()
-                                            Image(systemName: "play.circle.fill")
-                                                .font(.system(size: 22))
-                                                .foregroundStyle(.indigo.opacity(0.7))
-                                        }
-                                        .padding(.vertical, 10)
-                                    }
-                                    .buttonStyle(.plain)
-
-                                    if slot.topic != plan.topics.last?.topic {
-                                        Divider().padding(.leading, 44)
-                                    }
-                                }
-                            }
-                        }
+                        .padding(32)
                     }
-                    .padding(20)
-                } else {
-                    VStack(spacing: 12) {
-                        Image(systemName: "moon.stars.fill")
-                            .font(.system(size: 36))
-                            .foregroundStyle(.indigo.opacity(0.6))
-                        Text("Plan generates tonight")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text("The AI tutor creates your personalised plan nightly at 2 AM IST.")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(32)
-                }
             }
         }
     }
