@@ -568,6 +568,40 @@ private struct TodaysFocusSection: View {
         (Color(red: 0.84, green: 0.18, blue: 0.34), Color(red: 0.96, green: 0.44, blue: 0.24)), // crimson → coral
     ]
 
+    private func keyConceptTags(for topic: String) -> [String] {
+        let t = topic.lowercased()
+        let map: [(keyword: String, tags: [String])] = [
+            ("vector",        ["Magnitude", "Dot Product", "Cross Product"]),
+            ("algebra",       ["Equations", "Polynomials", "Factoring"]),
+            ("matrices",      ["Determinants", "Inverse", "Eigenvalues"]),
+            ("matrix",        ["Determinants", "Inverse", "Eigenvalues"]),
+            ("calculus",      ["Limits", "Derivatives", "Integrals"]),
+            ("integration",   ["Definite", "Indefinite", "By Parts"]),
+            ("differentiation",["Chain Rule", "Product Rule", "Quotient Rule"]),
+            ("trigonometry",  ["Identities", "sin/cos/tan", "Inverse Trig"]),
+            ("probability",   ["Bayes", "Distributions", "Permutations"]),
+            ("coordinate",    ["Lines", "Conics", "Distance Formula"]),
+            ("progression",   ["AP", "GP", "Sum of Series"]),
+            ("binomial",      ["Theorem", "Coefficients", "Pascal's Triangle"]),
+            ("bonding",       ["Ionic", "Covalent", "Hybridisation"]),
+            ("organic",       ["Functional Groups", "IUPAC", "Reactions"]),
+            ("equilibrium",   ["Le Chatelier", "Kc & Kp", "pH"]),
+            ("kinetics",      ["Rate Law", "Activation Energy", "Arrhenius"]),
+            ("electrochemistry",["Galvanic", "Electrolysis", "Nernst"]),
+            ("thermodynamics",["Enthalpy", "Entropy", "Gibbs Energy"]),
+            ("optics",        ["Refraction", "Lenses", "Wave Optics"]),
+            ("mechanics",     ["Newton's Laws", "Friction", "Work-Energy"]),
+            ("motion",        ["Kinematics", "Projectile", "Circular"]),
+            ("wave",          ["Amplitude", "Frequency", "Superposition"]),
+            ("electric",      ["Coulomb's Law", "Fields", "Capacitance"]),
+            ("magnetic",      ["Flux", "Faraday", "Lorentz Force"]),
+        ]
+        for entry in map where t.contains(entry.keyword) {
+            return entry.tags
+        }
+        return ["Core Concepts", "JEE Problems", "Quick Revision"]
+    }
+
     private func subject(for topic: String) -> (label: String, icon: String) {
         let t = topic.lowercased()
         let mathWords = ["vector", "algebra", "matrices", "matrix", "calculus", "integration",
@@ -660,8 +694,21 @@ private struct TodaysFocusSection: View {
                                             .lineLimit(2)
                                             .multilineTextAlignment(.leading)
                                             .fixedSize(horizontal: false, vertical: true)
+                                            .padding(.bottom, 10)
 
-                                        Spacer(minLength: 16)
+                                        // Key concept chips
+                                        HStack(spacing: 6) {
+                                            ForEach(keyConceptTags(for: slot.topic), id: \.self) { tag in
+                                                Text(tag)
+                                                    .font(.system(size: 10, weight: .semibold))
+                                                    .foregroundStyle(.white.opacity(0.85))
+                                                    .padding(.horizontal, 8)
+                                                    .padding(.vertical, 4)
+                                                    .background(.white.opacity(0.15))
+                                                    .clipShape(Capsule())
+                                            }
+                                        }
+                                        .padding(.bottom, 14)
 
                                         // CTA — white pill, text in card's start color
                                         HStack(spacing: 7) {
@@ -679,7 +726,7 @@ private struct TodaysFocusSection: View {
                                     .padding(20)
                                 }
                                 .frame(maxWidth: .infinity)
-                                .frame(minHeight: 220)
+                                .frame(minHeight: 190)
                                 .background(
                                     LinearGradient(
                                         colors: [colors.start, colors.end],
@@ -697,7 +744,7 @@ private struct TodaysFocusSection: View {
                         }
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
-                    .frame(height: 248)
+                    .frame(height: 215)
 
                     // ── Custom animated pill indicators ────────────────
                     if plan.topics.count > 1 {
