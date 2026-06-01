@@ -469,12 +469,14 @@ private struct TodaysFocusSection: View {
                     .padding(40)
                 } else if let plan = studyPlan, let firstTopic = plan.topics.first {
                     VStack(alignment: .leading, spacing: 0) {
+                        // ── Header badges ──────────────────────────────────
                         HStack(spacing: 8) {
                             TagBadge(text: firstTopic.topic, color: .purple)
                             TagBadge(text: "AI Plan", color: .indigo)
                         }
                         .padding(.bottom, 14)
 
+                        // ── Primary topic title ────────────────────────────
                         Text(firstTopic.topic)
                             .font(.system(size: 20, weight: .bold))
                             .padding(.bottom, 8)
@@ -486,12 +488,9 @@ private struct TodaysFocusSection: View {
                             .lineSpacing(3)
                             .padding(.bottom, 20)
 
+                        // ── Primary CTA ────────────────────────────────────
                         Button {
-                            if let topic = studyPlan?.topics.first?.topic {
-                                onStartLesson(topic)
-                            } else {
-                                onPlannerTap()
-                            }
+                            onStartLesson(firstTopic.topic)
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "play.fill")
@@ -505,6 +504,50 @@ private struct TodaysFocusSection: View {
                             .background(Color(UIColor.label))
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             .shadow(color: .gray.opacity(0.2), radius: 8, y: 3)
+                        }
+
+                        // ── Remaining topics (2, 3, …) ─────────────────────
+                        if plan.topics.count > 1 {
+                            Divider()
+                                .padding(.vertical, 16)
+
+                            VStack(spacing: 0) {
+                                ForEach(plan.topics.dropFirst(), id: \.topic) { slot in
+                                    Button {
+                                        onStartLesson(slot.topic)
+                                    } label: {
+                                        HStack(spacing: 12) {
+                                            // Numbered circle
+                                            ZStack {
+                                                Circle()
+                                                    .fill(Color.indigo.opacity(0.1))
+                                                    .frame(width: 32, height: 32)
+                                                Text("\(plan.topics.firstIndex(where: { $0.topic == slot.topic }).map { $0 + 1 } ?? 2)")
+                                                    .font(.system(size: 13, weight: .bold))
+                                                    .foregroundStyle(.indigo)
+                                            }
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(slot.topic)
+                                                    .font(.system(size: 14, weight: .semibold))
+                                                    .foregroundStyle(Color(UIColor.label))
+                                                Text("~\(slot.durationMin) min")
+                                                    .font(.system(size: 12))
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                            Spacer()
+                                            Image(systemName: "play.circle.fill")
+                                                .font(.system(size: 22))
+                                                .foregroundStyle(.indigo.opacity(0.7))
+                                        }
+                                        .padding(.vertical, 10)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    if slot.topic != plan.topics.last?.topic {
+                                        Divider().padding(.leading, 44)
+                                    }
+                                }
+                            }
                         }
                     }
                     .padding(20)
