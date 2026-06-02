@@ -144,7 +144,7 @@ private struct PendingChatQuestion {
         observeReachability()
 
         // Restore last session from Redis (non-blocking, non-fatal)
-        Task { [weak self] in await self?.loadPreviousSession() }
+        // Task { [weak self] in await self?.loadPreviousSession() }  // disabled
     }
 
     // MARK: - Public API
