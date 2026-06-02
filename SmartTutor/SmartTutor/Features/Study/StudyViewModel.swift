@@ -270,6 +270,10 @@ private struct PendingChatQuestion {
             ))
             pendingChatCount = pendingChatQueue.count
             viewState = .idle
+            // Immediately drive isNetworkReachable to false so observeReachability will
+            // see a guaranteed false→true transition when connectivity restores — even
+            // if the 3-second polling loop hadn't yet caught the offline state.
+            OfflineSyncManager.shared.markUnreachable()
 
         case .unauthorized:
             // Session expired — signal the View to navigate to login

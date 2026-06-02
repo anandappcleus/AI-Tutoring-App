@@ -151,12 +151,19 @@ protocol OfflineSyncManaging {
         pollingTask = nil
     }
 
+    /// Force reachability to false immediately — called by StudyViewModel when a /ask
+    /// request fails with .noNetwork so the flag is corrected without waiting for the
+    /// next 3-second polling cycle. This guarantees the false→true transition that
+    /// `observeReachability` needs to trigger an offline-queue replay.
+    func markUnreachable() {
+        applyReachability(false)
+    }
+
     /// Central place to update reachability state and trigger reconnect side-effects.
     private func applyReachability(_ reachable: Bool) {
         guard reachable != isNetworkReachable else { return }   // no-op if unchanged
         let wasUnreachable = !isNetworkReachable
         isNetworkReachable = reachable
-        logger.info("OfflineSyncManager: isNetworkReachable=\(reachable)")
         logger.info("OfflineSyncManager: network=\(reachable ? "reachable" : "unreachable")")
         if reachable && wasUnreachable && pendingCount > 0 {
             logger.info("OfflineSyncManager: reconnected — triggering sync  pending=\(self.pendingCount)")
