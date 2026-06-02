@@ -67,7 +67,11 @@ struct StudyView: View {
                             image: $0.image
                         )
                     },
-                    isLoading: isLoading
+                    isLoading: isLoading,
+                    onSuggestion: { question in
+                        inputText = ""
+                        vm.ask(question: question)
+                    }
                 )
 
                 // Inline error banner (non-fatal errors)
@@ -257,29 +261,90 @@ private struct StudyHeaderView: View {
     }
 }
 
+// MARK: - Corner Shape Helper
+
+private struct RoundedCornerShape: Shape {
+    var radius: CGFloat
+    var corners: UIRectCorner
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: corners,
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        return Path(path.cgPath)
+    }
+}
+
+// MARK: - Tutor Avatar
+
+private struct TutorAvatar: View {
+    var isLoading: Bool = false
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            if isLoading {
+                Circle()
+                    .fill(Color.indigo.opacity(0.18))
+                    .frame(width: 38, height: 38)
+                    .scaleEffect(pulse ? 1.35 : 1.0)
+                    .opacity(pulse ? 0 : 0.7)
+                    .animation(.easeOut(duration: 1.0).repeatForever(autoreverses: false), value: pulse)
+                    .onAppear { pulse = true }
+            }
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.indigo, Color(red: 0.50, green: 0.18, blue: 0.90)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 32, height: 32)
+            Image(systemName: "brain.head.profile")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+        }
+        .frame(width: 38, height: 38)
+    }
+}
+
 // MARK: - Chat Scroll
 
 private struct ChatScrollView: View {
     let messages: [ChatMessage]
     let isLoading: Bool
+    let onSuggestion: (String) -> Void
+
+    /// Only the welcome message exists — show starter suggestions.
+    private var showEmptyState: Bool {
+        messages.filter { $0.type == .question }.isEmpty
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: 12) {
                     ForEach(messages) { msg in
                         ChatBubble(message: msg)
                             .id(msg.id)
+                    }
+                    if showEmptyState && !isLoading {
+                        EmptyStateView(onSelect: onSuggestion)
+                            .padding(.top, 8)
+                            .id("emptyState")
                     }
                     if isLoading {
                         TypingIndicatorView()
                             .id("loading")
                     }
-                    Color.clear.frame(height: 4).id("bottom")
+                    Color.clear.frame(height: 8).id("bottom")
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
             }
+            .background(Color(UIColor.systemGroupedBackground))
             .onChange(of: messages.count) { _, _ in
                 withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
             }
@@ -290,34 +355,102 @@ private struct ChatScrollView: View {
     }
 }
 
+// MARK: - Empty / Welcome State
+
+private struct EmptyStateView: View {
+    let onSelect: (String) -> Void
+
+    private let suggestions: [(subject: String, icon: String, color: Color, question: String)] = [
+        ("Physics",   "atom",              .blue,   "Explain Newton's Laws with a worked example and 2 JEE practice problems"),
+        ("Chemistry", "testtube.2",        .teal,   "What is the difference between ionic and covalent bonds?"),
+        ("Maths",     "function",          .orange, "Walk me through integration by parts with an example"),
+        ("Biology",   "leaf.fill",         .green,  "Explain the mechanism of DNA replication for NEET"),
+    ]
+
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 32))
+                    .foregroundStyle(
+                        LinearGradient(colors: [.indigo, .purple],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                Text("What would you like to learn today?")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text("Tap a suggestion or type your own question below")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 8)
+
+            VStack(spacing: 10) {
+                ForEach(suggestions, id: \.question) { s in
+                    Button { onSelect(s.question) } label: {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(s.color.opacity(0.12))
+                                    .frame(width: 38, height: 38)
+                                Image(systemName: s.icon)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(s.color)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(s.subject)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(s.color)
+                                Text(s.question)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.leading)
+                                    .lineLimit(2)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(12)
+                        .background(Color(UIColor.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.horizontal, 2)
+    }
+}
+
 // MARK: - Chat Bubble
 
 private struct ChatBubble: View {
     let message: ChatMessage
-
     var isQuestion: Bool { message.type == .question }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            if isQuestion { Spacer(minLength: 48) }
+        if isQuestion {
+            StudentBubble(message: message)
+        } else {
+            TutorAnswerCard(message: message)
+        }
+    }
+}
 
-            VStack(alignment: .leading, spacing: 8) {
-                if !isQuestion {
-                    HStack(spacing: 6) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.indigo.opacity(0.15))
-                                .frame(width: 24, height: 24)
-                            Text("AI")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.indigo)
-                        }
-                        Text("AI Tutor")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.indigo)
-                    }
-                }
-                if isQuestion, let img = message.image {
+// MARK: - Student Bubble (right-aligned, indigo gradient)
+
+private struct StudentBubble: View {
+    let message: ChatMessage
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            Spacer(minLength: 56)
+            VStack(alignment: .trailing, spacing: 8) {
+                if let img = message.image {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFit()
@@ -325,19 +458,82 @@ private struct ChatBubble: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 MathTextView(message.text, fontSize: 15)
-                    .foregroundStyle(isQuestion ? Color.white : Color.primary)
+                    .foregroundStyle(.white)
             }
-            .padding(16)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
             .background(
-                isQuestion
-                ? AnyShapeStyle(Color.indigo)
-                : AnyShapeStyle(Color(UIColor.secondarySystemBackground))
+                LinearGradient(
+                    colors: [Color.indigo, Color(red: 0.50, green: 0.18, blue: 0.90)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             )
             .clipShape(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedCornerShape(radius: 18, corners: [.topLeft, .topRight, .bottomLeft])
             )
+        }
+    }
+}
 
-            if !isQuestion { Spacer(minLength: 48) }
+// MARK: - Tutor Answer Card (left-aligned, white card)
+
+private struct TutorAnswerCard: View {
+    let message: ChatMessage
+
+    private var isOffline: Bool    { message.text.hasPrefix("⏳") }
+    private var accentColor: Color { isOffline ? .orange : .indigo }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            TutorAvatar()
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 0) {
+                // Header
+                HStack(spacing: 5) {
+                    Text("AI Tutor")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(accentColor)
+                    if isOffline {
+                        Text("OFFLINE")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.orange)
+                            .clipShape(Capsule())
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 7)
+
+                Rectangle()
+                    .fill(accentColor.opacity(0.12))
+                    .frame(height: 1)
+                    .padding(.horizontal, 12)
+
+                MathTextView(message.text, fontSize: 15)
+                    .foregroundStyle(Color.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+            }
+            .background(
+                isOffline
+                    ? Color.orange.opacity(0.07)
+                    : Color(UIColor.systemBackground)
+            )
+            .clipShape(
+                RoundedCornerShape(radius: 18, corners: [.topLeft, .topRight, .bottomRight])
+            )
+            .overlay(
+                RoundedCornerShape(radius: 18, corners: [.topLeft, .topRight, .bottomRight])
+                    .stroke(accentColor.opacity(isOffline ? 0.30 : 0.14), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.04), radius: 5, y: 2)
+
+            Spacer(minLength: 44)
         }
     }
 }
@@ -345,45 +541,63 @@ private struct ChatBubble: View {
 // MARK: - Typing Indicator
 
 private struct TypingIndicatorView: View {
-    @State private var dotIndex = 0
+    @State private var animating = false
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    ZStack {
-                        Circle().fill(Color.indigo.opacity(0.15)).frame(width: 24, height: 24)
-                        Text("AI").font(.system(size: 8, weight: .bold)).foregroundStyle(.indigo)
-                    }
-                    Text("AI Tutor").font(.system(size: 12, weight: .semibold)).foregroundStyle(.indigo)
-                }
-                HStack(spacing: 4) {
-                    ForEach(0..<3) { i in
-                        Circle()
-                            .fill(Color.gray.opacity(0.5))
-                            .frame(width: 8, height: 8)
-                            .scaleEffect(dotIndex == i ? 1.4 : 1.0)
-                            .animation(
-                                .easeInOut(duration: 0.4).repeatForever(autoreverses: true).delay(Double(i) * 0.15),
-                                value: dotIndex
-                            )
-                    }
-                }
-                .onAppear {
-                    Timer.scheduledTimer(withTimeInterval: 0.45, repeats: true) { _ in
-                        dotIndex = (dotIndex + 1) % 3
-                    }
+        HStack(alignment: .top, spacing: 8) {
+            TutorAvatar(isLoading: true)
+                .padding(.top, 2)
+            HStack(spacing: 5) {
+                ForEach(0..<3) { i in
+                    Circle()
+                        .fill(Color.indigo.opacity(0.45))
+                        .frame(width: 7, height: 7)
+                        .offset(y: animating ? -4 : 0)
+                        .animation(
+                            .easeInOut(duration: 0.45)
+                            .repeatForever()
+                            .delay(Double(i) * 0.15),
+                            value: animating
+                        )
                 }
             }
-            .padding(16)
-            .background(Color(UIColor.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            Spacer(minLength: 48)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color(UIColor.systemBackground))
+            .clipShape(RoundedCornerShape(radius: 18, corners: [.topLeft, .topRight, .bottomRight]))
+            .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+            Spacer(minLength: 44)
         }
+        .onAppear { animating = true }
     }
 }
 
 // MARK: - Input Area
+
+private struct SubjectChip: View {
+    let name: String
+    let icon: String
+    let color: Color
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(name)
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .foregroundStyle(color)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(color.opacity(0.10))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(color.opacity(0.20), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+}
 
 private struct InputAreaView: View {
     @Binding var inputText: String
@@ -393,75 +607,82 @@ private struct InputAreaView: View {
     let onAsk: () -> Void
     let onVoice: () -> Void
 
+    private let subjectConfig: [(name: String, icon: String, color: Color)] = [
+        ("Physics",   "atom",         .blue),
+        ("Chemistry", "testtube.2",   .teal),
+        ("Maths",     "function",     .orange),
+        ("Biology",   "leaf.fill",    .green),
+    ]
+
+    private var canSend: Bool {
+        !inputText.trimmingCharacters(in: .whitespaces).isEmpty && !isLoading
+    }
+
     var body: some View {
-        VStack(spacing: 12) {
-            // Subject quick-pick pills
+        VStack(spacing: 10) {
+            // Color-coded subject chips
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(subjects, id: \.self) { subject in
-                        Button {
-                            inputText = "Explain a concept from \(subject)"
-                        } label: {
-                            Text(subject)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.primary)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color(UIColor.secondarySystemBackground))
-                                .clipShape(Capsule())
+                    ForEach(subjectConfig, id: \.name) { s in
+                        SubjectChip(name: s.name, icon: s.icon, color: s.color) {
+                            inputText = "Explain a key concept from \(s.name) for my exam"
                         }
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 14)
             }
 
             // Text field + action buttons
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 TextField("Ask in Bengali / English...", text: $inputText, axis: .vertical)
                     .font(.system(size: 15))
                     .lineLimit(1...4)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
                     .background(Color(UIColor.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 1.5)
+                        RoundedRectangle(cornerRadius: 22)
+                            .stroke(Color.indigo.opacity(inputText.isEmpty ? 0.12 : 0.35), lineWidth: 1.5)
                     )
 
+                // Mic button
                 Button(action: onVoice) {
                     ZStack {
                         Circle()
-                            .fill(isRecording ? Color.red : Color(UIColor.secondarySystemBackground))
-                            .frame(width: 44, height: 44)
+                            .fill(isRecording ? Color.red.opacity(0.15) : Color(UIColor.secondarySystemBackground))
+                            .frame(width: 42, height: 42)
                         Image(systemName: isRecording ? "mic.fill" : "mic")
-                            .font(.system(size: 18))
-                            .foregroundStyle(isRecording ? .white : .primary)
+                            .font(.system(size: 17))
+                            .foregroundStyle(isRecording ? .red : .secondary)
                     }
                 }
                 .scaleEffect(isRecording ? 1.1 : 1.0)
                 .animation(.spring(response: 0.3), value: isRecording)
 
+                // Send button — pulsing indigo when active
                 Button(action: onAsk) {
                     ZStack {
                         Circle()
-                            .fill(
-                                inputText.trimmingCharacters(in: .whitespaces).isEmpty || isLoading
-                                ? Color.indigo.opacity(0.35)
-                                : Color.indigo
-                            )
-                            .frame(width: 44, height: 44)
+                            .fill(canSend ? Color.indigo : Color.indigo.opacity(0.25))
+                            .frame(width: 42, height: 42)
                         Image(systemName: "paperplane.fill")
-                            .font(.system(size: 16))
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
+                            .offset(x: 1)
                     }
                 }
-                .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty || isLoading)
+                .disabled(!canSend)
+                .scaleEffect(canSend ? 1.0 : 0.92)
+                .animation(.spring(response: 0.25), value: canSend)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 14)
             .padding(.bottom, 8)
         }
-        .background(Color(UIColor.systemBackground))
-        .overlay(Divider(), alignment: .top)
+        .padding(.top, 10)
+        .background(
+            Color(UIColor.systemBackground)
+                .shadow(color: .black.opacity(0.06), radius: 8, y: -3)
+        )
     }
 }
