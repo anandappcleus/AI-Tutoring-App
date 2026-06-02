@@ -121,13 +121,13 @@ protocol OfflineSyncManaging {
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in self?.startPolling() }
+        ) { [weak self] _ in Task { @MainActor [weak self] in self?.startPolling() } }
 
         NotificationCenter.default.addObserver(
             forName: UIApplication.willResignActiveNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in self?.stopPolling() }
+        ) { [weak self] _ in Task { @MainActor [weak self] in self?.stopPolling() } }
 
         // Start immediately (init happens while app is active).
         startPolling()
