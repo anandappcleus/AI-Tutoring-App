@@ -241,23 +241,36 @@ private struct PendingChatQuestion {
             handleAPIError(apiError, question: trimmed)
         } catch {
             logger.error("StudyViewModel.performAsk: unexpected=\(error.localizedDescription)")
-            messages.append(StudyMessage(
-                role: .assistant,
-                text: "Something went wrong. Please try again."
-            ))
-            viewState = .idle
+            // If the device is offline, a TLS reset / connection refused / etc. during
+            // the request should be queued rather than shown as a generic error.
+            if !OfflineSyncManager.shared.isNetworkReachable {
+                AppLogger.offline.warning("StudyViewModel.performAsk: unexpected_while_offline — queueing")
+                handleAPIError(.noNetwork, question: trimmed)
+            } else {
+                messages.append(StudyMessage(
+                    role: .assistant,
+                    text: "Something went wrong. Please try again."
+                ))
+                viewState = .idle
+            }
         }
     }
 
     private func handleAPIError(_ error: APIError, question: String) {
         switch error {
         case .timedOut:
-            // Server took too long — do NOT queue to offline sync (image data not stored)
-            messages.append(StudyMessage(
-                role: .assistant,
-                text: error.userMessage
-            ))
-            viewState = .idle
+            // If we're already offline the timeout was caused by the network drop,
+            // not a slow server — queue the question for replay on reconnect.
+            if !OfflineSyncManager.shared.isNetworkReachable {
+                AppLogger.offline.warning("StudyViewModel: timedOut_while_offline — queueing")
+                handleAPIError(.noNetwork, question: question)
+            } else {
+                messages.append(StudyMessage(
+                    role: .assistant,
+                    text: error.userMessage
+                ))
+                viewState = .idle
+            }
 
         case .noNetwork:
             // Save to the chat-specific offline queue (distinct from the quiz-answer sync queue)
