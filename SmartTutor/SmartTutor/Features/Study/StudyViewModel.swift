@@ -63,8 +63,27 @@ struct StudyMessage: Identifiable, Equatable {
         self.response = response
     }
 
+    /// Used when replacing a placeholder message in-place (preserves position in the list).
+    fileprivate init(replacing id: UUID, role: Role, text: String, response: AskResponse? = nil) {
+        self.id       = id
+        self.role     = role
+        self.text     = text
+        self.image    = nil
+        self.response = response
+    }
+
     // UIImage is not Equatable; identity comparison via id is sufficient.
     static func == (lhs: StudyMessage, rhs: StudyMessage) -> Bool { lhs.id == rhs.id }
+}
+
+// MARK: - Pending Offline Chat Question
+
+/// A chat question captured while the device was offline.
+/// Stored until the network restores, then replayed through /ask.
+private struct PendingChatQuestion {
+    let placeholderMessageId: UUID  // id of the ⏳ placeholder bubble to replace with the real answer
+    let question: String
+    let language: String
 }
 
 // MARK: - ViewModel
@@ -77,6 +96,13 @@ struct StudyMessage: Identifiable, Equatable {
     private(set) var messages: [StudyMessage] = []
     private(set) var viewState: StudyViewState = .idle
     private(set) var questionsUsedToday: Int = 0
+    /// Number of chat questions queued while offline. Drives the Study tab badge.
+    private(set) var pendingChatCount: Int = 0
+
+    // MARK: Offline chat queue (separate from the quiz-answer sync queue)
+
+    /// Questions captured while offline, waiting to be replayed through /ask on reconnect.
+    private var pendingChatQueue: [PendingChatQuestion] = []
 
     // MARK: Conversation history (sent to backend for multi-turn context)
 
@@ -113,6 +139,9 @@ struct StudyMessage: Identifiable, Equatable {
 
         appendWelcomeMessage()
         logger.info("StudyViewModel: initialised")
+
+        // Watch for network restore so we can replay any queued offline questions.
+        observeReachability()
 
         // Restore last session from Redis (non-blocking, non-fatal)
         Task { [weak self] in await self?.loadPreviousSession() }
@@ -227,12 +256,19 @@ struct StudyMessage: Identifiable, Equatable {
             viewState = .idle
 
         case .noNetwork:
-            // Queue offline and show a friendly fallback message
-            syncManager.enqueue(question: question, topic: nil, subject: nil)
-            messages.append(StudyMessage(
+            // Save to the chat-specific offline queue (distinct from the quiz-answer sync queue)
+            // and show an honest placeholder that will be replaced once reconnected.
+            let placeholder = StudyMessage(
                 role: .assistant,
-                text: "You're offline. Your question has been saved and will be answered when you reconnect."
+                text: "⏳ You're offline. I'll answer this automatically when you reconnect."
+            )
+            messages.append(placeholder)
+            pendingChatQueue.append(PendingChatQuestion(
+                placeholderMessageId: placeholder.id,
+                question: question,
+                language: profile()?.preferredLanguage.rawValue ?? "en"
             ))
+            pendingChatCount = pendingChatQueue.count
             viewState = .idle
 
         case .unauthorized:
@@ -257,6 +293,105 @@ struct StudyMessage: Identifiable, Equatable {
         default:
             messages.append(StudyMessage(role: .assistant, text: error.userMessage))
             viewState = .idle
+        }
+    }
+
+    // MARK: - Offline reconnect replay
+
+    /// Starts a long-lived observation loop: when `isNetworkReachable` transitions
+    /// false → true, all pending offline chat questions are replayed through /ask.
+    private func observeReachability() {
+        Task { [weak self] in
+            guard let self else { return }
+            let mgr = OfflineSyncManager.shared
+            var previous = mgr.isNetworkReachable
+            while !Task.isCancelled {
+                // withObservationTracking fires its onChange exactly once per change.
+                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                    withObservationTracking {
+                        _ = mgr.isNetworkReachable
+                    } onChange: {
+                        cont.resume()
+                    }
+                }
+                let current = mgr.isNetworkReachable
+                if current && !previous && !pendingChatQueue.isEmpty {
+                    logger.info("StudyViewModel: network restored — replaying \(self.pendingChatQueue.count) pending question(s)")
+                    // Brief pause to let the connection stabilise before hitting the API.
+                    try? await Task.sleep(for: .seconds(2))
+                    await replayPendingQuestions()
+                }
+                previous = current
+            }
+        }
+    }
+
+    /// Re-sends every queued offline question through /ask, replacing the ⏳ placeholder bubble.
+    private func replayPendingQuestions() async {
+        let queue = pendingChatQueue
+        pendingChatQueue = []
+        pendingChatCount = 0
+        for pending in queue {
+            // Update placeholder to a "working on it" state
+            if let idx = messages.firstIndex(where: { $0.id == pending.placeholderMessageId }) {
+                messages[idx] = StudyMessage(
+                    replacing: pending.placeholderMessageId,
+                    role: .assistant,
+                    text: "⏳ Back online — answering now..."
+                )
+            }
+            await performAskReplacing(
+                trimmed: pending.question,
+                language: pending.language,
+                placeholderMessageId: pending.placeholderMessageId
+            )
+        }
+    }
+
+    /// Like `performAsk`, but replaces the placeholder bubble instead of appending a new message.
+    private func performAskReplacing(trimmed: String, language: String, placeholderMessageId: UUID) async {
+        let examType = profile()?.examTarget.rawValue
+        let historySnapshot = Array(conversationHistory.suffix(10))
+        do {
+            let response: AskResponse = try await apiClient.request(
+                .ask(question: trimmed, language: language, examType: examType,
+                     imageBase64: nil, history: historySnapshot)
+            )
+            let answerText = buildAnswerText(from: response)
+            if let idx = messages.firstIndex(where: { $0.id == placeholderMessageId }) {
+                messages[idx] = StudyMessage(
+                    replacing: placeholderMessageId,
+                    role: .assistant,
+                    text: answerText,
+                    response: response
+                )
+            } else {
+                messages.append(StudyMessage(role: .assistant, text: answerText, response: response))
+            }
+            conversationHistory.append(ConversationTurn(role: "user", content: trimmed))
+            conversationHistory.append(ConversationTurn(role: "assistant", content: response.explanation))
+            if conversationHistory.count > 10 {
+                conversationHistory = Array(conversationHistory.suffix(10))
+            }
+            questionsUsedToday += 1
+            logger.info("StudyViewModel.performAskReplacing: success  questions_today=\(self.questionsUsedToday)")
+        } catch {
+            // If replay also fails (e.g. went offline again), re-queue the question
+            // and restore the original placeholder text.
+            logger.warning("StudyViewModel.performAskReplacing: failed — re-queuing  error=\(error.localizedDescription)")
+            pendingChatQueue.append(PendingChatQuestion(
+                placeholderMessageId: placeholderMessageId,
+                question: trimmed,
+                language: language
+            ))
+            pendingChatCount = pendingChatQueue.count
+            if let idx = messages.firstIndex(where: { $0.id == placeholderMessageId }) {
+                messages[idx] = StudyMessage(
+                    replacing: placeholderMessageId,
+                    role: .assistant,
+                    text: "⏳ Still offline. I'll answer this when you reconnect."
+                )
+            }
         }
     }
 

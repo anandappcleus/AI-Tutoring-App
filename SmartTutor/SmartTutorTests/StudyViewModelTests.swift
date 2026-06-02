@@ -161,11 +161,12 @@ final class StudyViewModelTests: XCTestCase {
         XCTAssertEqual(sut.questionsUsedToday, 1)
     }
 
-    func test_ask_success_enqueuesForSync() async throws {
+    func test_ask_success_doesNotEnqueueToSyncManager() async throws {
+        // /ask persists on the server — the offline queue must NOT double-enqueue on success.
         mockAPI.stub = .success(makeAskResponse())
         sut.ask(question: "Sync this question")
         try await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertEqual(mockSync.enqueuedQuestions.first, "Sync this question")
+        XCTAssertTrue(mockSync.enqueuedQuestions.isEmpty)
     }
 
     // MARK: - ask() — network errors
@@ -179,11 +180,13 @@ final class StudyViewModelTests: XCTestCase {
         XCTAssertTrue(lastMsg.localizedCaseInsensitiveContains("offline"))
     }
 
-    func test_ask_noNetwork_enqueuesForOfflineSync() async throws {
+    func test_ask_noNetwork_incrementsPendingChatCount() async throws {
+        // Offline questions go into the VM's own chat queue (not the quiz-answer sync queue).
         mockAPI.stub = .failure(.noNetwork)
         sut.ask(question: "Queued offline")
         try await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertEqual(mockSync.enqueuedQuestions.first, "Queued offline")
+        XCTAssertEqual(sut.pendingChatCount, 1)
+        XCTAssertTrue(mockSync.enqueuedQuestions.isEmpty)
     }
 
     func test_ask_unauthorized_setsUnauthorizedError() async throws {

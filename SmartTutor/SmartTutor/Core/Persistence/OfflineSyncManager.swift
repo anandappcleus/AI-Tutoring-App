@@ -19,6 +19,7 @@ import Foundation
 import Network
 import Observation
 import os.log
+import UIKit
 
 private let logger = Logger(subsystem: "com.smarttutor.app", category: "OfflineSyncManager")
 
@@ -57,6 +58,8 @@ protocol OfflineSyncManaging {
     private let monitor = NWPathMonitor()
     private let monitorQueue = DispatchQueue(label: "com.smarttutor.netmonitor", qos: .utility)
     private let maxBatchSize = 50
+    /// Polling task — runs every 3 s while the app is active to catch NWPathMonitor stalls (common in simulator).
+    private var pollingTask: Task<Void, Never>?
 
     // MARK: Init
 
@@ -69,6 +72,7 @@ protocol OfflineSyncManaging {
 
     deinit {
         monitor.cancel()
+        pollingTask?.cancel()
     }
 
     // MARK: - Public API
@@ -106,19 +110,60 @@ protocol OfflineSyncManaging {
             let reachable = path.status == .satisfied
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let wasUnreachable = !self.isNetworkReachable
-                self.isNetworkReachable = reachable
-                logger.info("OfflineSyncManager: isNetworkReachable=\(reachable)")
-                logger.info("OfflineSyncManager: network=\(reachable ? "reachable" : "unreachable")")
-                if reachable && wasUnreachable && self.pendingCount > 0 {
-                    logger.info("OfflineSyncManager: reconnected — triggering sync  pending=\(self.pendingCount)")
-                    // Give the network stack ~2s to fully establish before hitting remote endpoints.
-                    try? await Task.sleep(for: .seconds(2))
-                    await self.performSync()
-                }
+                self.applyReachability(reachable)
             }
         }
         monitor.start(queue: monitorQueue)
+
+        // NWPathMonitor can stall in the simulator and miss reconnect events.
+        // Poll monitor.currentPath every 3 s while the app is active as a fallback.
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in self?.startPolling() }
+
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in self?.stopPolling() }
+
+        // Start immediately (init happens while app is active).
+        startPolling()
+    }
+
+    private func startPolling() {
+        pollingTask?.cancel()
+        pollingTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled, let self else { return }
+                let reachable = self.monitor.currentPath.status == .satisfied
+                self.applyReachability(reachable)
+            }
+        }
+    }
+
+    private func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
+    }
+
+    /// Central place to update reachability state and trigger reconnect side-effects.
+    private func applyReachability(_ reachable: Bool) {
+        let wasUnreachable = !isNetworkReachable
+        isNetworkReachable = reachable
+        logger.info("OfflineSyncManager: isNetworkReachable=\(reachable)")
+        logger.info("OfflineSyncManager: network=\(reachable ? "reachable" : "unreachable")")
+        if reachable && wasUnreachable && pendingCount > 0 {
+            logger.info("OfflineSyncManager: reconnected — triggering sync  pending=\(self.pendingCount)")
+            Task {
+                // Give the network stack ~2 s to fully establish before hitting remote endpoints.
+                try? await Task.sleep(for: .seconds(2))
+                await performSync()
+            }
+        }
     }
 
     private func performSync() async {

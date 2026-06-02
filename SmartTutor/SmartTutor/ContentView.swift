@@ -42,6 +42,7 @@ private struct MainTabView: View {
 
             StudyView()
                 .tabItem { Label("Study",    systemImage: "brain.head.profile") }
+                .badge(studyViewModel.pendingChatCount)
                 .tag(1)
 
             LearnerProgressView()
