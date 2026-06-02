@@ -65,8 +65,14 @@ private struct NetworkStatusBannerModifier: ViewModifier {
     // MARK: Observation loop
 
     private func observeConnectivity() async {
+        // NWPathMonitor fires its first pathUpdateHandler asynchronously, typically
+        // within 100–300 ms. isNetworkReachable starts as `false` (default), so
+        // without a settle delay we'd always flash "No internet" on launch even when
+        // the device is fully connected. Wait 700 ms for the first real report.
+        try? await Task.sleep(for: .milliseconds(700))
+
         var previous = syncManager.isNetworkReachable
-        // Show offline banner immediately if app launched without connectivity.
+        // Only show offline banner if we're genuinely offline after the settle period.
         if !previous {
             withAnimation { bannerState = .offline }
         }
