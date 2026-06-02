@@ -21,7 +21,7 @@ import Observation
 import os.log
 import UIKit
 
-private let logger = Logger(subsystem: "com.smarttutor.app", category: "OfflineSyncManager")
+private let logger = AppLogger.offline
 
 // MARK: - Protocol (for mock injection in tests)
 
@@ -107,6 +107,14 @@ protocol OfflineSyncManaging {
     // MARK: - Private helpers
 
     private func startMonitoring() {
+        // Any successful HTTP response is ground truth that the network is up.
+        // Wire this before NWPathMonitor so the callback is set before any requests fire.
+        apiClient.onNetworkSuccess = { [weak self] in
+            guard let self else { return }
+            logger.debug("OfflineSyncManager: onNetworkSuccess fired — marking reachable")
+            self.markReachable()
+        }
+
         monitor.pathUpdateHandler = { [weak self] path in
             let reachable = path.status == .satisfied
             Task { @MainActor [weak self] in
@@ -140,8 +148,19 @@ protocol OfflineSyncManaging {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3))
                 guard !Task.isCancelled, let self else { return }
-                let reachable = self.monitor.currentPath.status == .satisfied
-                self.applyReachability(reachable)
+                // Only probe when we think we're offline — avoids noise when already online.
+                // We do NOT re-read monitor.currentPath.status here: NWPathMonitor can stall
+                // and its currentPath stays unsatisfied even when URLSession traffic flows.
+                // Instead, fire a real HEAD /health to confirm actual reachability.
+                guard !self.isNetworkReachable else { continue }
+                logger.info("OfflineSyncManager: polling probe — isNetworkReachable=false, probing /health")
+                let reachable = await self.probeConnectivity()
+                if reachable {
+                    logger.info("OfflineSyncManager: probe=reachable — applying")
+                    self.applyReachability(true)
+                } else {
+                    logger.debug("OfflineSyncManager: probe=unreachable")
+                }
             }
         }
     }
@@ -151,12 +170,40 @@ protocol OfflineSyncManaging {
         pollingTask = nil
     }
 
+    /// Lightweight connectivity probe: sends HEAD to /health (no auth required).
+    /// Returns true if we get any HTTP response — even a non-200 proves DNS + TCP work.
+    private func probeConnectivity() async -> Bool {
+        let url = AppConfig.prodURL.appendingPathComponent("health")
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        request.timeoutInterval = 5
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            return (response as? HTTPURLResponse) != nil
+        } catch {
+            return false
+        }
+    }
+
     /// Force reachability to false immediately — called by StudyViewModel when a /ask
     /// request fails with .noNetwork so the flag is corrected without waiting for the
     /// next 3-second polling cycle. This guarantees the false→true transition that
     /// `observeReachability` needs to trigger an offline-queue replay.
     func markUnreachable() {
+        logger.warning("OfflineSyncManager: markUnreachable() called — forcing isNetworkReachable=false")
         applyReachability(false)
+    }
+
+    /// Force reachability to true immediately — called by StudyViewModel when a /ask
+    /// request succeeds. NWPathMonitor can stall and never report reconnection even
+    /// while URLSession traffic flows; a successful HTTP response is ground truth that
+    /// the network is up, so we drive the flag here rather than waiting for the poll.
+    func markReachable() {
+        // applyReachability's guard makes this a free no-op when already reachable
+        if !isNetworkReachable {
+            logger.info("OfflineSyncManager: markReachable() called — forcing isNetworkReachable=true")
+        }
+        applyReachability(true)
     }
 
     /// Central place to update reachability state and trigger reconnect side-effects.

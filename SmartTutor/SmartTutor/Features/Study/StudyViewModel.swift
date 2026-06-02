@@ -226,6 +226,10 @@ private struct PendingChatQuestion {
                 conversationHistory = Array(conversationHistory.suffix(10))
             }
 
+            // A successful response proves the network is up. If NWPathMonitor stalled
+            // and never reported reconnection, this drives the flag to true so
+            // observeReachability sees the false→true transition and replays the queue.
+            OfflineSyncManager.shared.markReachable()
             viewState = .idle
             questionsUsedToday += 1
             // NOTE: do NOT enqueue here — /ask already persisted to quiz_answers on
@@ -319,6 +323,9 @@ private struct PendingChatQuestion {
                     }
                 }
                 let current = mgr.isNetworkReachable
+                if current && !previous {
+                    AppLogger.offline.info("StudyViewModel: reachability false→true  pendingChatQueue=\(self.pendingChatQueue.count)")
+                }
                 if current && !previous && !pendingChatQueue.isEmpty {
                     logger.info("StudyViewModel: network restored — replaying \(self.pendingChatQueue.count) pending question(s)")
                     // Brief pause to let the connection stabilise before hitting the API.
@@ -335,6 +342,7 @@ private struct PendingChatQuestion {
         let queue = pendingChatQueue
         pendingChatQueue = []
         pendingChatCount = 0
+        AppLogger.offline.info("StudyViewModel: replayPendingQuestions start  count=\(queue.count)")
         for pending in queue {
             // Update placeholder to a "working on it" state
             if let idx = messages.firstIndex(where: { $0.id == pending.placeholderMessageId }) {
@@ -344,12 +352,14 @@ private struct PendingChatQuestion {
                     text: "⏳ Back online — answering now..."
                 )
             }
+            AppLogger.offline.info("StudyViewModel: replaying  q=\(pending.question.prefix(60))")
             await performAskReplacing(
                 trimmed: pending.question,
                 language: pending.language,
                 placeholderMessageId: pending.placeholderMessageId
             )
         }
+        AppLogger.offline.info("StudyViewModel: replayPendingQuestions complete  replayed=\(queue.count)")
     }
 
     /// Like `performAsk`, but replaces the placeholder bubble instead of appending a new message.

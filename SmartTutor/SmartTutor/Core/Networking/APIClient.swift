@@ -18,7 +18,7 @@ import os.log
 
 // MARK: - Logging
 
-private let logger = Logger(subsystem: "com.smarttutor.app", category: "APIClient")
+private let logger = AppLogger.network
 
 // MARK: - API Errors
 
@@ -177,6 +177,11 @@ class APIClient {
     /// Called on the main actor when a token refresh fails (session fully expired).
     /// AppState sets this in its init to trigger automatic logout.
     var onSessionExpired: (() -> Void)? = nil
+
+    /// Called on the main actor after every successful HTTP response decode.
+    /// Wired up by OfflineSyncManager so any API success (not just /ask) drives
+    /// isNetworkReachable to true — making NWPathMonitor a hint rather than ground truth.
+    var onNetworkSuccess: (() -> Void)? = nil
 
     /// Set once (in DEBUG builds only) after the first successful prod fallback.
     /// All subsequent requests skip localhost and go straight to prod, avoiding
@@ -413,6 +418,9 @@ class APIClient {
         do {
             let result = try decoder.decode(T.self, from: data)
             logger.debug("APIClient.execute  ok  status=\(http.statusCode)  path=\(endpoint.path)")
+            // Notify OfflineSyncManager that connectivity is confirmed. This is more
+            // reliable than NWPathMonitor which can stall and report false negatives.
+            onNetworkSuccess?()
             return result
         } catch {
             let preview = String(data: data.prefix(200), encoding: .utf8) ?? "<binary>"

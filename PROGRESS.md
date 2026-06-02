@@ -1,6 +1,6 @@
 # SmartTutor — Sprint Progress Tracker
 
-*Last updated: 24 May 2026 (Structured logging for all features; Parent Dashboard dynamic exam readiness; SF Symbol + compiler fixes)*
+*Last updated: 2 June 2026 (Offline chat queue, reconnect replay, Study badge, real-time reachability overhaul — ground-truth HTTP probing)*
 
 ---
 
@@ -553,6 +553,88 @@ The Progress screen was rebuilt to match the provided design mockup.
 | 5 | Fix performance issues (caching, connection pool) | — | 🔲 |
 | 6 | iOS: Archive + TestFlight upload | Xcode | 🔲 |
 | 7 | TestFlight: 5 beta testers (Asansol students) | — | 🔲 |
+
+---
+
+---
+
+## Post-Sprint 6 (cont.) — Offline Reliability Overhaul ✅ Complete
+
+*2 June 2026 — offline chat queue, reconnect replay, Study tab badge, NWPathMonitor ground-truth fix, StudyView visual redesign.*
+
+### Problem: NWPathMonitor is unreliable as sole source of truth
+
+`NWPathMonitor` on iOS/simulator fires spurious `unreachable` events immediately after `reachable` on WiFi association, and `monitor.currentPath.status` can stay stale indefinitely even while URLSession traffic flows normally. This caused three visible bugs:
+
+1. Offline questions silently never replayed after reconnect (queue stuck)
+2. Network status banner flickered to offline on launch even with good WiFi
+3. Polling loop re-read `monitor.currentPath.status` — same stale value, no self-correction
+
+### Changes (all committed + pushed to `main`)
+
+#### iOS — `OfflineSyncManager.swift`
+
+| # | Change | Commit |
+|---|--------|--------|
+| 1 | **Polling loop now probes `HEAD /health` (real TCP/DNS)** instead of re-reading stale `monitor.currentPath.status`; fires only when `isNetworkReachable == false` (no noise when already online) | `(current)` |
+| 2 | **`markUnreachable()`** — public method; called by `StudyViewModel` when `.noNetwork` thrown, immediately drives flag to `false` without waiting for next 3s poll — guarantees `false→true` transition path | `26979fe` |
+| 3 | **`markReachable()`** — public method; called by `onNetworkSuccess` callback and `StudyViewModel.performAsk` success path — any HTTP success confirms connectivity | `(current)` |
+| 4 | **`APIClient.onNetworkSuccess` callback wired in `startMonitoring()`** — any API success anywhere in the app (plan, progress, ask) immediately calls `markReachable()`, not just `/ask` | `(current)` |
+| 5 | **Duplicate log lines removed** — `isNetworkReachable=` line merged into single `network=reachable/unreachable` log | `136eb0f` |
+| 6 | **`AppLogger.offline` adopted** — `OfflineSyncManager` now uses centralized `AppLogger.offline` category instead of private `Logger(...)` | `(current)` |
+| 7 | **Structured logs for probe/reconnect path** — `polling probe`, `probe=reachable`, `probe=unreachable`, `markUnreachable() called`, `markReachable() called`, `onNetworkSuccess fired` all logged at appropriate levels | `(current)` |
+
+#### iOS — `APIClient.swift`
+
+| # | Change | Commit |
+|---|--------|--------|
+| 1 | **`onNetworkSuccess: (() -> Void)?` callback** added — called after every successful HTTP decode; wired by `OfflineSyncManager` to `markReachable()` | `(current)` |
+| 2 | **`AppLogger.network` adopted** — switched from private `Logger(...)` to centralized category | `(current)` |
+
+#### iOS — `StudyViewModel.swift`
+
+| # | Change | Commit |
+|---|--------|--------|
+| 1 | **Offline chat queue** — `.noNetwork` error appends ⏳ placeholder bubble + saves to `pendingChatQueue: [PendingChatQuestion]`; calls `markUnreachable()` synchronously | `f751bd7` + `26979fe` |
+| 2 | **Reconnect replay** — `observeReachability()` loop on `OfflineSyncManager.isNetworkReachable`; `false→true` triggers 2s settle delay then `replayPendingQuestions()` | `f751bd7` |
+| 3 | **`pendingChatCount`** drives Study tab badge in `ContentView` | `f751bd7` |
+| 4 | **`markReachable()` on `performAsk` success** — belt-and-suspenders alongside `onNetworkSuccess` | `(current)` |
+| 5 | **`AppLogger.offline` logs in replay path** — `reachability false→true`, `replayPendingQuestions start/replaying/complete` | `(current)` |
+| 6 | **Previous chat history loading disabled** — `loadPreviousSession()` call commented out to avoid stale session noise | `30f1201` |
+
+#### iOS — `StudyView.swift` (Visual Redesign)
+
+| Component | Before | After | Commit |
+|-----------|--------|-------|--------|
+| Background | Plain white | `systemGroupedBackground` | `4484977` |
+| AI avatar | None | Gradient indigo→purple circle with `brain.head.profile`; pulsing halo when loading | `4484977` |
+| User bubbles | Plain grey | Indigo→purple gradient, asymmetric iMessage corners | `4484977` |
+| AI answer card | Plain text | White card, indigo accent border, divider, header row; amber tint + "OFFLINE" badge for ⏳ placeholders | `4484977` |
+| Typing indicator | Spinner | `TutorAvatar(isLoading: true)` + bouncing dots | `4484977` |
+| Empty state | Blank | Sparkles header + 4 tappable subject starter cards | `4484977` |
+| Subject chips | None | Color-coded capsules (Physics=blue, Chemistry=teal, Maths=orange, Biology=green) | `4484977` |
+| Input bar | Plain | Elevated shadow, indigo border when active, spring send button | `4484977` |
+
+### Reliability model after overhaul
+
+```
+NWPathMonitor fires → applyReachability (hint, may be stale)
+Any HTTP success    → onNetworkSuccess → markReachable() (ground truth — immediate)
+.noNetwork thrown   → markUnreachable() (ground truth — immediate)
+Poll every 3s       → HEAD /health probe (only when isNetworkReachable=false)
+```
+
+### Log trace (healthy reconnect after this fix)
+
+```
+OfflineSyncManager: network=unreachable                  ← NWPathMonitor stall
+StudyViewModel: reachability false→true  pendingChatQueue=1   ← /plan success → markReachable fired
+OfflineSyncManager: markReachable() called — forcing isNetworkReachable=true
+StudyViewModel: replayPendingQuestions start  count=1
+StudyViewModel: replaying  q=Explain Newton's Laws…
+StudyViewModel.performAsk: success  questions_today=1
+StudyViewModel: replayPendingQuestions complete  replayed=1
+```
 
 ---
 
