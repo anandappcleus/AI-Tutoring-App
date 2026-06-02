@@ -59,7 +59,8 @@ protocol OfflineSyncManaging {
     private let monitorQueue = DispatchQueue(label: "com.smarttutor.netmonitor", qos: .utility)
     private let maxBatchSize = 50
     /// Polling task — runs every 3 s while the app is active to catch NWPathMonitor stalls (common in simulator).
-    private var pollingTask: Task<Void, Never>?
+    /// Stored as nonisolated so it can be cancelled safely from deinit.
+    nonisolated(unsafe) private var pollingTask: Task<Void, Never>?
 
     // MARK: Init
 
