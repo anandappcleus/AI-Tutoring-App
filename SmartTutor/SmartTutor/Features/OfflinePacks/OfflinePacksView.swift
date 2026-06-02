@@ -111,7 +111,7 @@ struct OfflinePacksView: View {
         }
         .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Offline Packs")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(
             LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing),
             for: .navigationBar
