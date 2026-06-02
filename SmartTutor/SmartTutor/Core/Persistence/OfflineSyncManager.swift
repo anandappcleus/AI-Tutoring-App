@@ -153,6 +153,7 @@ protocol OfflineSyncManaging {
 
     /// Central place to update reachability state and trigger reconnect side-effects.
     private func applyReachability(_ reachable: Bool) {
+        guard reachable != isNetworkReachable else { return }   // no-op if unchanged
         let wasUnreachable = !isNetworkReachable
         isNetworkReachable = reachable
         logger.info("OfflineSyncManager: isNetworkReachable=\(reachable)")
