@@ -187,11 +187,44 @@ private let wbchseSyllabus: [SyllabusSubject] = [
     }
 }
 
+// MARK: - Chapter Status
+
+private enum ChapterStatus: String, CaseIterable, Identifiable {
+    case notStarted = "Not Started"
+    case needsWork  = "Needs Work"
+    case mastered   = "Mastered"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .notStarted: return "circle.dashed"
+        case .needsWork:  return "exclamationmark.circle.fill"
+        case .mastered:   return "checkmark.circle.fill"
+        }
+    }
+    var color: Color {
+        switch self {
+        case .notStarted: return Color(UIColor.secondaryLabel)
+        case .needsWork:  return .orange
+        case .mastered:   return .green
+        }
+    }
+    func matches(_ chapter: SyllabusChapter) -> Bool {
+        switch self {
+        case .notStarted: return chapter.accuracy == nil
+        case .needsWork:  return chapter.accuracy != nil && (chapter.accuracy ?? 0) < 60
+        case .mastered:   return (chapter.accuracy ?? 0) >= 60
+        }
+    }
+}
+
 // MARK: - Root View
 
 struct SyllabusMapView: View {
     @Environment(AppState.self) private var appState
     @State private var vm = SyllabusMapViewModel()
+    @State private var selectedStatus: ChapterStatus? = nil
 
     var body: some View {
         Group {
@@ -224,10 +257,46 @@ struct SyllabusMapView: View {
         }
     }
 
+    // Subjects filtered by both text search and status chip
+    private var displayedSubjects: [SyllabusSubject] {
+        let textFiltered = vm.filteredSubjects
+        guard let status = selectedStatus else { return textFiltered }
+        return textFiltered.map { subj in
+            SyllabusSubject(
+                id: subj.id, name: subj.name,
+                icon: subj.icon, color: subj.color,
+                chapters: subj.chapters.filter { status.matches($0) }
+            )
+        }.filter { !$0.chapters.isEmpty }
+    }
+
+    // Overall stats across all (unfiltered) subjects
+    private var totalChapters: Int    { vm.subjects.reduce(0) { $0 + $1.chapters.count } }
+    private var attemptedChapters: Int { vm.subjects.flatMap(\.chapters).filter { $0.accuracy != nil }.count }
+    private var masteredChapters: Int  { vm.subjects.flatMap(\.chapters).filter { ($0.accuracy ?? 0) >= 60 }.count }
+    private var overallAccuracy: Double? {
+        let values = vm.subjects.flatMap(\.chapters).compactMap(\.accuracy)
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    @ViewBuilder
     private var syllabusContent: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Inline search bar
+
+                // ── Stats hero card ──
+                SyllabusStatsCard(
+                    totalChapters:    totalChapters,
+                    masteredChapters: masteredChapters,
+                    attemptedChapters: attemptedChapters,
+                    overallAccuracy:  overallAccuracy
+                )
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
+                .padding(.bottom, 12)
+
+                // ── Search bar ──
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
@@ -242,25 +311,233 @@ struct SyllabusMapView: View {
                     }
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 9)
+                .padding(.vertical, 10)
                 .background(Color(UIColor.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 8)
+                .padding(.bottom, 10)
 
-                LazyVStack(spacing: 14) {
-                    ForEach(vm.filteredSubjects) { subject in
-                        SubjectAccordion(
-                            subject: subject,
-                            isExpanded: vm.expandedSubjectId == subject.id,
-                            onHeaderTap: { vm.toggleExpand(subject.id) }
-                        )
-                        .padding(.horizontal, 20)
+                // ── Status filter chips ──
+                StatusFilterBar(selected: $selectedStatus)
+                    .padding(.bottom, 14)
+
+                // ── Subject list or empty state ──
+                if displayedSubjects.isEmpty {
+                    SyllabusEmptyState(
+                        hasFilter: selectedStatus != nil || !vm.searchText.isEmpty
+                    )
+                    .padding(.top, 48)
+                    .padding(.bottom, 32)
+                } else {
+                    LazyVStack(spacing: 14) {
+                        ForEach(displayedSubjects) { subject in
+                            SubjectAccordion(
+                                subject: subject,
+                                isExpanded: vm.expandedSubjectId == subject.id,
+                                onHeaderTap: { vm.toggleExpand(subject.id) }
+                            )
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                    .padding(.bottom, 32)
+                }
+            }
+        }
+        .background(Color(UIColor.systemGroupedBackground))
+    }
+}
+
+// MARK: - Stats Hero Card
+
+private struct SyllabusStatsCard: View {
+    let totalChapters: Int
+    let masteredChapters: Int
+    let attemptedChapters: Int
+    let overallAccuracy: Double?
+
+    private var coverageFraction: Double {
+        guard totalChapters > 0 else { return 0 }
+        return Double(attemptedChapters) / Double(totalChapters)
+    }
+    private var masteryFraction: Double {
+        guard totalChapters > 0 else { return 0 }
+        return Double(masteredChapters) / Double(totalChapters)
+    }
+
+    var body: some View {
+        HStack(spacing: 20) {
+            // Dual-ring gauge: outer = attempted, inner = mastered
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.18), lineWidth: 5)
+                    .frame(width: 72, height: 72)
+                Circle()
+                    .trim(from: 0, to: coverageFraction)
+                    .stroke(Color.white.opacity(0.6),
+                            style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 72, height: 72)
+                    .animation(.spring(response: 0.7), value: coverageFraction)
+
+                Circle()
+                    .stroke(Color.white.opacity(0.18), lineWidth: 5)
+                    .frame(width: 50, height: 50)
+                Circle()
+                    .trim(from: 0, to: masteryFraction)
+                    .stroke(Color.green.opacity(0.9),
+                            style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 50, height: 50)
+                    .animation(.spring(response: 0.7), value: masteryFraction)
+
+                VStack(spacing: 1) {
+                    Text("\(Int(masteryFraction * 100))%")
+                        .font(.system(size: 14, weight: .black))
+                        .foregroundStyle(.white)
+                    Text("done")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .textCase(.uppercase)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Your Progress")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+
+                HStack(spacing: 16) {
+                    SyllabusStatChip(value: "\(masteredChapters)",
+                                     label: "Mastered",     color: .green)
+                    SyllabusStatChip(value: "\(attemptedChapters - masteredChapters)",
+                                     label: "Needs Work",   color: .orange)
+                    SyllabusStatChip(value: "\(totalChapters - attemptedChapters)",
+                                     label: "Not Started",  color: .white.opacity(0.5))
+                }
+
+                if let acc = overallAccuracy {
+                    HStack(spacing: 6) {
+                        Text("Avg accuracy")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white.opacity(0.7))
+                        Text("\(Int(acc))%")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
                     }
                 }
-                .padding(.bottom, 32)
             }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .background(
+            LinearGradient(
+                colors: [Color.indigo, Color.purple],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .shadow(color: .indigo.opacity(0.35), radius: 12, y: 5)
+    }
+}
+
+private struct SyllabusStatChip: View {
+    let value: String
+    let label: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 16, weight: .black))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.6))
+                .lineLimit(1)
+        }
+    }
+}
+
+// MARK: - Status Filter Bar
+
+private struct StatusFilterBar: View {
+    @Binding var selected: ChapterStatus?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                // "All" chip
+                let isAllSelected = selected == nil
+                Button { selected = nil } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("All")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(isAllSelected ? .white : Color(UIColor.label))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(
+                        isAllSelected
+                            ? AnyShapeStyle(LinearGradient(
+                                colors: [.indigo, .purple],
+                                startPoint: .leading, endPoint: .trailing))
+                            : AnyShapeStyle(Color(UIColor.systemGray5))
+                    )
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
+                ForEach(ChapterStatus.allCases) { status in
+                    let isSelected = selected == status
+                    Button { selected = isSelected ? nil : status } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: status.icon)
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(status.rawValue)
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(isSelected ? .white : status.color)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            isSelected
+                                ? AnyShapeStyle(status.color)
+                                : AnyShapeStyle(status.color.opacity(0.1))
+                        )
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+}
+
+// MARK: - Empty State
+
+private struct SyllabusEmptyState: View {
+    let hasFilter: Bool
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: hasFilter ? "line.3.horizontal.decrease.circle" : "books.vertical")
+                .font(.system(size: 52, weight: .light))
+                .foregroundStyle(.secondary)
+            Text(hasFilter ? "No chapters match" : "No syllabus loaded")
+                .font(.system(size: 17, weight: .semibold))
+            Text(hasFilter
+                 ? "Try a different filter or clear your search"
+                 : "Check your connection and try again")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
         }
     }
 }
@@ -272,68 +549,93 @@ private struct SubjectAccordion: View {
     let isExpanded: Bool
     let onHeaderTap: () -> Void
 
-    private var completedCount: Int {
+    private var masteredCount: Int {
         subject.chapters.filter { ($0.accuracy ?? 0) >= 60 }.count
     }
     private var progressFraction: Double {
         guard !subject.chapters.isEmpty else { return 0 }
-        return Double(completedCount) / Double(subject.chapters.count)
+        return Double(masteredCount) / Double(subject.chapters.count)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // ── Top subject-colour accent strip ──
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [subject.color, subject.color.opacity(0.55)],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
+                .frame(height: 4)
+
+            // ── Header ──
             Button(action: onHeaderTap) {
                 HStack(spacing: 14) {
+                    // Subject icon in gradient circle
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(subject.color.opacity(0.12))
-                            .frame(width: 42, height: 42)
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [subject.color.opacity(0.18), subject.color.opacity(0.07)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 48, height: 48)
                         Image(systemName: subject.icon)
-                            .font(.system(size: 18))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(subject.color)
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 5) {
                         Text(subject.name)
                             .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(Color(UIColor.label))
+
                         HStack(spacing: 6) {
                             Text("\(subject.chapters.count) chapters")
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                             Text("·")
-                                .foregroundStyle(.secondary)
-                            Text("\(completedCount) done")
                                 .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                            Text("\(masteredCount) mastered")
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(subject.color)
                         }
+
+                        // Horizontal progress bar
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(subject.color.opacity(0.12))
+                                    .frame(height: 5)
+                                Capsule()
+                                    .fill(subject.color)
+                                    .frame(width: geo.size.width * progressFraction, height: 5)
+                                    .animation(.spring(response: 0.5), value: progressFraction)
+                            }
+                        }
+                        .frame(height: 5)
                     }
 
                     Spacer()
 
-                    // Mini progress ring
-                    ZStack {
-                        Circle()
-                            .stroke(subject.color.opacity(0.15), lineWidth: 3)
-                        Circle()
-                            .trim(from: 0, to: progressFraction)
-                            .stroke(subject.color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
+                    VStack(spacing: 4) {
                         Text("\(Int(progressFraction * 100))%")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 16, weight: .black))
                             .foregroundStyle(subject.color)
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
                     }
-                    .frame(width: 36, height: 36)
-
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
                 }
-                .padding(16)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
             }
             .buttonStyle(.plain)
 
-            // Chapters (animated expand)
+            // ── Chapters (animated expand) ──
             if isExpanded {
                 Divider().padding(.horizontal, 16)
                 ForEach(Array(subject.chapters.enumerated()), id: \.element.id) { idx, chapter in
@@ -345,8 +647,8 @@ private struct SubjectAccordion: View {
             }
         }
         .background(Color(UIColor.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
         .animation(.spring(response: 0.3), value: isExpanded)
     }
 }
@@ -359,13 +661,9 @@ private struct ChapterRow: View {
     @AppStorage("selectedMainTab")    private var selectedMainTab = 0
     @AppStorage("pendingStudyTopic")  private var pendingStudyTopic = ""
 
-    private var statusIcon: String {
-        guard let acc = chapter.accuracy else { return "circle" }
-        return acc >= 60 ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
-    }
-    private var statusColor: Color {
-        guard let acc = chapter.accuracy else { return .secondary }
-        return acc >= 60 ? .green : .orange
+    private var status: ChapterStatus {
+        guard let acc = chapter.accuracy else { return .notStarted }
+        return acc >= 60 ? .mastered : .needsWork
     }
 
     var body: some View {
@@ -376,38 +674,57 @@ private struct ChapterRow: View {
             pendingStudyTopic = "Explain \(chapter.title) with key concepts, a worked example, and 2 practice problems"
             selectedMainTab = 1
         } label: {
-            HStack(spacing: 14) {
-                Image(systemName: statusIcon)
-                    .font(.system(size: 18))
-                    .foregroundStyle(statusColor)
-                    .frame(width: 24)
+            HStack(spacing: 0) {
+                // Left status-colour stripe
+                Capsule()
+                    .fill(status.color)
+                    .frame(width: 3)
+                    .padding(.vertical, 8)
+                    .padding(.leading, 14)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(chapter.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.primary)
+                HStack(spacing: 12) {
+                    Image(systemName: status.icon)
+                        .font(.system(size: 18))
+                        .foregroundStyle(status.color)
+                        .frame(width: 24)
+                        .accessibilityHidden(true)
 
-                    Text(chapter.topics.prefix(3).joined(separator: " · "))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(chapter.title)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color(UIColor.label))
+                        Text(chapter.topics.prefix(3).joined(separator: " · "))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    if let acc = chapter.accuracy {
+                        VStack(spacing: 2) {
+                            Text("\(Int(acc))%")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(status.color)
+                            Text("accuracy")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("Study →")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(color)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(color.opacity(0.08))
+                            .clipShape(Capsule())
+                    }
                 }
-
-                Spacer()
-
-                if let acc = chapter.accuracy {
-                    Text("\(Int(acc))%")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(statusColor)
-                }
-
-                Image(systemName: "arrow.right.circle")
-                    .font(.system(size: 14))
-                    .foregroundStyle(color.opacity(0.7))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(chapter.title). \(chapter.accuracy.map { "Accuracy \(Int($0)) percent" } ?? "Not started"). Tap to study.")
     }
 }

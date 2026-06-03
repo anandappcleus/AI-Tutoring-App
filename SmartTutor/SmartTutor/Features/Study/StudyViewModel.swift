@@ -362,7 +362,7 @@ private struct PendingChatQuestion {
                 messages[idx] = StudyMessage(
                     replacing: pending.placeholderMessageId,
                     role: .assistant,
-                    text: "⏳ Back online — answering now..."
+                    text: "🔄 Back online — answering now..."
                 )
             }
             AppLogger.offline.info("StudyViewModel: replaying  q=\(pending.question.prefix(60))")
