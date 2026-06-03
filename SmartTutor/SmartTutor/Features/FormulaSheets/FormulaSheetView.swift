@@ -277,45 +277,87 @@ struct FormulaSheetView: View {
     @State private var expandedCategory: String? = nil
     @State private var selectedFormula: Formula?
 
+    // Subject colour map (consistent with rest of app)
+    private func subjectColor(_ subject: String) -> Color {
+        switch subject {
+        case "Physics":     return .blue
+        case "Chemistry":   return .teal
+        case "Mathematics": return .indigo
+        default:            return .purple
+        }
+    }
+    private func subjectIcon(_ subject: String) -> String {
+        switch subject {
+        case "Physics":     return "atom"
+        case "Chemistry":   return "flask.fill"
+        case "Mathematics": return "function"
+        default:            return "books.vertical"
+        }
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                // Inline search bar
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                    TextField("Search formulas\u{2026}", text: $vm.searchText)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                    if !vm.searchText.isEmpty {
-                        Button { vm.searchText = "" } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
+        VStack(spacing: 0) {
+            // ── Search bar (sticky above scroll) ──
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search formulas…", text: $vm.searchText)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                if !vm.searchText.isEmpty {
+                    Button { vm.searchText = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color(UIColor.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            // ── Subject filter chips ──
+            FormulaSubjectFilterBar(
+                subjects:        vm.subjects,
+                selected:        vm.selectedSubject,
+                subjectColor:    subjectColor,
+                subjectIcon:     subjectIcon,
+                onSelect:        vm.selectSubject
+            )
+            .padding(.bottom, 10)
+
+            // ── Stats pill ──
+            if !vm.searchText.isEmpty || vm.selectedSubject != "All" {
+                HStack(spacing: 4) {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                        .font(.system(size: 11))
+                    Text("\(vm.totalCount) formula\(vm.totalCount == 1 ? "" : "s") found")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
                 .background(Color(UIColor.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 4)
+                .clipShape(Capsule())
+                .padding(.bottom, 8)
+            }
 
-                // Subject filter pills
-                subjectFilterRow
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-                    .padding(.bottom, 4)
+            Divider()
 
-                if vm.filteredCategories.isEmpty {
-                    emptySearchView
-                } else {
-                    LazyVStack(spacing: 12) {
+            // ── List ──
+            if vm.filteredCategories.isEmpty {
+                FormulaEmptyState(query: vm.searchText)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 14) {
                         ForEach(vm.filteredCategories) { category in
                             FormulaCategoryCard(
-                                category: category,
-                                isExpanded: expandedCategory == category.id,
+                                category:      category,
+                                isExpanded:    expandedCategory == category.id,
                                 onHeaderTap: {
                                     AppLogger.userAction(AppLogger.formula,
                                                          action: "category-expand",
@@ -331,14 +373,15 @@ struct FormulaSheetView: View {
                                     selectedFormula = formula
                                 }
                             )
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 16)
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 14)
                     .padding(.bottom, 32)
                 }
             }
         }
+        .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Formula Sheets")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(
@@ -347,7 +390,6 @@ struct FormulaSheetView: View {
         )
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-
         .sheet(item: $selectedFormula) { formula in
             FormulaDetailSheet(formula: formula)
         }
@@ -355,95 +397,180 @@ struct FormulaSheetView: View {
             AppLogger.navigated(to: "FormulaSheetView", from: "Dashboard")
         }
     }
+}
 
-    // MARK: Subject Filter
+// MARK: - Subject Filter Bar
 
-    private var subjectFilterRow: some View {
+private struct FormulaSubjectFilterBar: View {
+    let subjects:     [String]
+    let selected:     String
+    let subjectColor: (String) -> Color
+    let subjectIcon:  (String) -> String
+    let onSelect:     (String) -> Void
+
+    var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(vm.subjects, id: \.self) { subject in
-                    Button(subject) { vm.selectSubject(subject) }
-                        .font(.system(size: 13, weight: .semibold))
+                ForEach(subjects, id: \.self) { subject in
+                    let isSelected = selected == subject
+                    Button { onSelect(subject) } label: {
+                        HStack(spacing: 5) {
+                            if subject == "All" {
+                                Image(systemName: "square.grid.2x2")
+                                    .font(.system(size: 11, weight: .semibold))
+                            } else {
+                                Image(systemName: subjectIcon(subject))
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            Text(subject)
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(isSelected ? .white : (subject == "All" ? Color(UIColor.label) : subjectColor(subject)))
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                        .background(vm.selectedSubject == subject ? Color.indigo : Color(UIColor.systemGray5))
-                        .foregroundStyle(vm.selectedSubject == subject ? .white : .primary)
+                        .padding(.vertical, 8)
+                        .background(
+                            isSelected
+                                ? AnyShapeStyle(subject == "All"
+                                    ? AnyShapeStyle(LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing))
+                                    : AnyShapeStyle(subjectColor(subject)))
+                                : AnyShapeStyle(subject == "All"
+                                    ? AnyShapeStyle(Color(UIColor.systemGray5))
+                                    : AnyShapeStyle(subjectColor(subject).opacity(0.1)))
+                        )
                         .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
+            .padding(.horizontal, 16)
         }
     }
+}
 
-    // MARK: Empty search
+// MARK: - Empty State
 
-    private var emptySearchView: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary.opacity(0.5))
-                .padding(.top, 60)
-            Text("No formulas found for \"\(vm.searchText)\"")
-                .font(.system(size: 15))
+private struct FormulaEmptyState: View {
+    let query: String
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: query.isEmpty ? "books.vertical" : "magnifyingglass")
+                .font(.system(size: 52, weight: .light))
                 .foregroundStyle(.secondary)
+            Text(query.isEmpty ? "No formulas" : "No results for \"\(query)\"")
+                .font(.system(size: 17, weight: .semibold))
+            Text(query.isEmpty
+                 ? "Select a subject above to browse formulas"
+                 : "Try a different keyword or clear the filter")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
         }
-        .frame(maxWidth: .infinity)
     }
 }
 
 // MARK: - Category Card
 
 private struct FormulaCategoryCard: View {
-    let category: FormulaCategory
-    let isExpanded: Bool
+    let category:    FormulaCategory
+    let isExpanded:  Bool
     let onHeaderTap: () -> Void
     let onFormulaTap: (Formula) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // ── 4px subject-colour accent strip ──
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [category.color, category.color.opacity(0.5)],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
+                .frame(height: 4)
+
+            // ── Header ──
             Button(action: onHeaderTap) {
                 HStack(spacing: 12) {
+                    // Gradient circle icon
                     ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(category.color.opacity(0.12))
-                            .frame(width: 38, height: 38)
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [category.color.opacity(0.18), category.color.opacity(0.07)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 46, height: 46)
                         Image(systemName: category.icon)
-                            .font(.system(size: 16))
+                            .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(category.color)
                     }
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(category.name)
                             .font(.system(size: 15, weight: .bold))
-                        Text("\(category.subject) · \(category.formulas.count) formulas")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color(UIColor.label))
+
+                        HStack(spacing: 6) {
+                            // Subject pill
+                            Text(category.subject)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(category.color)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2)
+                                .background(category.color.opacity(0.1))
+                                .clipShape(Capsule())
+
+                            Text("·")
+                                .foregroundStyle(.secondary)
+                                .font(.system(size: 11))
+                            Text("\(category.formulas.count) formulas")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Spacer()
 
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
+                    // Count badge + chevron
+                    VStack(spacing: 4) {
+                        ZStack {
+                            Circle()
+                                .fill(category.color.opacity(0.1))
+                                .frame(width: 28, height: 28)
+                            Text("\(category.formulas.count)")
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundStyle(category.color)
+                        }
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .padding(14)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("\(category.name), \(category.subject), \(category.formulas.count) formulas. \(isExpanded ? "Expanded" : "Collapsed").")
 
-            // Formula rows
+            // ── Formula rows (animated expand) ──
             if isExpanded {
                 Divider().padding(.horizontal, 14)
                 ForEach(Array(category.formulas.enumerated()), id: \.element.id) { idx, formula in
-                    FormulaRow(formula: formula, color: category.color, onTap: { onFormulaTap(formula) })
+                    FormulaRow(formula: formula, color: category.color,
+                               onTap: { onFormulaTap(formula) })
                     if idx < category.formulas.count - 1 {
-                        Divider().padding(.leading, 48)
+                        Divider().padding(.leading, 14)
                     }
                 }
             }
         }
         .background(Color(UIColor.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
+        .animation(.spring(response: 0.3), value: isExpanded)
     }
 }
 
@@ -451,42 +578,55 @@ private struct FormulaCategoryCard: View {
 
 private struct FormulaRow: View {
     let formula: Formula
-    let color: Color
-    let onTap: () -> Void
+    let color:   Color
+    let onTap:   () -> Void
 
     var body: some View {
         Button(action: onTap) {
-            HStack(alignment: .top, spacing: 12) {
-                // Expression badge
-                Text(formula.expression)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(color)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(color.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .frame(minWidth: 80, alignment: .leading)
+            HStack(spacing: 0) {
+                // Left colour stripe
+                Capsule()
+                    .fill(color.opacity(0.7))
+                    .frame(width: 3)
+                    .padding(.vertical, 10)
+                    .padding(.leading, 14)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(formula.name)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
-                    Text(formula.variables)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                HStack(alignment: .top, spacing: 10) {
+                    // Expression badge — monospaced, pill background
+                    Text(formula.expression)
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(color)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(color.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(minWidth: 72, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(formula.name)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color(UIColor.label))
+                        Text(formula.variables)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(color.opacity(0.5))
+                        .padding(.top, 2)
                 }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary.opacity(0.6))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(formula.name): \(formula.expression). \(formula.variables). Tap to ask AI to explain.")
     }
 }
 
@@ -500,41 +640,77 @@ struct FormulaDetailSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 24) {
-                // Formula expression (large)
-                VStack(spacing: 8) {
-                    Text(formula.expression)
-                        .font(.system(size: 32, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.indigo)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding(24)
-                        .background(Color.indigo.opacity(0.06))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
 
-                // Variables
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Variables", systemImage: "square.and.pencil")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text(formula.variables)
-                        .font(.system(size: 15))
-                }
-
-                // Tags
-                if !formula.tags.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Related topics", systemImage: "tag")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        FlowLayout(formula.tags)
+                    // ── Large expression hero ──
+                    VStack(spacing: 6) {
+                        Text(formula.expression)
+                            .font(.system(size: 34, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(UIColor.label))
+                            .multilineTextAlignment(.center)
+                            .minimumScaleFactor(0.6)
+                            .frame(maxWidth: .infinity)
+                            .padding(28)
+                            .background(
+                                LinearGradient(
+                                    colors: [.indigo.opacity(0.1), .purple.opacity(0.06)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 22))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 22)
+                                    .stroke(Color.indigo.opacity(0.15), lineWidth: 1)
+                            )
                     }
+
+                    // ── Variables ──
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Variables", systemImage: "x.squareroot")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.indigo)
+
+                        let parts = formula.variables.components(separatedBy: ", ")
+                        VStack(alignment: .leading, spacing: 7) {
+                            ForEach(parts, id: \.self) { part in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Circle()
+                                        .fill(Color.indigo.opacity(0.4))
+                                        .frame(width: 5, height: 5)
+                                        .padding(.top, 6)
+                                    Text(part)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(Color(UIColor.label))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                        .padding(14)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+
+                    // ── Tags ──
+                    if !formula.tags.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label("Related topics", systemImage: "tag.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.indigo)
+                            FlowLayout(formula.tags)
+                        }
+                    }
+
+                    Spacer(minLength: 20)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+            }
 
-                Spacer()
-
-                // Ask AI
+            // ── Ask AI CTA ──
+            VStack(spacing: 0) {
+                Divider()
                 Button {
                     AppLogger.userAction(AppLogger.formula,
                                          action: "ask-ai-about-formula",
@@ -551,13 +727,18 @@ struct FormulaDetailSheet: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
-                        .background(Color.indigo)
+                        .background(
+                            LinearGradient(
+                                colors: [.indigo, .purple],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        )
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 32)
+            .background(Color(UIColor.systemBackground))
             .navigationTitle(formula.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

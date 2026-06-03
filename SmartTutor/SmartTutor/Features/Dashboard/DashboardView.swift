@@ -157,7 +157,27 @@ struct DashboardView: View {
                 }
             }
             .background(Color(UIColor.systemGroupedBackground))
-            .ignoresSafeArea(edges: .top)
+            .navigationTitle("SmartTutor")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(
+                LinearGradient(colors: [.indigo, .purple],
+                               startPoint: .leading, endPoint: .trailing),
+                for: .navigationBar
+            )
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Text("SmartTutor")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
             // ── Navigation destinations ──
             .navigationDestination(isPresented: $showOfflinePacks) {
                 OfflinePacksView()
@@ -481,7 +501,7 @@ private struct DashboardHeaderSection: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 60)
+            .padding(.top, 20)
             .padding(.bottom, 20)
 
             // Ask / search bar
