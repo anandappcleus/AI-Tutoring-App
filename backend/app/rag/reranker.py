@@ -1,17 +1,17 @@
 """
-Cross-encoder re-ranker using NVIDIA NIM nv-rerankqa-mistral-4b-v3.
+Cross-encoder re-ranker using NVIDIA NIM llama-3.2-nv-rerankqa-1b-v2.
 
 After hybrid retrieval returns up to 20 candidate chunks, this re-ranker
 scores each (query, chunk) pair with a dedicated re-ranking model that has
 full cross-attention over both — significantly more accurate than cosine
 similarity alone.
 
-NIM re-ranking endpoint (different host from the LLM/embedding base URL):
-  POST https://ai.api.nvidia.com/v1/retrieval/nvidia/reranking
-  Body: {"model": "...", "query": {"text": "..."}, "passages": [{"text": "..."}], ...}
+NIM re-ranking endpoint — each model has a model-specific URL path:
+  POST https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-3_2-nv-rerankqa-1b-v2/reranking
+  Body: {"model": "nvidia/llama-3.2-nv-rerankqa-1b-v2", "query": {"text": "..."}, "passages": [{"text": "..."}], ...}
 
 Reference:
-  NVIDIA NIM re-ranking API — https://docs.api.nvidia.com/nim/reference/nvidia-nv-rerankqa-mistral-4b-v3-infer
+  NVIDIA NIM re-ranking API — https://docs.api.nvidia.com/nim/reference/nvidia-llama-3_2-nv-rerankqa-1b-v2-infer
 
 Design:
   • Singleton Reranker; degrades gracefully (returns original order) on any
@@ -34,8 +34,8 @@ from app.config import get_settings
 log = logging.getLogger(__name__)
 
 _MAX_PASSAGE_CHARS = 1000  # hard cap before sending to re-ranker
-# The reranker uses a different host than LLM/embedding endpoints
-_RERANK_URL = "https://ai.api.nvidia.com/v1/retrieval/nvidia/reranking"
+# Each NVIDIA reranking model has its own URL path (not a shared generic endpoint)
+_RERANK_URL = "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-3_2-nv-rerankqa-1b-v2/reranking"
 
 
 class Reranker:
