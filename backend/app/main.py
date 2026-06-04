@@ -26,6 +26,18 @@ configure_logging(level=settings.LOG_LEVEL, env=settings.APP_ENV)
 
 log = logging.getLogger(__name__)
 
+# Silence LiteLLM's async LoggingWorker background tasks — we don't use any
+# LiteLLM callbacks, and the pending-task GC warnings pollute the logs.
+try:
+    import litellm
+    litellm.success_callback = []
+    litellm.failure_callback = []
+    litellm._async_success_callback = []
+    litellm._async_failure_callback = []
+    litellm.suppress_debug_info = True
+except Exception:
+    pass
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
