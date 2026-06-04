@@ -41,5 +41,6 @@ upstash-redis>=1.0.0        # HTTP REST client for Upstash (no persistent TCP co
 # ── Utilities ────────────────────────────────────────────────────────
 python-dotenv>=1.0.0
 sympy>=1.13.0               # symbolic math verifier — ground-truth answers before LLM explanation
+json-repair>=0.34.0         # fix LLM JSON with unquoted strings, trailing commas, etc.
 # macOS Homebrew Python: use system Keychain certs instead of certifi
 truststore>=0.10.0

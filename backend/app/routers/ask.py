@@ -709,6 +709,18 @@ def _parse_crew_output(raw: str) -> dict:
             except (json.JSONDecodeError, Exception):
                 pass
 
+    # Pass 6: json-repair — handles unquoted string values, single quotes, trailing
+    # commas, and other LLM-specific JSON malformations that the earlier passes miss.
+    # Most common failure: 8B fallback emits  "explanation": Newton's laws...
+    try:
+        from json_repair import repair_json  # type: ignore[import]
+        repaired = repair_json(text, return_objects=True)
+        if isinstance(repaired, dict) and repaired:
+            log.warning("ask.parse_json_repair  keys=%s", list(repaired.keys()))
+            return repaired
+    except Exception:
+        pass
+
     return {}
 
 
