@@ -147,8 +147,6 @@ class Reranker:
             elapsed_ms, query[:60],
         )
         return reranked
-        )
-        return reranked
 
 
 # ── Module-level singleton ────────────────────────────────────────────
