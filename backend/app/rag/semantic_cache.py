@@ -102,12 +102,20 @@ class SemanticCache:
             skipped = 0
 
             for entry_id in entry_ids:
-                entry = await redis.hgetall(f"scache:{entry_id}")
-                if not entry or "vec" not in entry or "resp" not in entry:
+                raw = await redis.get(f"scache:{entry_id}")
+                if not raw:
                     skipped += 1
-                    log.debug("semantic_cache.get: missing fields  entry_id=%s  fields=%s", entry_id, list(entry.keys()) if entry else "[]") 
+                    log.debug("semantic_cache.get: missing entry  entry_id=%s", entry_id)
                     continue
-                stored_vec: list[float] = json.loads(entry["vec"])
+                try:
+                    entry = json.loads(raw)
+                except Exception:
+                    skipped += 1
+                    continue
+                if "vec" not in entry or "resp" not in entry:
+                    skipped += 1
+                    continue
+                stored_vec: list[float] = entry["vec"]
                 if len(stored_vec) != len(query_vec):
                     skipped += 1
                     log.warning(
@@ -178,17 +186,16 @@ class SemanticCache:
             ).hexdigest()[:16]
             ts = time.time()
 
-            # Store the entry hash with TTL
-            # upstash-redis hset() takes alternating field/value positional args
+            # Store the entry as a single JSON string with TTL
+            # Avoids all hset/hgetall API inconsistencies across upstash-redis versions
             entry_key = f"scache:{entry_id}"
-            await redis.hset(
-                entry_key,
-                "vec", json.dumps(query_vec),
-                "resp", response_json,
-                "ts", str(ts),
-                "query_preview", query_preview[:80],
-            )
-            await redis.expire(entry_key, ttl)
+            payload = json.dumps({
+                "vec": query_vec,
+                "resp": response_json,
+                "ts": ts,
+                "query_preview": query_preview[:80],
+            })
+            await redis.set(entry_key, payload, ex=ttl)
 
             # Track in ZSET (score = timestamp for LRU eviction ordering)
             await redis.zadd(_IDX_KEY, {entry_id: ts})
