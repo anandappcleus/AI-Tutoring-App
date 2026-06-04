@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     CHROMA_PERSIST_DIR: str = "chroma_db"  # relative to backend/ working dir
 
     # ── RAG pipeline enhancements ────────────────────────────────────
-    RERANKER_MODEL: str = "nvidia/llama-3.2-nv-rerankqa-1b-v2"
+    RERANKER_MODEL: str = "nvidia/llama-nemotron-rerank-1b-v2"
     SEMANTIC_CACHE_TTL: int = 604800        # 7 days in seconds
     SEMANTIC_CACHE_THRESHOLD: float = 0.92  # cosine similarity for cache hit
     SEMANTIC_CACHE_MAX_ENTRIES: int = 1000  # max entries in the ZSET index
