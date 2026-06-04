@@ -148,18 +148,12 @@ def configure_logging(level: str = "INFO", env: str = "production") -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-    # CrewAI: INFO in dev so agent steps are visible; WARNING in prod
+    # Crew/LLM frameworks: keep signal, drop noisy internals in production.
     logging.getLogger("crewai").setLevel(
         logging.INFO if is_dev else logging.WARNING
     )
-
-    # HTTP clients — only log errors
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("openai").setLevel(logging.WARNING)
-
-    # Vector DB / agent frameworks
-    logging.getLogger("chromadb").setLevel(logging.WARNING)
-    logging.getLogger("crewai").setLevel(logging.INFO)
+    logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+    logging.getLogger("litellm").setLevel(logging.WARNING)
 
     logging.getLogger(__name__).info(
         "logging.configured  env=%s  level=%s", env, level

@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     LLM_AGENT_MODEL: str = "meta/llama-3.3-70b-instruct"
     LLM_FAST_MODEL: str = "meta/llama-3.1-8b-instruct"  # NIM fallback when primary is throttled
     LLM_VISION_MODEL: str = "meta/llama-3.2-90b-vision-instruct"  # 90B is far better at typeset math OCR
+    LLM_PRIMARY_TIMEOUT_S: int = 30      # primary 70B timeout before fallback (was effectively 55s)
+    LLM_FAST_TIMEOUT_S: int = 25         # 8B fallback timeout
     EMBED_MODEL: str = "nvidia/nv-embedqa-e5-v5"
 
     # ── Groq fallback (optional — free tier, ~2s latency vs NIM's 40-60s) ────

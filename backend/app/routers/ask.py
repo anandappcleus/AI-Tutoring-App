@@ -1430,9 +1430,9 @@ async def _ask_direct(
     # 3. Final fallback: NIM 8B (only if Groq is not configured)
     nim_error: Exception | None = None
     try:
-        # 55 s: NIM 70B queues for 40–60 s under load; 55 s gives it a fair
-        # chance to respond before falling back to the smaller model.
-        return await _call_model(primary_model, 55.0, max_tok=3500)
+        # Use configurable timeout so we can fail over faster in production
+        # when NIM 70B queue times are high.
+        return await _call_model(primary_model, float(s.LLM_PRIMARY_TIMEOUT_S), max_tok=3500)
     except (asyncio.TimeoutError, Exception) as exc:
         nim_error = exc
         log.warning(
@@ -1454,7 +1454,7 @@ async def _ask_direct(
     # not when the entire NIM service is unreachable)
     if isinstance(nim_error, asyncio.TimeoutError):
         # 8B gets 1500 tokens: enough for a clear answer, short enough to cap loops
-        return await _call_model(s.LLM_FAST_MODEL, 35.0, max_tok=1500)
+        return await _call_model(s.LLM_FAST_MODEL, float(s.LLM_FAST_TIMEOUT_S), max_tok=1500)
 
     # NIM is unreachable and no Groq key — re-raise to produce informative 503
     raise nim_error

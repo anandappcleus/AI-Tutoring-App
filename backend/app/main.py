@@ -30,6 +30,8 @@ log = logging.getLogger(__name__)
 # LiteLLM callbacks, and the pending-task GC warnings pollute the logs.
 try:
     import litellm
+    litellm.set_verbose = False
+    litellm.callbacks = []
     litellm.success_callback = []
     litellm.failure_callback = []
     litellm._async_success_callback = []
