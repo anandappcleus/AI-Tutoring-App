@@ -1,0 +1,39 @@
+# Railway source-upload ignore (analogous to .dockerignore but for railway up)
+# These files are excluded from the upload bundle to keep it small.
+
+# Local ChromaDB snapshot — production volume is already seeded (138MB/500MB)
+chroma_db/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Large RAG corpus (PDFs)
+rag/corpus/
+
+# Dev/test only
+scratch/
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.log
+
+# Secrets
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Git
+.git/
