@@ -6,12 +6,12 @@ scores each (query, chunk) pair with a dedicated re-ranking model that has
 full cross-attention over both — significantly more accurate than cosine
 similarity alone.
 
-NIM re-ranking endpoint is OpenAI-compatible with a custom /reranking path:
-  POST https://integrate.api.nvidia.com/v1/reranking
+NIM re-ranking endpoint (different host from the LLM/embedding base URL):
+  POST https://ai.api.nvidia.com/v1/retrieval/nvidia/reranking
   Body: {"model": "...", "query": {"text": "..."}, "passages": [{"text": "..."}], ...}
 
 Reference:
-  NVIDIA NIM re-ranking API — https://docs.api.nvidia.com/nim/reference/ranking
+  NVIDIA NIM re-ranking API — https://docs.api.nvidia.com/nim/reference/nvidia-nv-rerankqa-mistral-4b-v3-infer
 
 Design:
   • Singleton Reranker; degrades gracefully (returns original order) on any
@@ -34,7 +34,8 @@ from app.config import get_settings
 log = logging.getLogger(__name__)
 
 _MAX_PASSAGE_CHARS = 1000  # hard cap before sending to re-ranker
-_RERANK_PATH = "/reranking"  # appended to LLM_BASE_URL
+# The reranker uses a different host than LLM/embedding endpoints
+_RERANK_URL = "https://ai.api.nvidia.com/v1/retrieval/nvidia/reranking"
 
 
 class Reranker:
@@ -77,7 +78,7 @@ class Reranker:
             for c in chunks
         ]
 
-        url = s.LLM_BASE_URL.rstrip("/") + _RERANK_PATH
+        url = _RERANK_URL
         log.debug(
             "reranker.rerank_start  model=%s  url=%s  n_passages=%d  top_k=%d  query=%r",
             s.RERANKER_MODEL, url, len(passages), top_k, query[:80],
