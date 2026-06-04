@@ -179,10 +179,11 @@ class SemanticCache:
             ts = time.time()
 
             # Store the entry hash with TTL
+            # upstash-redis hset() takes a positional dict, not mapping= kwarg
             entry_key = f"scache:{entry_id}"
             await redis.hset(
                 entry_key,
-                mapping={
+                {
                     "vec": json.dumps(query_vec),
                     "resp": response_json,
                     "ts": str(ts),

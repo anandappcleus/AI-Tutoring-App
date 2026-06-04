@@ -719,41 +719,44 @@ async def _maybe_fire_mini_crew(
     topic: str,
     language: str,
     plan_date: str,
-    db: AsyncSession,
 ) -> None:
     """
     Fire a lightweight 2-agent diagnostic+planner crew when a student answers
     3 consecutive questions on the same topic all incorrectly.
 
     This is best-effort and non-blocking: any error is logged but never raised.
+    Creates its own DB session — must NOT share the request-scoped session which
+    may be closed while this background task is still running.
     """
+    from app.database import AsyncSessionFactory
     try:
         from sqlalchemy import desc
         cutoff = datetime.now(timezone.utc) - timedelta(days=3)
-        result = await db.execute(
-            select(QuizAnswer)
-            .where(
-                QuizAnswer.student_id == student_id,
-                QuizAnswer.topic == topic,
-                QuizAnswer.answered_at >= cutoff,
+        async with AsyncSessionFactory() as _db:
+            result = await _db.execute(
+                select(QuizAnswer)
+                .where(
+                    QuizAnswer.student_id == student_id,
+                    QuizAnswer.topic == topic,
+                    QuizAnswer.answered_at >= cutoff,
+                )
+                .order_by(desc(QuizAnswer.answered_at))
+                .limit(3)
             )
-            .order_by(desc(QuizAnswer.answered_at))
-            .limit(3)
-        )
-        last_3 = result.scalars().all()
-        consecutive_wrong = sum(1 for a in last_3 if not a.is_correct)
-        if len(last_3) < 3 or any(a.is_correct for a in last_3):
-            log.debug(
-                "ask.mini_crew_check  student_id=%s  topic=%s"
-                "  answers_checked=%d  consecutive_wrong=%d  triggered=False",
-                student_id, topic, len(last_3), consecutive_wrong,
-            )
-            return  # Not 3 consecutive wrong answers — no trigger
+            last_3 = result.scalars().all()
+            consecutive_wrong = sum(1 for a in last_3 if not a.is_correct)
+            if len(last_3) < 3 or any(a.is_correct for a in last_3):
+                log.debug(
+                    "ask.mini_crew_check  student_id=%s  topic=%s"
+                    "  answers_checked=%d  consecutive_wrong=%d  triggered=False",
+                    student_id, topic, len(last_3), consecutive_wrong,
+                )
+                return  # Not 3 consecutive wrong answers — no trigger
 
-        log.info(
-            "ask.mini_crew_trigger  student_id=%s  topic=%s  consecutive_wrong=%d",
-            student_id, topic, consecutive_wrong,
-        )
+            log.info(
+                "ask.mini_crew_trigger  student_id=%s  topic=%s  consecutive_wrong=%d",
+                student_id, topic, consecutive_wrong,
+            )
 
         from app.agents.agents import make_diagnostic_agent, make_planner_agent
         from app.agents.tasks import make_diagnostic_task, make_planning_task
@@ -1040,7 +1043,7 @@ async def ask(
     # ── Event-driven mini-crew: trigger on 3 consecutive wrong answers ─
     if llm_topic:
         asyncio.create_task(
-            _maybe_fire_mini_crew(student_id, llm_topic, lang, str(date.today()), db)
+            _maybe_fire_mini_crew(student_id, llm_topic, lang, str(date.today()))
         )
 
     # ── Redis: increment rate-limit counter + persist conversation history ─
