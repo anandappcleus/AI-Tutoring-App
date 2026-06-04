@@ -7,7 +7,7 @@ full cross-attention over both — significantly more accurate than cosine
 similarity alone.
 
 NIM re-ranking endpoint is OpenAI-compatible with a custom /reranking path:
-  POST https://integrate.api.nvidia.com/v1/ranking
+  POST https://integrate.api.nvidia.com/v1/reranking
   Body: {"model": "...", "query": {"text": "..."}, "passages": [{"text": "..."}], ...}
 
 Reference:
@@ -34,7 +34,7 @@ from app.config import get_settings
 log = logging.getLogger(__name__)
 
 _MAX_PASSAGE_CHARS = 1000  # hard cap before sending to re-ranker
-_RERANK_PATH = "/ranking"  # appended to LLM_BASE_URL
+_RERANK_PATH = "/reranking"  # appended to LLM_BASE_URL
 
 
 class Reranker:
