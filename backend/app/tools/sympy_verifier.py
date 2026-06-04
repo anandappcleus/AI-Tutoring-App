@@ -461,3 +461,57 @@ async def verify_with_sympy(question_text: str) -> Optional[SympyResult]:
 
     log.info("sympy_verifier.success  answer=%s  is_integer=%s", answer, is_integer)
     return SympyResult(answer=answer, is_integer=is_integer)
+
+
+# ── CrewAI tool wrapper ───────────────────────────────────────────────
+# Wraps verify_with_sympy() as a synchronous BaseTool for use inside CrewAI
+# agents (Verifier Agent).  Runs the async function in a new event loop.
+
+from crewai.tools import BaseTool  # noqa: E402
+from pydantic import BaseModel, Field as PydanticField  # noqa: E402
+
+
+class SymPyVerifierInput(BaseModel):
+    question_text: str = PydanticField(
+        ...,
+        description=(
+            "The math/physics/chemistry problem text to verify. "
+            "Include all numerical values and options if an MCQ."
+        ),
+    )
+
+
+class SymPyVerifierTool(BaseTool):
+    """
+    Verify a JEE/NEET math or physics answer using SymPy.
+
+    Translates the problem into SymPy code via LLM, executes it in a sandbox,
+    and returns the computed answer or CANNOT_EVALUATE for conceptual problems.
+    """
+
+    name: str = "SymPy Verifier Tool"
+    description: str = (
+        "Verify a numerical or algebraic answer by translating the problem into "
+        "executable SymPy Python code and running it in a secure sandbox. "
+        "Returns the computed ground-truth answer, or CANNOT_EVALUATE if the "
+        "problem is conceptual or cannot be solved symbolically."
+    )
+    args_schema: type[BaseModel] = SymPyVerifierInput
+
+    def _run(self, question_text: str) -> str:
+        import asyncio as _asyncio
+        loop = _asyncio.new_event_loop()
+        try:
+            result: Optional[SympyResult] = loop.run_until_complete(
+                verify_with_sympy(question_text)
+            )
+        finally:
+            loop.close()
+
+        if result is None:
+            return "CANNOT_EVALUATE"
+        return f"VERIFIED_ANSWER: {result.answer}"
+
+
+# Instantiated tool — imported by agents.py
+sympy_verifier_tool = SymPyVerifierTool()

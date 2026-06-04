@@ -64,21 +64,66 @@ def _extract_pages(pdf_path: Path) -> list[tuple[int, str]]:
 
 
 def _chunk_text(text: str) -> list[str]:
-    """Split text into overlapping character windows."""
+    """
+    Paragraph-aware chunker with character-window fallback.
+
+    Strategy:
+      1. Split on paragraph boundaries (double-newline).
+      2. Accumulate paragraphs into a window up to CHUNK_CHARS characters.
+      3. When a paragraph causes the window to overflow, emit the current window
+         and start a new one that begins with OVERLAP_CHARS of the previous window
+         (preserves cross-paragraph context for math derivations).
+      4. Individual paragraphs longer than CHUNK_CHARS are split at CHUNK_CHARS
+         with OVERLAP_CHARS overlap (original sliding-window behaviour as a fallback).
+      5. Discard any chunk shorter than MIN_CHUNK_CHARS (headers, page numbers, etc.).
+
+    This prevents splitting mid-formula while still honouring the token budget.
+    """
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+
     chunks: list[str] = []
-    start = 0
-    while start < len(text):
-        end = start + CHUNK_CHARS
-        chunk = text[start:end].strip()
-        if len(chunk) >= MIN_CHUNK_CHARS:
-            chunks.append(chunk)
-        start += CHUNK_CHARS - OVERLAP_CHARS
+    window = ""
+
+    for para in paragraphs:
+        # Long paragraph: sub-split it with the original sliding-window approach
+        if len(para) > CHUNK_CHARS:
+            # Flush current window first
+            if len(window) >= MIN_CHUNK_CHARS:
+                chunks.append(window)
+            window = ""
+            start = 0
+            while start < len(para):
+                end = start + CHUNK_CHARS
+                sub = para[start:end].strip()
+                if len(sub) >= MIN_CHUNK_CHARS:
+                    chunks.append(sub)
+                start += CHUNK_CHARS - OVERLAP_CHARS
+            continue
+
+        # Would the new paragraph overflow the window?
+        candidate = (window + "\n\n" + para).strip() if window else para
+        if len(candidate) > CHUNK_CHARS and window:
+            # Emit current window and carry OVERLAP_CHARS of it into the next window
+            if len(window) >= MIN_CHUNK_CHARS:
+                chunks.append(window)
+            window = (window[-OVERLAP_CHARS:] + "\n\n" + para).strip()
+        else:
+            window = candidate
+
+    # Emit the final window
+    if len(window) >= MIN_CHUNK_CHARS:
+        chunks.append(window)
+
     return chunks
 
 
-def _chunk_id(source: str, page: int, index: int) -> str:
-    """Deterministic chunk ID — safe to re-run (idempotent upsert)."""
-    raw = f"{source}::p{page}::c{index}"
+def _chunk_id(source: str, page: int, index: int, content: str = "") -> str:
+    """Deterministic chunk ID — includes content hash for safe re-ingestion."""
+    # Include a 6-char content fingerprint so re-chunking old PDFs with the new
+    # strategy produces new IDs and triggers a clean upsert rather than silently
+    # keeping stale fixed-window chunks in the collection.
+    content_hash = hashlib.md5(content.encode()).hexdigest()[:6]
+    raw = f"{source}::p{page}::c{index}::{content_hash}"
     return hashlib.md5(raw.encode()).hexdigest()
 
 
@@ -138,7 +183,7 @@ def ingest_pdf(
         for idx, chunk_text in enumerate(_chunk_text(page_text)):
             all_chunks.append(
                 {
-                    "id": _chunk_id(source, page_num, idx),
+                    "id": _chunk_id(source, page_num, idx, content=chunk_text),
                     "text": chunk_text,
                     "metadata": {"source": source, "page": page_num, "subject": subject},
                 }

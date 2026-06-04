@@ -1,11 +1,14 @@
 """
 CrewAI agent definitions for the AI Tutoring platform.
 
-Four agents:
+Agents:
     diagnostic_agent          — reads quiz history + maps topics via RAG
     curriculum_planner_agent  — builds 7-day study plans using SM-2
     question_generator_agent  — answers student questions in their language
     progress_monitor_agent    — detects plateaus + sends WhatsApp alerts
+    verifier_agent            — NEW: cross-checks tutor answers with SymPy
+    manager_agent             — NEW: hierarchical crew orchestrator (no tools)
+    mock_test_analyst_agent   — NEW: analyses completed mock test attempts
 
 LLM routing (via .env):
     LLM_AGENT_MODEL  → Qwen3-235B on NIM (dev) / GPT-4o mini (prod)
@@ -23,14 +26,19 @@ from crewai import Agent, LLM
 
 from app.agents.prompts import (
     get_diagnostic_prompt,
+    get_manager_prompt,
+    get_mock_test_analyst_prompt,
     get_monitor_prompt,
     get_planner_prompt,
     get_tutor_prompt,
+    get_verifier_prompt,
 )
 from app.config import get_settings
+from app.tools.mock_test_analysis_tool import mock_test_analysis_tool
 from app.tools.progress_read_tool import progress_read_tool
 from app.tools.quiz_history_tool import quiz_history_tool
 from app.tools.rag_search_tool import rag_search_tool
+from app.tools.sympy_verifier import sympy_verifier_tool
 from app.tools.whatsapp_tool import whatsapp_tool
 from app.tools.write_plan_tool import write_plan_tool
 
@@ -149,5 +157,98 @@ def make_monitor_agent() -> Agent:
         llm=agent_llm,
         tools=[progress_read_tool, whatsapp_tool],
         system_prompt=get_monitor_prompt(),
+        verbose=False,
+    )
+
+
+# ── New agents ────────────────────────────────────────────────────────
+
+
+def make_verifier_agent() -> Agent:
+    """
+    Verify tutor answers mathematically using SymPy.
+
+    The Verifier Agent receives the Tutor Agent's output and the original
+    question, then runs SymPy to confirm numeric answers or flag corrections.
+    Returns APPROVED or CORRECTION: <diff>.
+    """
+    agent_llm, _ = _make_llms()
+    log.debug("agents.make_verifier_agent  model=%s", agent_llm.model)
+    return Agent(
+        role="Answer Verifier",
+        goal=(
+            "Verify that the tutor's answer is mathematically correct by "
+            "running SymPy on the original question. Return APPROVED or "
+            "CORRECTION: <what is wrong and what the correct answer is>."
+        ),
+        backstory=(
+            "You are a meticulous math checker who catches calculation errors before "
+            "they reach students. You trust SymPy's symbolic computation over intuition "
+            "and always double-check numeric answers."
+        ),
+        llm=agent_llm,
+        tools=[sympy_verifier_tool],
+        system_prompt=get_verifier_prompt(),
+        verbose=False,
+    )
+
+
+def make_manager_agent() -> Agent:
+    """
+    Hierarchical crew manager — orchestrates nightly batch tasks.
+
+    The Manager Agent has NO tools. It reads the output of each sub-agent
+    and decides the next step: skip tasks when data is absent, re-run when
+    output is malformed, or escalate when a student's situation is urgent.
+    """
+    agent_llm, _ = _make_llms()
+    log.debug("agents.make_manager_agent  model=%s", agent_llm.model)
+    return Agent(
+        role="Crew Manager",
+        goal=(
+            "Orchestrate the nightly tutoring crew for maximum impact. "
+            "Decide which tasks to execute, skip, or re-run based on available data. "
+            "Ensure every student gets a personalised plan and only receives WhatsApp "
+            "alerts when a genuine plateau is detected."
+        ),
+        backstory=(
+            "You are an experienced educational programme manager who coordinates a team of "
+            "AI tutors, planners, and monitors. You make efficient decisions — you skip the "
+            "monitor task when there are no quiz answers yet, and you skip planning when the "
+            "diagnostic found no weak topics. You validate JSON outputs before passing them "
+            "downstream and request a retry when they are malformed."
+        ),
+        llm=agent_llm,
+        tools=[],  # Manager uses no tools — only coordinates sub-agents
+        system_prompt=get_manager_prompt(),
+        verbose=False,
+        allow_delegation=True,
+    )
+
+
+def make_mock_test_analyst_agent() -> Agent:
+    """
+    Analyse a student's completed mock test attempt.
+
+    Extracts subject-level accuracy, topic weaknesses, time management stats,
+    and skipped question count. Updates the study plan via WritePlanTool.
+    """
+    agent_llm, _ = _make_llms()
+    log.debug("agents.make_mock_test_analyst_agent  model=%s", agent_llm.model)
+    return Agent(
+        role="Mock Test Analyst",
+        goal=(
+            "Analyse the student's most recent mock test attempt, identify the weakest "
+            "subjects and topics, and update their study plan to address these gaps."
+        ),
+        backstory=(
+            "You are a competitive exam coach who specialises in mock test analysis. "
+            "You extract actionable insights from score data — not just what went wrong, "
+            "but why (time pressure, weak topics, careless errors) — and translate those "
+            "insights into a targeted revision plan."
+        ),
+        llm=agent_llm,
+        tools=[mock_test_analysis_tool, write_plan_tool],
+        system_prompt=get_mock_test_analyst_prompt(),
         verbose=False,
     )

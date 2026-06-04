@@ -9,9 +9,10 @@ Factory functions accept the pre-built Agent and optional context tasks
 
 Nightly batch pipeline:
     diagnostic_task → planning_task → monitor_task
+    (optional) → mock_test_task
 
 On-demand pipeline:
-    question_task (standalone — used by POST /ask)
+    question_task → verification_task
 """
 
 from __future__ import annotations
@@ -208,4 +209,78 @@ def make_question_task(agent: Agent) -> Task:
             "}"
         ),
         agent=agent,
+    )
+
+
+# ── Verification task (follows question_task in QuestionCrew) ─────────
+
+def make_verification_task(agent: Agent, context_tasks: list[Task]) -> Task:
+    """
+    Verify the tutor's answer with SymPy.
+
+    Placeholders: {question}
+    Requires: question_task output in context.
+    """
+    return Task(
+        description=(
+            "Verify the tutor's draft answer for the following question:\n"
+            "{question}\n\n"
+            "The tutor's answer is available in the context from the previous task.\n"
+            "Use SymPy Verifier Tool with the original question text to compute the "
+            "ground-truth answer.\n"
+            "Compare SymPy's result to the tutor's stated answer.\n"
+            "Return exactly one of:\n"
+            "  APPROVED\n"
+            "  APPROVED (unverifiable, trust tutor)\n"
+            "  CORRECTION: <brief explanation of what is wrong and the correct answer>\n"
+            "Output ONLY the above — no other prose, no JSON wrapper."
+        ),
+        expected_output=(
+            "Exactly one of:\n"
+            "  APPROVED\n"
+            "  APPROVED (unverifiable, trust tutor)\n"
+            "  CORRECTION: <explanation>"
+        ),
+        agent=agent,
+        context=context_tasks,
+    )
+
+
+# ── Mock test analyst task ─────────────────────────────────────────────
+
+def make_mock_test_task(agent: Agent, context_tasks: list[Task] | None = None) -> Task:
+    """
+    Analyse a completed mock test attempt and update the study plan.
+
+    Placeholders: {student_id}, {attempt_id}, {plan_date}
+    """
+    return Task(
+        description=(
+            "Analyse the mock test attempt for student {student_id}.\n"
+            "Attempt ID: {attempt_id}\n"
+            "Plan start date for updated schedule: {plan_date}\n\n"
+            "Goal: identify weak subjects and topics from this attempt and update the "
+            "student's study plan to prioritise revision of those areas.\n\n"
+            "Steps:\n"
+            "1. Call Mock Test Analysis Tool with student_id='{student_id}' "
+            "and attempt_id='{attempt_id}'.\n"
+            "2. Identify subjects where accuracy_pct < 60% and topics where "
+            "accuracy_pct < 50% (with ≥ 2 questions attempted).\n"
+            "3. Call Write Plan Tool to add extra revision sessions for weak areas.\n"
+            "4. Return ONLY the JSON summary described in expected_output."
+        ),
+        expected_output=(
+            "A JSON object with this exact schema:\n"
+            "{\n"
+            '  "student_id": "<uuid>",\n'
+            '  "attempt_id": "<uuid>",\n'
+            '  "weakest_subject": "Physics",\n'
+            '  "weakest_topics": ["Newton\'s Laws", "Thermodynamics"],\n'
+            '  "plan_updated": true,\n'
+            '  "skipped_count": 5,\n'
+            '  "avg_time_per_question_s": 72.4\n'
+            "}"
+        ),
+        agent=agent,
+        context=context_tasks or [],
     )

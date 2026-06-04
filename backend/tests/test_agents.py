@@ -314,11 +314,11 @@ class TestCrewConfig:
         assert crew is not None
 
     def test_nightly_crew_builds_three_agents(self):
-        """Verify crew.run creates exactly 3 agents by intercepting Crew.__init__."""
+        """Verify crew.run creates exactly 3 agents (+ manager) by intercepting Crew.__init__."""
         captured = {}
 
         class _FakeCrew:
-            def __init__(self, agents, tasks, process, verbose):
+            def __init__(self, agents, tasks, **kwargs):
                 captured["agent_count"] = len(agents)
                 captured["task_count"] = len(tasks)
 
@@ -333,14 +333,15 @@ class TestCrewConfig:
                 language="bn",
             )
 
-        assert captured["agent_count"] == 3
+        # Manager + 3 task agents (diagnostic, planner, monitor)
+        assert captured["agent_count"] == 4
         assert captured["task_count"] == 3
 
     def test_question_crew_builds_one_agent(self):
         captured = {}
 
         class _FakeCrew:
-            def __init__(self, agents, tasks, process, verbose):
+            def __init__(self, agents, tasks, **kwargs):
                 captured["agent_count"] = len(agents)
 
             def kickoff(self, inputs):
@@ -353,7 +354,8 @@ class TestCrewConfig:
                 language="en",
             )
 
-        assert captured["agent_count"] == 1
+        # Generator + verifier agents
+        assert captured["agent_count"] == 2
 
 
 # ─────────────────────────────────────────────────────────────────────

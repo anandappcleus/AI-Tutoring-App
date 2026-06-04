@@ -45,6 +45,8 @@ from app.database import get_db
 from app.models.student import QuizAnswer, Student, StudyPlan
 from app.routers.auth import get_current_student
 from app.services.redis_client import get_redis
+from app.rag.semantic_cache import get_semantic_cache
+from app.rag.embedder import Embedder
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -710,6 +712,87 @@ def _parse_crew_output(raw: str) -> dict:
     return {}
 
 
+# ── Event-driven mini crew ────────────────────────────────────────────
+
+async def _maybe_fire_mini_crew(
+    student_id: str,
+    topic: str,
+    language: str,
+    plan_date: str,
+    db: AsyncSession,
+) -> None:
+    """
+    Fire a lightweight 2-agent diagnostic+planner crew when a student answers
+    3 consecutive questions on the same topic all incorrectly.
+
+    This is best-effort and non-blocking: any error is logged but never raised.
+    """
+    try:
+        from sqlalchemy import desc
+        cutoff = datetime.now(timezone.utc) - timedelta(days=3)
+        result = await db.execute(
+            select(QuizAnswer)
+            .where(
+                QuizAnswer.student_id == student_id,
+                QuizAnswer.topic == topic,
+                QuizAnswer.answered_at >= cutoff,
+            )
+            .order_by(desc(QuizAnswer.answered_at))
+            .limit(3)
+        )
+        last_3 = result.scalars().all()
+        consecutive_wrong = sum(1 for a in last_3 if not a.is_correct)
+        if len(last_3) < 3 or any(a.is_correct for a in last_3):
+            log.debug(
+                "ask.mini_crew_check  student_id=%s  topic=%s"
+                "  answers_checked=%d  consecutive_wrong=%d  triggered=False",
+                student_id, topic, len(last_3), consecutive_wrong,
+            )
+            return  # Not 3 consecutive wrong answers — no trigger
+
+        log.info(
+            "ask.mini_crew_trigger  student_id=%s  topic=%s  consecutive_wrong=%d",
+            student_id, topic, consecutive_wrong,
+        )
+
+        from app.agents.agents import make_diagnostic_agent, make_planner_agent
+        from app.agents.tasks import make_diagnostic_task, make_planning_task
+        from crewai import Crew, Process
+
+        def _run_mini_crew() -> None:
+            import time as _time
+            t0 = _time.perf_counter()
+            diag_agent = make_diagnostic_agent()
+            plan_agent = make_planner_agent()
+            diag_task = make_diagnostic_task(diag_agent)
+            plan_task = make_planning_task(plan_agent, context_tasks=[diag_task])
+            crew = Crew(
+                agents=[diag_agent, plan_agent],
+                tasks=[diag_task, plan_task],
+                process=Process.sequential,
+                verbose=False,
+            )
+            crew.kickoff(inputs={
+                "student_id": student_id,
+                "plan_date": plan_date,
+                "language": language,
+                "phone_number": "",
+            })
+            elapsed_ms = (_time.perf_counter() - t0) * 1_000
+            log.info(
+                "ask.mini_crew_done  student_id=%s  topic=%s  elapsed_ms=%.0f",
+                student_id, topic, elapsed_ms,
+            )
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(_executor, _run_mini_crew)
+    except Exception:
+        log.warning(
+            "ask.mini_crew_failed  student_id=%s  topic=%s",
+            student_id, topic, exc_info=True,
+        )
+
+
 # ── Endpoint ──────────────────────────────────────────────────────────
 
 @router.post("/ask", response_model=AskResponse, tags=["ask"])
@@ -734,6 +817,52 @@ async def ask(
 
     # ── Freemium gate ────────────────────────────────────────────────
     await _check_daily_limit(current_student, db)
+
+    # ── Semantic answer cache check (skip for image requests) ────────
+    _query_vec: list[float] | None = None
+    if not body.image_b64:
+        try:
+            _embedder = Embedder()
+            _t_embed = asyncio.get_running_loop().time()
+            _query_vec = await asyncio.get_running_loop().run_in_executor(
+                _executor, _embedder.embed_query, body.question
+            )
+            _embed_ms = (asyncio.get_running_loop().time() - _t_embed) * 1_000
+            log.debug(
+                "ask.cache_embed  student_id=%s  embed_ms=%.0f  vec_dim=%d",
+                student_id, _embed_ms, len(_query_vec) if _query_vec else 0,
+            )
+            cache_hit = await get_semantic_cache().get(_query_vec)
+            if cache_hit:
+                log.info(
+                    "ask.semantic_cache_hit  student_id=%s  q_len=%d  embed_ms=%.0f",
+                    student_id, len(body.question), _embed_ms,
+                )
+                cached_parsed = _parse_crew_output(cache_hit)
+                if cached_parsed:
+                    return AskResponse(
+                        answer=cached_parsed.get("answer", ""),
+                        explanation=cached_parsed.get("explanation", ""),
+                        worked_example=cached_parsed.get("worked_example", ""),
+                        practice_problems=[
+                            PracticeProblem(
+                                question=p["question"],
+                                answer=p["answer"],
+                                question_type=p.get("question_type"),
+                                marks=p.get("marks"),
+                                marking_scheme=p.get("marking_scheme"),
+                            )
+                            for p in cached_parsed.get("practice_problems", [])
+                            if isinstance(p, dict) and "question" in p and "answer" in p
+                        ],
+                        language=lang,
+                        question_type=cached_parsed.get("question_type"),
+                        marks=cached_parsed.get("marks"),
+                        marking_scheme=cached_parsed.get("marking_scheme"),
+                    )
+        except Exception:
+            log.warning("ask.semantic_cache_check_failed  student_id=%s", student_id, exc_info=True)
+            _query_vec = None
 
     # ── Fetch student's weak topics for personalised context ────────
     weak_topics = await _get_weak_topics(current_student.id, db)
@@ -908,6 +1037,12 @@ async def ask(
         )
         await db.rollback()
 
+    # ── Event-driven mini-crew: trigger on 3 consecutive wrong answers ─
+    if llm_topic:
+        asyncio.create_task(
+            _maybe_fire_mini_crew(student_id, llm_topic, lang, str(date.today()), db)
+        )
+
     # ── Redis: increment rate-limit counter + persist conversation history ─
     redis = get_redis()
     if redis is not None:
@@ -958,6 +1093,19 @@ async def ask(
                 )
     else:
         fallback_explanation = ""
+
+    # ── Write to semantic answer cache (non-blocking, text-only questions) ─
+    if _query_vec is not None and parsed:
+        try:
+            asyncio.create_task(
+                get_semantic_cache().set(
+                    _query_vec,
+                    json.dumps(parsed),
+                    query_preview=body.question[:80],
+                )
+            )
+        except Exception:
+            log.warning("ask.semantic_cache_write_failed  student_id=%s", student_id, exc_info=True)
 
     return AskResponse(
         answer=parsed.get("answer", ""),

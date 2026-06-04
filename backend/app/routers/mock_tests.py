@@ -308,6 +308,70 @@ _MOCK_TEST_CATALOG: list[MockTestResponse] = [
 ]
 
 # Build a lookup for duration by paper_id (used when starting an attempt)
+
+
+# ── Event-driven mock test analyst crew ───────────────────────────────
+
+async def _fire_mock_analysis_crew(
+    student_id: str,
+    attempt_id: str,
+    language: str,
+    plan_date: str,
+) -> None:
+    """
+    Fire a 2-agent (Mock Test Analyst + Planner) crew in a background thread
+    immediately after a mock test is submitted.
+
+    Non-blocking: all errors are logged but never raised.
+    """
+    import asyncio as _asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    _mt_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mock_crew")
+
+    def _run() -> None:
+        from app.agents.agents import make_mock_test_analyst_agent, make_planner_agent
+        from app.agents.tasks import make_mock_test_task, make_planning_task
+        from crewai import Crew, Process
+
+        try:
+            analyst = make_mock_test_analyst_agent()
+            planner = make_planner_agent()
+            mock_task = make_mock_test_task(analyst)
+            plan_task = make_planning_task(planner, context_tasks=[mock_task])
+            crew = Crew(
+                agents=[analyst, planner],
+                tasks=[mock_task, plan_task],
+                process=Process.sequential,
+                verbose=False,
+            )
+            crew.kickoff(inputs={
+                "student_id": student_id,
+                "attempt_id": attempt_id,
+                "plan_date": plan_date,
+                "language": language,
+                "phone_number": "",
+            })
+            log.info(
+                "mock_tests.analyst_crew_done  student_id=%s  attempt_id=%s",
+                student_id, attempt_id,
+            )
+        except Exception:
+            log.warning(
+                "mock_tests.analyst_crew_failed  student_id=%s  attempt_id=%s",
+                student_id, attempt_id, exc_info=True,
+            )
+
+    try:
+        loop = _asyncio.get_running_loop()
+        await loop.run_in_executor(_mt_executor, _run)
+    except Exception:
+        log.warning(
+            "mock_tests._fire_mock_analysis_crew  executor_failed  student_id=%s",
+            student_id, exc_info=True,
+        )
+
+
 _PAPER_DURATION: dict[str, int] = {p.id: p.duration_minutes for p in _MOCK_TEST_CATALOG}
 
 
@@ -563,6 +627,17 @@ async def submit_attempt(
     attempt.accuracy_pct = Decimal(str(accuracy))
     attempt.subject_breakdown = breakdown
     await db.commit()
+
+    # ── Event trigger: fire mock test analyst crew asynchronously ─────
+    import asyncio as _asyncio
+    _asyncio.create_task(
+        _fire_mock_analysis_crew(
+            str(current_student.id),
+            str(attempt.id),
+            current_student.preferred_language or "en",
+            str(datetime.now(timezone.utc).date()),
+        )
+    )
 
     log.info(
         "mock_tests.attempt.submit  student=%s  paper=%s  score=%d/%d  accuracy=%.1f%%",

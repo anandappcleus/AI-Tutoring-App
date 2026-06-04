@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     VECTOR_DB: str = "chroma"  # "chroma" | "pinecone"
     CHROMA_PERSIST_DIR: str = "chroma_db"  # relative to backend/ working dir
 
+    # ── RAG pipeline enhancements ────────────────────────────────────
+    RERANKER_MODEL: str = "nvidia/nv-rerankqa-mistral-4b-v3"
+    SEMANTIC_CACHE_TTL: int = 604800        # 7 days in seconds
+    SEMANTIC_CACHE_THRESHOLD: float = 0.92  # cosine similarity for cache hit
+    SEMANTIC_CACHE_MAX_ENTRIES: int = 1000  # max entries in the ZSET index
+    HYDE_ENABLED: bool = True               # HyDE query rewriting
+    BM25_ENABLED: bool = True               # BM25 sparse retrieval + RRF fusion
+
     # ── Database ─────────────────────────────────────────────────────
     DATABASE_URL: str
     DB_POOL_SIZE: int = 5

@@ -4,12 +4,14 @@ CrewAI crew definitions for the AI Tutoring platform.
 Two crews:
 
 NightlyTutorCrew
-    Sequential: diagnostic → planning → monitor
+    Hierarchical: Manager orchestrates diagnostic → planning → monitor
+    (+ optional Mock Test Analyst when recent attempt available)
     Run once per student during the nightly APScheduler job.
-    inputs: student_id, phone_number, plan_date, language
+    inputs: student_id, phone_number, plan_date, language,
+            recent_attempt_id (optional)
 
 QuestionCrew
-    Single-agent: question_generator
+    Sequential: question_generator → verifier
     Run per-request from POST /ask.
     inputs: question, student_id, language
 """
@@ -17,28 +19,39 @@ QuestionCrew
 from __future__ import annotations
 
 import logging
+import time
 
 from crewai import Crew, Process
 
 from app.agents.agents import (
     make_diagnostic_agent,
+    make_manager_agent,
+    make_mock_test_analyst_agent,
     make_monitor_agent,
     make_planner_agent,
     make_question_generator_agent,
+    make_verifier_agent,
 )
 from app.agents.tasks import (
     make_diagnostic_task,
+    make_mock_test_task,
     make_monitor_task,
     make_planning_task,
     make_question_task,
+    make_verification_task,
 )
+from app.config import get_settings
+
 
 log = logging.getLogger(__name__)
 
 
 class NightlyTutorCrew:
     """
-    Runs the full 4-agent diagnostic / planning / monitoring cycle for one student.
+    Runs the full diagnostic / planning / monitoring cycle for one student.
+
+    The crew uses hierarchical process with a Manager Agent that orchestrates
+    when to run (or skip) each sub-agent.
 
     Usage::
 
@@ -48,6 +61,7 @@ class NightlyTutorCrew:
             phone_number="919876543210",
             plan_date="2026-05-14",
             language="bn",
+            recent_attempt_id="...",   # optional
         )
     """
 
@@ -57,29 +71,53 @@ class NightlyTutorCrew:
         phone_number: str,
         plan_date: str,
         language: str = "en",
+        recent_attempt_id: str | None = None,
     ) -> str:
         log.info(
-            "NightlyTutorCrew.run  student_id=%s  plan_date=%s  lang=%s",
+            "NightlyTutorCrew.run  student_id=%s  plan_date=%s  lang=%s  attempt=%s",
             student_id,
             plan_date,
             language,
+            recent_attempt_id or "none",
         )
+        s = get_settings()
 
-        # Build fresh agents and tasks for each student run
+        # ── Build agents ───────────────────────────────────────────────
+        manager_agent = make_manager_agent()
         diagnostic_agent = make_diagnostic_agent()
         planner_agent = make_planner_agent()
         monitor_agent = make_monitor_agent()
 
+        # ── Build tasks ────────────────────────────────────────────────
         diagnostic_task = make_diagnostic_task(diagnostic_agent)
         planning_task = make_planning_task(planner_agent, context_tasks=[diagnostic_task])
-        monitor_task = make_monitor_task(
-            monitor_agent, context_tasks=[diagnostic_task]
-        )
+        monitor_task = make_monitor_task(monitor_agent, context_tasks=[diagnostic_task])
 
+        agents = [manager_agent, diagnostic_agent, planner_agent, monitor_agent]
+        tasks = [diagnostic_task, planning_task, monitor_task]
+
+        # Conditionally include Mock Test Analyst
+        if recent_attempt_id:
+            analyst_agent = make_mock_test_analyst_agent()
+            mock_task = make_mock_test_task(analyst_agent, context_tasks=[diagnostic_task])
+            agents.append(analyst_agent)
+            tasks.append(mock_task)
+
+        # ── Build crew ─────────────────────────────────────────────────
         crew = Crew(
-            agents=[diagnostic_agent, planner_agent, monitor_agent],
-            tasks=[diagnostic_task, planning_task, monitor_task],
-            process=Process.sequential,
+            agents=agents,
+            tasks=tasks,
+            process=Process.hierarchical,
+            manager_agent=manager_agent,
+            memory=True,
+            embedder={
+                "provider": "openai",
+                "config": {
+                    "model": s.EMBED_MODEL,
+                    "api_key": s.LLM_API_KEY,
+                    "base_url": s.LLM_BASE_URL,
+                },
+            },
             verbose=False,
         )
 
@@ -89,6 +127,7 @@ class NightlyTutorCrew:
                 "phone_number": phone_number,
                 "plan_date": plan_date,
                 "language": language,
+                "attempt_id": recent_attempt_id or "",
             }
         )
         log.info("NightlyTutorCrew.run  complete  student_id=%s", student_id)
@@ -97,7 +136,9 @@ class NightlyTutorCrew:
 
 class QuestionCrew:
     """
-    On-demand single-agent crew for answering a student question.
+    On-demand crew for answering a student question with optional SymPy verification.
+
+    Pipeline: question_generator → verifier (if SYMPY_VERIFY_ENABLED)
 
     Usage::
 
@@ -146,10 +187,25 @@ class QuestionCrew:
         generator_agent = make_question_generator_agent(lang_code=language)
         question_task = make_question_task(generator_agent)
 
+        verifier_agent = make_verifier_agent()
+        verification_task = make_verification_task(
+            verifier_agent, context_tasks=[question_task]
+        )
+
+        s = get_settings()
         crew = Crew(
-            agents=[generator_agent],
-            tasks=[question_task],
+            agents=[generator_agent, verifier_agent],
+            tasks=[question_task, verification_task],
             process=Process.sequential,
+            memory=True,
+            embedder={
+                "provider": "openai",
+                "config": {
+                    "model": s.EMBED_MODEL,
+                    "api_key": s.LLM_API_KEY,
+                    "base_url": s.LLM_BASE_URL,
+                },
+            },
             verbose=False,
         )
 
@@ -159,6 +215,14 @@ class QuestionCrew:
             "General academic style. Use appropriate question_type (MCQ, Short Answer, etc.) "
             "and marks (2-4) for the topic.",
         )
+
+        log.info(
+            "QuestionCrew.kickoff  student_id=%s  agents=%d  tasks=%d"
+            "  process=sequential  exam=%s",
+            student_id, 2, 2, exam_type or "general",
+        )
+
+        t0 = time.perf_counter()
         result = crew.kickoff(
             inputs={
                 "question": question,
@@ -168,5 +232,21 @@ class QuestionCrew:
                 "exam_context": exam_context,
             }
         )
-        log.info("QuestionCrew.run  complete  student_id=%s", student_id)
-        return str(result)
+        elapsed_ms = (time.perf_counter() - t0) * 1_000
+        result_str = str(result)
+
+        # Determine verifier verdict from result string
+        if "APPROVED" in result_str.upper():
+            verdict = "APPROVED"
+        elif "CORRECTION" in result_str.upper() or "REVISED" in result_str.upper():
+            verdict = "CORRECTION"
+        else:
+            verdict = "UNKNOWN"
+
+        log.info(
+            "QuestionCrew.done  student_id=%s  exam=%s  elapsed_ms=%.0f"
+            "  verdict=%s  result_chars=%d",
+            student_id, exam_type or "general", elapsed_ms,
+            verdict, len(result_str),
+        )
+        return result_str

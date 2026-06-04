@@ -10,10 +10,18 @@ The NIM embeddings API is OpenAI-compatible. The only difference is the
 `input_type` extra body param required by nv-embedqa-e5-v5:
     "passage"  — use when embedding corpus documents (ingestion)
     "query"    — use when embedding a search query (retrieval)
+
+Query-time embedding cache (Redis):
+    embed_query() caches embeddings in Upstash Redis using SHA-256 as the key.
+    key: emb:{sha256(text)[:16]}   TTL: 86400s (24 h)
+    Passage embeddings are NOT cached — they are only needed during ingestion.
+    Cache is bypassed silently when Redis is unavailable.
 """
 
 import logging
 from typing import Any
+import hashlib
+import json
 
 import truststore
 truststore.inject_into_ssl()  # inject macOS Keychain certs — fixes SSL on Homebrew Python
@@ -26,6 +34,7 @@ log = logging.getLogger(__name__)
 
 # NIM / OpenAI embedding batch limit
 _MAX_BATCH = 32
+_EMBED_CACHE_TTL = 86400  # 24 hours
 
 
 class Embedder:
@@ -51,8 +60,49 @@ class Embedder:
         return self._embed(texts, input_type="passage")
 
     def embed_query(self, text: str) -> list[float]:
-        """Embed a single search query."""
-        return self._embed([text], input_type="query")[0]
+        """Embed a single search query, with Redis caching (TTL 24h)."""
+        # ── Cache check ──────────────────────────────────────────────
+        cache_key = f"emb:{hashlib.sha256(text.encode()).hexdigest()[:16]}"
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            log.debug("embed_query cache_hit  key=%s", cache_key)
+            return cached
+
+        vec = self._embed([text], input_type="query")[0]
+
+        # ── Cache write ──────────────────────────────────────────────
+        self._cache_set(cache_key, vec)
+        return vec
+
+    # ── Cache helpers (sync wrappers around Upstash REST) ─────────────
+
+    def _cache_get(self, key: str) -> list[float] | None:
+        """Return cached vector or None.  Uses upstash-redis sync REST client."""
+        try:
+            from upstash_redis import Redis as SyncRedis  # type: ignore[import]
+            s = get_settings()
+            if not s.UPSTASH_REDIS_REST_URL or not s.UPSTASH_REDIS_REST_TOKEN:
+                return None
+            redis = SyncRedis(url=s.UPSTASH_REDIS_REST_URL, token=s.UPSTASH_REDIS_REST_TOKEN)
+            raw = redis.get(key)
+            if raw is not None:
+                return json.loads(raw)
+        except Exception as exc:
+            log.debug("embed_query cache_get error (%s)", exc)
+        return None
+
+    def _cache_set(self, key: str, vec: list[float]) -> None:
+        """Write vector to cache with TTL."""
+        try:
+            from upstash_redis import Redis as SyncRedis  # type: ignore[import]
+            s = get_settings()
+            if not s.UPSTASH_REDIS_REST_URL or not s.UPSTASH_REDIS_REST_TOKEN:
+                return
+            redis = SyncRedis(url=s.UPSTASH_REDIS_REST_URL, token=s.UPSTASH_REDIS_REST_TOKEN)
+            redis.set(key, json.dumps(vec), ex=_EMBED_CACHE_TTL)
+            log.debug("embed_query cache_set  key=%s  ttl=%d", key, _EMBED_CACHE_TTL)
+        except Exception as exc:
+            log.debug("embed_query cache_set error (%s)", exc)
 
     # ── Internal ──────────────────────────────────────────────────────
 
