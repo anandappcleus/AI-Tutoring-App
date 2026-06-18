@@ -677,3 +677,136 @@ StudyViewModel: replayPendingQuestions complete  replayed=1
 | Progress ViewModel | `Features/Progress/ProgressViewModel.swift` | ✅ | ✅ | 6 |
 | AppLogger | `Core/Logging/AppLogger.swift` | ✅ | — | 7+ |
 | ImagePickerView | `Core/UI/ImagePickerView.swift` | ✅ | — | 7+ |
+---------------------------------------------------------
+I understand you want a stakeholder-ready feedback post based on the Smart Tutor MVP1 screen recording, so I’ll first locate and review that recording in the workspace and then synthesize it into a concise, structured assessment. I’m starting by finding the video file and then extracting the user flow it demonstrates.
+
+I’m running a quick media-file scan across the workspace to find the exact recording and confirm I’m reviewing the right artifact.
+
+Searched for files matching `**/*.{mp4,mov,m4v,avi,mkv,webm,gif}`, no matches
+
+No video file appeared in the standard media scan, so I’m checking for alternate naming/location patterns (including uppercase extensions and hidden folders) before I proceed.
+
+Searched for files matching `**/*.{MP4,MOV,M4V,AVI,MKV,WEBM}`, no matches
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App)
+
+Searched for files matching `**/*screen*.*`, no matches
+
+I can’t access a screen recording in the current workspace yet, so I’ll ask for the exact file location or upload so I can base the feedback on the actual walkthrough instead of assumptions.
+
+Analyzing your answers...
+
+I have the YouTube link now, and next I’m pulling whatever structured content is available (title/description/transcript cues) so I can derive a faithful flow summary for stakeholders.
+
+
+
+Fetched https://youtu.be/0b0cAs26RMk
+
+
+
+Fetched https://www.youtube.com/watch?v=0b0cAs26RMk&feature=youtu.be
+
+The YouTube page is behind an auth wall from this environment, so I can’t directly watch it here; I’m now extracting the app purpose and flow from the SmartTutor code/docs to produce a practical stakeholder feedback draft, then I’ll note this limitation transparently.
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/README.md)
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/PROGRESS.md#1-1), lines 1 to 260
+
+I now have the product context from project docs; next I’m validating the actual in-app flow from SwiftUI entry points and major feature view models so the feedback reflects what users see in MVP1.
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/SmartTutorApp.swift)
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/ContentView.swift)
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/App/AppState.swift)
+
+I’ve confirmed the core shell flow (login → onboarding → tabbed learning app). I’m now reviewing the main feature screens to capture the actual learner journey and where UX/performance risks appear.
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/Study/StudyView.swift#1-1), lines 1 to 420
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/Dashboard/DashboardView.swift#1-1), lines 1 to 420
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/Study/StudyViewModel.swift#1-1), lines 1 to 420
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/Onboarding/OnboardingView.swift#1-1), lines 1 to 320
+
+I’ve mapped the main learner loop; I’m doing one targeted scan of other modules (progress, parent, offline, mock tests, settings/paywall) to make the feedback complete and balanced for stakeholders.
+
+Searched for regex `TODO|coming soon|deferred|Not Started|placeholder|hardcoded` (`**/SmartTutor/SmartTutor/**/*.swift`), 47 results
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/Progress/ProgressViewModel.swift)
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/Parent/ParentDashboardViewModel.swift)
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/OfflinePacks/OfflinePacksViewModel.swift)
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/MockTests/MockTestsView.swift#1-1), lines 1 to 320
+
+I’m making one last attempt to access the recording through a public embed endpoint; if that fails, I’ll clearly mark this as a code-informed feedback draft and keep it stakeholder-ready.
+
+
+
+Fetched https://www.youtube.com/embed/0b0cAs26RMk
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/Auth/LoginView.swift)
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/Settings/SettingsView.swift#1-1), lines 1 to 260
+
+Read [](file:///Users/anand.pandey2/Documents/Personal/AI-Tutoring-App/SmartTutor/SmartTutor/Features/Paywall/PaywallView.swift#1-1), lines 1 to 260
+
+Stakeholder Feedback Post: Smart Tutor (MVP1)
+
+Note: I could not directly play the YouTube link in this environment due an access wall, so this draft is based on the implemented Smart Tutor MVP behavior and flow visible in the current iOS project. If you share the recording file directly, I can tighten this into a recording-specific final pass.
+
+1. What the app actually does
+Smart Tutor is an exam-focused AI learning assistant for JEE, NEET, and WB Board students. The learner journey is:
+
+1. Login and onboarding: student selects language, exam target, and profile basics.
+2. Home dashboard: quick entry into AI learning, recommended focus topics, and study modules.
+3. Study experience: asks doubts via text, voice, and image-assisted prompts; receives guided explanations with exam framing.
+4. Practice ecosystem: mock tests, syllabus map, and formula sheets route students back into AI tutoring for targeted learning.
+5. Progress layer: tracks accuracy, streaks, weekly activity, and weak topics; parent-facing dashboard summarizes readiness.
+6. Continuity features: offline behavior for some study modes and queued sync/replay when connectivity returns.
+7. Monetization: freemium usage limits with a premium upsell path.
+
+In short, this MVP is not just a chatbot. It is a guided study workflow combining AI doubt solving, exam-context practice, and progress visibility.
+
+2. Key strengths
+1. Strong value proposition for target segment: exam-specific tutoring (JEE/NEET/WB) is clearer and more relevant than a generic “AI tutor” pitch.
+2. Multi-modal input is practical: text + voice + image paths reduce friction for real student behavior.
+3. Cohesive learning loop: dashboard modules feed back into the Study tab, keeping users in a focused learning cycle.
+4. Educational relevance: weak-topic visibility and exam-framed responses improve actionability over plain answers.
+5. Parent visibility is a differentiator: parent dashboard supports accountability and can improve retention.
+6. Resilience foundations exist: offline queue/replay and cached progress reduce total dependence on perfect network conditions.
+7. UI direction is modern and approachable: clear hierarchy, strong visual identity, and student-friendly interaction patterns.
+
+3. Areas for improvement
+1. Response-time perception: AI latency can feel long for chat-like interaction; perceived speed needs improvement to sustain engagement.
+2. Experience consistency: some modules feel production-ready while others still present “coming soon” depth or partial content coverage.
+3. Localization depth: language intent is strong, but full UX localization and regional nuance should match the core promise.
+4. Monetization readiness: paywall UX exists, but subscription trust, pricing clarity, and purchase flow confidence should be hardened for launch.
+5. Learning efficacy transparency: users need clearer confidence signals, step-quality checks, and source grounding for difficult questions.
+6. UI density and discoverability: many options are valuable, but first-time users may need tighter guidance on “what to do next.”
+7. Performance on weaker devices/networks: media and AI-heavy paths should be optimized for tier-2/3 real-world constraints.
+
+4. Suggestions for next MVP releases
+1. MVP1.1 (immediate, 2-4 weeks)
+1. Set performance SLOs for first token and total response time.
+2. Add stronger “in progress” feedback and fallback responses for slow calls.
+3. Tighten onboarding-to-first-value path so first answer quality is fast and personalized.
+4. Remove or soften unfinished surfaces to avoid expectation gaps.
+
+2. MVP1.2 (short term, 4-8 weeks)
+1. Expand high-priority language UX parity (not only answer language, but full interface flows).
+2. Add answer trust features: confidence badge, simplified citation/source hint, and “verify step” actions.
+3. Improve mock test coverage consistency by exam/year to avoid empty or partial journeys.
+4. Ship actionable nudges: “next best topic,” daily mini-goals, and revision reminders.
+
+3. MVP2 (scaling)
+1. Real subscription stack with clean conversion funnels and parental plan options.
+2. Adaptive learning path based on weak-topic mastery over time, not just static recommendations.
+3. Teacher/parent intervention tools: alerts, reports, and targeted assignments.
+4. Analytics-driven product loop: measure activation, weekly retention, answer usefulness, and exam outcome proxies.
+
+Bottom line
+Smart Tutor MVP1 already demonstrates a compelling exam-prep learning platform, not just an AI Q&A demo. The core foundation is strong. The biggest uplift now is execution quality: faster perceived performance, consistency across modules, and clearer proof of learning outcomes. These refinements can move it from a promising MVP to a scalable, high-retention student product.
